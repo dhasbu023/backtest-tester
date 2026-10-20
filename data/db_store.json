@@ -70,7 +70,7 @@
       "datasetId": "a0607134-c715-42cb-8a50-b7becef4f410",
       "symbol": "XAUUSD",
       "sourceTimeframe": "M1",
-      "activeTimeframe": "D1",
+      "activeTimeframe": "M1",
       "startReplayTime": 1782864000,
       "currentReplayTime": 1785937740,
       "currentCandleIndex": 35036,
@@ -78,7 +78,7 @@
       "status": "ACTIVE",
       "notes": "",
       "createdAt": "2026-10-19T11:52:23.852Z",
-      "updatedAt": "2026-10-20T04:54:24.743Z"
+      "updatedAt": "2026-10-20T05:04:57.752Z"
     },
     {
       "id": "00e62d2b-6d6f-4e5e-8c57-51aab321aacc",
@@ -99,14 +99,14 @@
   ],
   "replayStates": [
     {
-      "id": "5641cd5e-bb4a-44d7-92aa-366a248bd878",
+      "id": "84b7a535-919b-45a9-82f4-9630558cbc49",
       "sessionId": "d0ab9058-7c8b-431a-8a69-f2f65e8f905a",
       "currentTime": 1785937740,
       "currentIndex": 35036,
       "speed": 1,
-      "activeTimeframe": "D1",
+      "activeTimeframe": "M1",
       "isPlaying": false,
-      "lastSavedAt": "2026-10-20T04:54:24.743Z"
+      "lastSavedAt": "2026-10-20T05:04:57.752Z"
     },
     {
       "id": "041131d1-ca03-4d71-85c5-84dfaaf25455",
