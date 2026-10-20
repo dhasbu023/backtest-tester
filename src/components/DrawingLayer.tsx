@@ -9,8 +9,9 @@ import { formatDateTimeWithTz } from '../utils/timezone.js';
 import { HorizontalLineRenderer } from './Chart/Drawing/HorizontalLine/HorizontalLineRenderer.js';
 import HorizontalLineProperties from './Chart/Drawing/HorizontalLine/HorizontalLineProperties.js';
 import type { HorizontalLineStyle } from './Chart/Drawing/HorizontalLine/horizontalLine.defaults.js';
-import { VerticalLineRenderer } from './Chart/Drawing/VerticalLine/VerticalLineRenderer.js';
 import { TrendLineRenderer } from './Chart/Drawing/TrendLine/TrendLineRenderer.js';
+import { RectangleRenderer } from './Chart/Drawing/Rectangle/RectangleRenderer.js';
+import { RectanglePreview } from './Chart/Drawing/Rectangle/RectanglePreview.js';
 
 interface DrawingLayerProps {
   drawings: DrawingObject[];
@@ -680,16 +681,11 @@ export const DrawingLayer: React.FC<DrawingLayerProps> = ({
 
     if (activeTool === 'RECTANGLE') {
       return (
-        <rect
-          x={Math.min(firstPixel.x, currentPixel.x)}
-          y={Math.min(firstPixel.y, currentPixel.y)}
-          width={Math.abs(firstPixel.x - currentPixel.x)}
-          height={Math.abs(firstPixel.y - currentPixel.y)}
-          fill={currentColor}
-          fillOpacity={0.15}
-          stroke={currentColor}
+        <RectanglePreview
+          firstPoint={firstPixel}
+          currentPoint={currentPixel}
+          color={currentColor}
           strokeWidth={currentStrokeWidth}
-          strokeDasharray="4 4"
         />
       );
     }
@@ -908,62 +904,16 @@ export const DrawingLayer: React.FC<DrawingLayerProps> = ({
 
               if (!firstPoint || !secondPoint) return null;
 
-              const minX = Math.min(firstPoint.x, secondPoint.x);
-              const minY = Math.min(firstPoint.y, secondPoint.y);
-              const width = Math.abs(firstPoint.x - secondPoint.x);
-              const height = Math.abs(firstPoint.y - secondPoint.y);
-
               return (
-                <g
+                <RectangleRenderer
                   key={drawing.id}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onSelectDrawing(drawing.id);
-                  }}
-                  className="cursor-pointer"
-                  style={{ pointerEvents: 'auto' }}
-                >
-                  <rect
-                    x={minX}
-                    y={minY}
-                    width={width}
-                    height={height}
-                    fill={drawing.fillColor || drawing.color}
-                    fillOpacity={drawing.opacity ?? 0.18}
-                    stroke={drawing.color}
-                    strokeWidth={drawing.strokeWidth}
-                    onMouseDown={(event) =>
-                      startDragging(event, -1, drawing)
-                    }
-                  />
-
-                  {isSelected && (
-                    <>
-                      <circle
-                        cx={firstPoint.x}
-                        cy={firstPoint.y}
-                        r={4.5}
-                        fill="#ffffff"
-                        stroke={drawing.color}
-                        strokeWidth={2}
-                        onMouseDown={(event) =>
-                          startDragging(event, 0, drawing)
-                        }
-                      />
-                      <circle
-                        cx={secondPoint.x}
-                        cy={secondPoint.y}
-                        r={4.5}
-                        fill="#ffffff"
-                        stroke={drawing.color}
-                        strokeWidth={2}
-                        onMouseDown={(event) =>
-                          startDragging(event, 1, drawing)
-                        }
-                      />
-                    </>
-                  )}
-                </g>
+                  drawing={drawing}
+                  firstPoint={firstPoint}
+                  secondPoint={secondPoint}
+                  isSelected={isSelected}
+                  onSelect={onSelectDrawing}
+                  onStartDragging={startDragging}
+                />
               );
             }
 
