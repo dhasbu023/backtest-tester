@@ -1,0 +1,154 @@
+{
+  "datasets": [
+    {
+      "id": "a0607134-c715-42cb-8a50-b7becef4f410",
+      "name": "XAUUSD MT5 MT5_XAUUSDm_M1_tes",
+      "symbol": "XAUUSD",
+      "timeframe": "M1",
+      "startDate": "2026-07-01T00:00:00.000Z",
+      "endDate": "2026-09-01T00:00:00.000Z",
+      "candleCount": 60382,
+      "fileSize": 5546426,
+      "sourceFormat": "MT5_CSV",
+      "status": "READY",
+      "createdAt": "2026-10-19T11:43:42.681Z",
+      "updatedAt": "2026-10-19T11:43:42.681Z"
+    },
+    {
+      "id": "814b8e32-41c5-4967-ac39-4d06a45fbd7d",
+      "name": "XAUUSD MT5 MT5_XAUUSDm_M1_2024-2026",
+      "symbol": "XAUUSD",
+      "timeframe": "M1",
+      "startDate": "2024-01-01T23:05:00.000Z",
+      "endDate": "2026-09-01T00:00:00.000Z",
+      "candleCount": 941965,
+      "fileSize": 86344441,
+      "sourceFormat": "MT5_CSV",
+      "status": "READY",
+      "createdAt": "2026-10-19T11:57:36.435Z",
+      "updatedAt": "2026-10-19T11:57:36.435Z"
+    }
+  ],
+  "jobs": [
+    {
+      "id": "d12d585c-1eba-4d66-93c2-e806b0ebd7af",
+      "datasetId": "a0607134-c715-42cb-8a50-b7becef4f410",
+      "fileName": "MT5_XAUUSDm_M1_tes.csv",
+      "fileSize": 5546426,
+      "symbol": "XAUUSD",
+      "timeframe": "M1",
+      "status": "COMPLETED",
+      "totalRows": 60382,
+      "validRows": 60382,
+      "invalidRows": 0,
+      "duplicateRows": 0,
+      "progressPercent": 100,
+      "startedAt": "2026-10-19T11:43:42.781Z",
+      "completedAt": "2026-10-19T11:43:42.781Z"
+    },
+    {
+      "id": "9d1800da-4ea4-4084-87da-25b71c1ac568",
+      "datasetId": "814b8e32-41c5-4967-ac39-4d06a45fbd7d",
+      "fileName": "MT5_XAUUSDm_M1_2024-2026.csv",
+      "fileSize": 86344441,
+      "symbol": "XAUUSD",
+      "timeframe": "M1",
+      "status": "COMPLETED",
+      "totalRows": 941965,
+      "validRows": 941965,
+      "invalidRows": 0,
+      "duplicateRows": 0,
+      "progressPercent": 100,
+      "startedAt": "2026-10-19T11:57:39.048Z",
+      "completedAt": "2026-10-19T11:57:39.048Z"
+    }
+  ],
+  "sessions": [
+    {
+      "id": "d0ab9058-7c8b-431a-8a69-f2f65e8f905a",
+      "name": "XAUUSD Backtest 19/10/2026",
+      "datasetId": "a0607134-c715-42cb-8a50-b7becef4f410",
+      "symbol": "XAUUSD",
+      "sourceTimeframe": "M1",
+      "activeTimeframe": "D1",
+      "startReplayTime": 1782864000,
+      "currentReplayTime": 1785937740,
+      "currentCandleIndex": 35036,
+      "replaySpeed": 1,
+      "status": "ACTIVE",
+      "notes": "",
+      "createdAt": "2026-10-19T11:52:23.852Z",
+      "updatedAt": "2026-10-20T03:59:34.838Z"
+    },
+    {
+      "id": "00e62d2b-6d6f-4e5e-8c57-51aab321aacc",
+      "name": "LATIHAN",
+      "datasetId": "814b8e32-41c5-4967-ac39-4d06a45fbd7d",
+      "symbol": "XAUUSD",
+      "sourceTimeframe": "M1",
+      "activeTimeframe": "M15",
+      "startReplayTime": 1704150300,
+      "currentReplayTime": 1721872680,
+      "currentCandleIndex": 199999,
+      "replaySpeed": 1,
+      "status": "ACTIVE",
+      "notes": "",
+      "createdAt": "2026-10-19T11:57:57.536Z",
+      "updatedAt": "2026-10-19T15:13:56.546Z"
+    }
+  ],
+  "replayStates": [
+    {
+      "id": "76956225-965b-4414-a5c9-d5b47aadefff",
+      "sessionId": "d0ab9058-7c8b-431a-8a69-f2f65e8f905a",
+      "currentTime": 1785937740,
+      "currentIndex": 35036,
+      "speed": 1,
+      "activeTimeframe": "D1",
+      "isPlaying": false,
+      "lastSavedAt": "2026-10-20T03:59:34.838Z"
+    },
+    {
+      "id": "0a179c50-37df-4108-8cb2-8ed6fe0b819f",
+      "sessionId": "00e62d2b-6d6f-4e5e-8c57-51aab321aacc",
+      "currentTime": 1721872680,
+      "currentIndex": 199999,
+      "speed": 1,
+      "activeTimeframe": "M15",
+      "isPlaying": false,
+      "lastSavedAt": "2026-10-19T15:13:56.546Z"
+    }
+  ],
+  "drawings": [],
+  "preferences": [
+    {
+      "sessionId": "d0ab9058-7c8b-431a-8a69-f2f65e8f905a",
+      "timezone": "Asia/Jakarta",
+      "showVolume": true,
+      "volumeType": "TICK",
+      "indicators": [],
+      "id": "fc68274c-6c52-4974-920e-d1e08a51c9b7",
+      "updatedAt": "2026-10-20T03:58:41.418Z"
+    },
+    {
+      "sessionId": "00e62d2b-6d6f-4e5e-8c57-51aab321aacc",
+      "timezone": "Asia/Jakarta",
+      "showVolume": true,
+      "volumeType": "TICK",
+      "indicators": [
+        {
+          "id": "ema-200",
+          "type": "EMA",
+          "name": "EMA 200",
+          "visible": false,
+          "period": 200,
+          "color": "#ef4444",
+          "strokeWidth": 2,
+          "pane": "main"
+        }
+      ],
+      "id": "ab9ed30b-41c6-474d-916b-4221d5e80187",
+      "updatedAt": "2026-10-19T15:13:52.442Z"
+    }
+  ]
+}

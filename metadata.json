@@ -1,0 +1,6 @@
+{
+  "name": "XAUUSD Backtest Lab V4",
+  "description": "Professional forex backtest workstation with session-based MT5 historical chart replay, multi-timeframe aggregation, and precise simulation controls.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

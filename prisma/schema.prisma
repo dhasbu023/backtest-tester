@@ -1,0 +1,136 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Dataset {
+  id           String             @id @default(uuid())
+  name         String
+  symbol       String             @default("XAUUSD")
+  timeframe    String             @default("M1")
+  startDate    DateTime
+  endDate      DateTime
+  candleCount  Int                @default(0)
+  fileSize     BigInt             @default(0)
+  sourceFormat String             @default("MT5_CSV")
+  status       String             @default("READY")
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  candles      Candle[]
+  sessions     BacktestSession[]
+  importJobs   DatasetImportJob[]
+
+  @@index([symbol, timeframe])
+}
+
+model DatasetImportJob {
+  id              String    @id @default(uuid())
+  datasetId       String?
+  fileName        String
+  fileSize        BigInt    @default(0)
+  symbol          String    @default("XAUUSD")
+  timeframe       String    @default("M1")
+  status          String    @default("PENDING")
+  totalRows       Int       @default(0)
+  validRows       Int       @default(0)
+  invalidRows     Int       @default(0)
+  duplicateRows   Int       @default(0)
+  progressPercent Float     @default(0.0)
+  errorMessage    String?
+  startedAt       DateTime  @default(now())
+  completedAt     DateTime?
+  dataset         Dataset?  @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+}
+
+model Candle {
+  id         String   @id @default(uuid())
+  datasetId  String
+  timestamp  BigInt
+  open       Float
+  high       Float
+  low        Float
+  close      Float
+  tickVolume BigInt   @default(0)
+  realVolume BigInt   @default(0)
+  spread     Float    @default(0)
+  dataset    Dataset  @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+
+  @@unique([datasetId, timestamp])
+  @@index([datasetId, timestamp])
+}
+
+model BacktestSession {
+  id                 String           @id @default(uuid())
+  name               String
+  datasetId          String
+  symbol             String           @default("XAUUSD")
+  sourceTimeframe    String           @default("M1")
+  activeTimeframe    String           @default("M1")
+  startReplayTime    BigInt
+  currentReplayTime  BigInt
+  currentCandleIndex Int              @default(0)
+  replaySpeed        Float            @default(1.0)
+  status             String           @default("ACTIVE")
+  notes              String?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  dataset            Dataset          @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+  replayState        ReplayState?
+  drawings           DrawingObject[]
+  preference         ChartPreference?
+
+  @@index([datasetId])
+}
+
+model ReplayState {
+  id              String          @id @default(uuid())
+  sessionId       String          @unique
+  currentTime     BigInt
+  currentIndex    Int             @default(0)
+  speed           Float           @default(1.0)
+  activeTimeframe String          @default("M1")
+  isPlaying       Boolean         @default(false)
+  lastSavedAt     DateTime        @default(now())
+  session         BacktestSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+model DrawingObject {
+  id              String          @id @default(uuid())
+  sessionId       String
+  type            String
+  points          String          // JSON string of DrawingPoint array
+  color           String          @default("#2563eb")
+  strokeWidth     Int             @default(2)
+  fillColor       String?
+  opacity         Float?          @default(0.2)
+  text            String?
+  fontSize        Int?            @default(12)
+  levels          String?         // JSON string of Fibonacci levels
+  extensionLevels String?         // JSON string of Fibonacci extension levels
+  locked          Boolean         @default(false)
+  visible         Boolean         @default(true)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  session         BacktestSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+}
+
+model ChartPreference {
+  id           String          @id @default(uuid())
+  sessionId    String          @unique
+  timezone     String          @default("Asia/Jakarta")
+  showVolume   Boolean         @default(true)
+  volumeType   String          @default("TICK")
+  volumeHeight Float           @default(0.18)
+  indicators   String          @default("[]") // JSON string of IndicatorConfig array
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  session      BacktestSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}

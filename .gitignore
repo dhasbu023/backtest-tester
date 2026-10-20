@@ -1,0 +1,88 @@
+
+# ==============================
+# ENVIRONMENT & SECRETS
+# ==============================
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# ==============================
+# NODE.JS & REACT / VITE
+# ==============================
+node_modules/
+dist/
+build/
+.vite/
+coverage/
+*.tsbuildinfo
+
+# ==============================
+# LOGS
+# ==============================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# ==============================
+# POSTGRESQL DATABASE
+# ==============================
+# Database dumps / backups
+*.sql
+*.sql.gz
+*.dump
+*.backup
+*.bak
+
+# PostgreSQL data directories
+pgdata/
+postgres-data/
+postgresql-data/
+database-data/
+db-data/
+data/postgres/
+**/pgdata/
+**/postgres-data/
+**/postgresql-data/
+**/database-data/
+**/db-data/
+
+# Local database files
+*.sqlite
+*.sqlite3
+*.db
+
+# ==============================
+# PRISMA
+# ==============================
+# Keep schema, migrations, and config
+# Do NOT ignore prisma/schema.prisma
+# Do NOT ignore prisma/migrations/
+
+# ==============================
+# DOCKER LOCAL DATA
+# ==============================
+# Add your own bind-mounted data directory
+# above if it has a different name.
+
+# ==============================
+# EDITORS & OS
+# ==============================
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ==============================
+# TEMPORARY FILES
+# ==============================
+tmp/
+temp/
+.cache/
+
+
+# Data candle lokal untuk backtesting
+/data/candles/
