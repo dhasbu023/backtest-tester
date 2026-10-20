@@ -1,3 +1,4 @@
+
 import React, {
   useCallback,
   useEffect,
@@ -15,14 +16,17 @@ import type {
   DrawingObject,
   DrawingPoint,
   DrawingToolType,
-} from '../types/index.js';
+} from '../../../types/index.js';
 
-import HorizontalLineProperties from './Chart/Drawing/HorizontalLine/HorizontalLineProperties.js';
-import type { HorizontalLineStyle } from './Chart/Drawing/HorizontalLine/horizontalLine.defaults.js';
-
-import { RectanglePreview } from './Chart/Drawing/Rectangle/RectanglePreview.js';
-import { createTextDrawing } from './Chart/Drawing/Text/TextCreator.js';
-import { DrawingRenderer } from './Chart/Drawing/DrawingRenderer.js';
+import HorizontalLineProperties from './HorizontalLine/HorizontalLineProperties.js';
+import type { HorizontalLineStyle } from './HorizontalLine/horizontalLine.defaults.js';
+import { RectanglePreview } from './Rectangle/RectanglePreview.js';
+import { createTextDrawing } from './Text/TextCreator.js';
+import { DrawingRenderer } from './DrawingRenderer.js';
+import { createFibonacciLevels } from './Fibonacci/fibonacci.utils.js';
+import { FibonacciPreview } from './Fibonacci/FibonacciPreview.js';
+import { createLongPositionDrawing } from './LongPosition/longPosition.utils.js';
+import { createShortPositionDrawing } from './ShortPosition/shortPosition.utils.js';
 
 interface DrawingLayerProps {
   drawings: DrawingObject[];
@@ -47,19 +51,6 @@ interface DragPosition {
   x: number;
   y: number;
 }
-
-const DEFAULT_FIBONACCI_LEVELS = [
-  { ratio: 0, color: '#3b82f6' },
-  { ratio: 0.236, color: '#f59e0b' },
-  { ratio: 0.382, color: '#10b981' },
-  { ratio: 0.5, color: '#3b82f6' },
-  { ratio: 0.618, color: '#8b5cf6' },
-  { ratio: 0.786, color: '#ec4899' },
-  { ratio: 1, color: '#3b82f6' },
-];
-
-const DEFAULT_LONG_TARGET_MULTIPLIER = 1.015;
-const DEFAULT_LONG_STOP_MULTIPLIER = 0.9925;
 
 const DEFAULT_SHORT_TARGET_MULTIPLIER = 0.985;
 const DEFAULT_SHORT_STOP_MULTIPLIER = 1.0075;
@@ -169,9 +160,7 @@ export const DrawingLayer: React.FC<DrawingLayerProps> = ({
   // --------------------------------------------------
 
   const pointToPixel = useCallback(
-    (
-      point: DrawingPoint,
-    ): DragPosition | null => {
+    (point: DrawingPoint): DragPosition | null => {
       if (!chart || !series) return null;
 
       try {
@@ -199,10 +188,7 @@ export const DrawingLayer: React.FC<DrawingLayerProps> = ({
   );
 
   const pixelToPoint = useCallback(
-    (
-      x: number,
-      y: number,
-    ): DrawingPoint | null => {
+    (x: number, y: number): DrawingPoint | null => {
       if (!chart || !series) return null;
 
       try {
@@ -662,49 +648,19 @@ export const DrawingLayer: React.FC<DrawingLayerProps> = ({
     const now = new Date().toISOString();
     const id = `draw-${Date.now()}`;
 
+   
     // ----------------------------------------------
     // Long position
     // ----------------------------------------------
 
     if (activeTool === 'LONG_POSITION') {
-      const entryPrice = point.price;
-      const targetPrice =
-        entryPrice * DEFAULT_LONG_TARGET_MULTIPLIER;
-
-      const stopPrice =
-        entryPrice * DEFAULT_LONG_STOP_MULTIPLIER;
-
-      const endTimestamp =
-        point.timestamp + 86_400 * POSITION_WIDTH_DAYS;
-
-      const newDrawing: DrawingObject = {
+      const newDrawing = createLongPositionDrawing({
+        point,
         id,
+        now,
         sessionId: '',
-        type: 'LONG_POSITION',
-        points: [
-          point,
-          {
-            timestamp: endTimestamp,
-            price: targetPrice,
-          },
-          {
-            timestamp: endTimestamp,
-            price: stopPrice,
-          },
-        ],
-        entryPrice,
-        targetPrice,
-        stopPrice,
-        riskReward:
-          (targetPrice - entryPrice) /
-          (entryPrice - stopPrice),
-        color: '#10b981',
-        strokeWidth: 2,
-        locked: false,
-        visible: true,
-        createdAt: now,
-        updatedAt: now,
-      };
+        widthDays: POSITION_WIDTH_DAYS,
+      });
 
       onAddDrawing(newDrawing);
       onSelectTool('CURSOR');
@@ -713,49 +669,21 @@ export const DrawingLayer: React.FC<DrawingLayerProps> = ({
       return;
     }
 
+    
+
+  
     // ----------------------------------------------
     // Short position
     // ----------------------------------------------
 
     if (activeTool === 'SHORT_POSITION') {
-      const entryPrice = point.price;
-      const targetPrice =
-        entryPrice * DEFAULT_SHORT_TARGET_MULTIPLIER;
-
-      const stopPrice =
-        entryPrice * DEFAULT_SHORT_STOP_MULTIPLIER;
-
-      const endTimestamp =
-        point.timestamp + 86_400 * POSITION_WIDTH_DAYS;
-
-      const newDrawing: DrawingObject = {
+      const newDrawing = createShortPositionDrawing({
+        point,
         id,
+        now,
         sessionId: '',
-        type: 'SHORT_POSITION',
-        points: [
-          point,
-          {
-            timestamp: endTimestamp,
-            price: targetPrice,
-          },
-          {
-            timestamp: endTimestamp,
-            price: stopPrice,
-          },
-        ],
-        entryPrice,
-        targetPrice,
-        stopPrice,
-        riskReward:
-          (entryPrice - targetPrice) /
-          (stopPrice - entryPrice),
-        color: '#ef4444',
-        strokeWidth: 2,
-        locked: false,
-        visible: true,
-        createdAt: now,
-        updatedAt: now,
-      };
+        widthDays: POSITION_WIDTH_DAYS,
+      });
 
       onAddDrawing(newDrawing);
       onSelectTool('CURSOR');
@@ -763,6 +691,7 @@ export const DrawingLayer: React.FC<DrawingLayerProps> = ({
 
       return;
     }
+
 
     // ----------------------------------------------
     // Horizontal line
@@ -843,6 +772,7 @@ export const DrawingLayer: React.FC<DrawingLayerProps> = ({
       activeTool === 'RECTANGLE' ||
       activeTool === 'FIBO_RETRACEMENT'
     ) {
+      // Titik pertama: mulai drawing.
       if (inProgressPoints.length === 0) {
         setInProgressPoints([point]);
         return;
@@ -852,16 +782,10 @@ export const DrawingLayer: React.FC<DrawingLayerProps> = ({
 
       if (!firstPoint) return;
 
+      // Level Fibonacci sekarang dibuat oleh modul Fibonacci.
       const levels =
         activeTool === 'FIBO_RETRACEMENT'
-          ? DEFAULT_FIBONACCI_LEVELS.map((level, index) => ({
-              ...level,
-              color:
-                index === 0 ||
-                index === DEFAULT_FIBONACCI_LEVELS.length - 1
-                  ? currentColor
-                  : level.color,
-            }))
+          ? createFibonacciLevels(currentColor)
           : undefined;
 
       const newDrawing: DrawingObject = {
@@ -871,17 +795,21 @@ export const DrawingLayer: React.FC<DrawingLayerProps> = ({
         points: [firstPoint, point],
         color: currentColor,
         strokeWidth: currentStrokeWidth,
+
         fillColor:
           activeTool === 'RECTANGLE'
             ? currentColor
             : undefined,
+
         opacity:
           activeTool === 'RECTANGLE'
             ? 0.18
             : undefined,
+
         extendRight: false,
         showLabels: true,
         levels,
+
         locked: false,
         visible: true,
         createdAt: now,
@@ -889,6 +817,7 @@ export const DrawingLayer: React.FC<DrawingLayerProps> = ({
       };
 
       onAddDrawing(newDrawing);
+
       setInProgressPoints([]);
       onSelectTool('CURSOR');
       onSelectDrawing(newDrawing.id);
@@ -916,7 +845,10 @@ export const DrawingLayer: React.FC<DrawingLayerProps> = ({
 
     if (!firstPixel || !currentPixel) return null;
 
+    // ----------------------------------------------
     // Trend line preview
+    // ----------------------------------------------
+
     if (activeTool === 'TREND_LINE') {
       return (
         <line
@@ -931,7 +863,10 @@ export const DrawingLayer: React.FC<DrawingLayerProps> = ({
       );
     }
 
+    // ----------------------------------------------
     // Rectangle preview
+    // ----------------------------------------------
+
     if (activeTool === 'RECTANGLE') {
       return (
         <RectanglePreview
@@ -943,67 +878,22 @@ export const DrawingLayer: React.FC<DrawingLayerProps> = ({
       );
     }
 
+    // ----------------------------------------------
     // Fibonacci preview
+    // ----------------------------------------------
+
     if (activeTool === 'FIBO_RETRACEMENT') {
-      const startPrice = firstPoint.price;
-      const endPrice = currentMousePoint.price;
-      const diff = endPrice - startPrice;
-
-      const ratios = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1];
-
       return (
-        <g opacity={0.75}>
-          <line
-            x1={firstPixel.x}
-            y1={firstPixel.y}
-            x2={currentPixel.x}
-            y2={currentPixel.y}
-            stroke={currentColor}
-            strokeDasharray="3 3"
-          />
-
-          {ratios.map((ratio) => {
-            const levelPrice = startPrice + diff * ratio;
-
-            const levelY =
-              series?.priceToCoordinate(levelPrice);
-
-            if (
-              levelY == null ||
-              !Number.isFinite(levelY)
-            ) {
-              return null;
-            }
-
-            return (
-              <g key={ratio}>
-                <line
-                  x1={Math.min(
-                    firstPixel.x,
-                    currentPixel.x,
-                  )}
-                  y1={levelY}
-                  x2={containerWidth}
-                  y2={levelY}
-                  stroke={currentColor}
-                  strokeWidth={1}
-                  strokeDasharray="2 2"
-                />
-
-                <text
-                  x={containerWidth - 95}
-                  y={levelY - 3}
-                  fill={currentColor}
-                  fontSize={9}
-                  fontFamily="monospace"
-                >
-                  {(ratio * 100).toFixed(1)}% (
-                  {levelPrice.toFixed(2)})
-                </text>
-              </g>
-            );
-          })}
-        </g>
+        <FibonacciPreview
+          firstPoint={firstPoint}
+          currentPoint={currentMousePoint}
+          firstPixel={firstPixel}
+          currentPixel={currentPixel}
+          containerWidth={containerWidth}
+          currentColor={currentColor}
+          series={series}
+          levels={createFibonacciLevels(currentColor)}
+        />
       );
     }
 

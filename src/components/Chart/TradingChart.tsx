@@ -33,7 +33,7 @@ import type {
 
 import { ChartToolbar } from './ChartToolbar.js';
 import { DrawingToolbar } from './DrawingToolbar.js';
-import { DrawingLayer } from '../DrawingLayer.js';
+import { DrawingLayer } from './Drawing/DrawingLayer.js';
 import { IndicatorModal } from '../IndicatorModal.js';
 import { SubIndicatorsPane } from '../SubIndicatorsPane.js';
 
