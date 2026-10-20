@@ -174,20 +174,9 @@
       "timezone": "Asia/Jakarta",
       "showVolume": true,
       "volumeType": "TICK",
-      "indicators": [
-        {
-          "id": "ema-200",
-          "type": "EMA",
-          "name": "EMA 200",
-          "visible": true,
-          "period": 200,
-          "color": "#ef4444",
-          "strokeWidth": 2,
-          "pane": "main"
-        }
-      ],
-      "id": "e74e5d5c-99db-4cb7-85ba-6daaa543cb3e",
-      "updatedAt": "2026-10-20T04:26:51.237Z"
+      "indicators": [],
+      "id": "62941bf6-c074-49d2-81f2-38dd158eb3f5",
+      "updatedAt": "2026-10-20T06:09:45.311Z"
     }
   ]
 }

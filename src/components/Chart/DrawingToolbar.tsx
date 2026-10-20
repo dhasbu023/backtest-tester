@@ -1,26 +1,21 @@
 
 import React, { useState } from 'react';
+
 import {
-  MousePointer,
-  Minus,
-  TrendingUp,
-  Square,
-  MoveVertical,
-  AlignJustify,
-  ArrowUpCircle,
-  ArrowDownCircle,
-  Layers,
-  Type,
   Undo2,
   Redo2,
-  Trash2,
-  Lock,
-  Unlock,
-  Eye,
-  EyeOff,
   X,
+  Trash2,
 } from 'lucide-react';
-import type { DrawingToolType, DrawingObject } from '../types/index.js';
+
+import type {
+  DrawingToolType,
+} from '../../types/index.js';
+
+import {
+  TOOLS,
+  PRESET_COLORS,
+} from './Drawing/drawingTools.js';
 
 interface DrawingToolbarProps {
   activeTool: DrawingToolType;
@@ -34,48 +29,7 @@ interface DrawingToolbarProps {
   onUndo: () => void;
   onRedo: () => void;
   onClearAll: () => void;
-  drawings: DrawingObject[];
-  onToggleDrawingVisible: (id: string) => void;
-  onToggleDrawingLock: (id: string) => void;
-  onDeleteDrawing: (id: string) => void;
 }
-
-const TOOLS: {
-  type: DrawingToolType;
-  label: string;
-  icon: React.ElementType;
-}[] = [
-  { type: 'CURSOR', label: 'Kursor / Pilih', icon: MousePointer },
-  { type: 'HORIZONTAL_LINE', label: 'Horizontal Line', icon: Minus },
-  { type: 'TREND_LINE', label: 'Trend Line', icon: TrendingUp },
-  { type: 'RECTANGLE', label: 'Rectangle / Zona', icon: Square },
-  { type: 'VERTICAL_LINE', label: 'Vertical Line', icon: MoveVertical },
-  {
-    type: 'FIBO_RETRACEMENT',
-    label: 'Fibonacci Retracement',
-    icon: AlignJustify,
-  },
-  {
-    type: 'LONG_POSITION',
-    label: 'Posisi Pembelian (Long)',
-    icon: ArrowUpCircle,
-  },
-  {
-    type: 'SHORT_POSITION',
-    label: 'Posisi Penjualan (Short)',
-    icon: ArrowDownCircle,
-  },
-  { type: 'TEXT', label: 'Teks / Catatan', icon: Type },
-];
-
-const PRESET_COLORS = [
-  '#3b82f6',
-  '#10b981',
-  '#f59e0b',
-  '#ef4444',
-  '#8b5cf6',
-  '#e2e8f0',
-];
 
 export const DrawingToolbar: React.FC<DrawingToolbarProps> = ({
   activeTool,
@@ -89,12 +43,7 @@ export const DrawingToolbar: React.FC<DrawingToolbarProps> = ({
   onUndo,
   onRedo,
   onClearAll,
-  drawings,
-  onToggleDrawingVisible,
-  onToggleDrawingLock,
-  onDeleteDrawing,
 }) => {
-  const [showObjectList, setShowObjectList] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
 
   return (
@@ -135,10 +84,7 @@ export const DrawingToolbar: React.FC<DrawingToolbarProps> = ({
       <div className="relative flex w-full justify-center">
         <button
           type="button"
-          onClick={() => {
-            setShowColorPicker((value) => !value);
-            setShowObjectList(false);
-          }}
+          onClick={() => setShowColorPicker((value) => !value)}
           aria-label="Warna dan ketebalan garis"
           aria-pressed={showColorPicker}
           title="Warna dan ketebalan garis"
@@ -169,6 +115,7 @@ export const DrawingToolbar: React.FC<DrawingToolbarProps> = ({
                 type="button"
                 onClick={() => setShowColorPicker(false)}
                 aria-label="Tutup pengaturan warna"
+                title="Tutup"
                 className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
               >
                 <X className="h-3.5 w-3.5" />
@@ -245,7 +192,7 @@ export const DrawingToolbar: React.FC<DrawingToolbarProps> = ({
       >
         <Undo2 className="h-[18px] w-[18px]" />
 
-        <span className="pointer-events-none absolute left-full top-1/2 z-[60] ml-2 -translate-y-1/2 whitespace-nowrap rounded-md bg-slate-900 px-2.5 py-1.5 text-[11px] text-white opacity-0 group-hover:opacity-100">
+        <span className="pointer-events-none absolute left-full top-1/2 z-[60] ml-2 -translate-y-1/2 whitespace-nowrap rounded-md bg-slate-900 px-2.5 py-1.5 text-[11px] text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
           Undo
         </span>
       </button>
@@ -261,144 +208,25 @@ export const DrawingToolbar: React.FC<DrawingToolbarProps> = ({
       >
         <Redo2 className="h-[18px] w-[18px]" />
 
-        <span className="pointer-events-none absolute left-full top-1/2 z-[60] ml-2 -translate-y-1/2 whitespace-nowrap rounded-md bg-slate-900 px-2.5 py-1.5 text-[11px] text-white opacity-0 group-hover:opacity-100">
+        <span className="pointer-events-none absolute left-full top-1/2 z-[60] ml-2 -translate-y-1/2 whitespace-nowrap rounded-md bg-slate-900 px-2.5 py-1.5 text-[11px] text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
           Redo
         </span>
       </button>
 
-      {/* Drawing objects */}
-      <div className="relative flex w-full justify-center">
-        <button
-          type="button"
-          onClick={() => {
-            setShowObjectList((value) => !value);
-            setShowColorPicker(false);
-          }}
-          aria-label={`Daftar objek gambar, ${drawings.length} objek`}
-          aria-pressed={showObjectList}
-          title={`Objek Gambar (${drawings.length})`}
-          className={`group relative flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${
-            showObjectList
-              ? 'bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400'
-              : 'hover:bg-slate-100 dark:hover:bg-slate-800'
-          }`}
-        >
-          <Layers className="h-[18px] w-[18px]" />
+      {/* Hapus semua gambar */}
+      <button
+        type="button"
+        onClick={onClearAll}
+        aria-label="Hapus semua gambar"
+        title="Hapus semua gambar"
+        className="group relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-rose-100 hover:text-rose-600 dark:text-slate-300 dark:hover:bg-rose-950 dark:hover:text-rose-400"
+      >
+        <Trash2 className="h-[18px] w-[18px]" />
 
-          {drawings.length > 0 && (
-            <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-blue-600 ring-2 ring-white dark:ring-slate-950" />
-          )}
-
-          <span className="pointer-events-none absolute left-full top-1/2 z-[60] ml-2 -translate-y-1/2 whitespace-nowrap rounded-md bg-slate-900 px-2.5 py-1.5 text-[11px] text-white opacity-0 group-hover:opacity-100">
-            Objek Gambar ({drawings.length})
-          </span>
-        </button>
-
-        {showObjectList && (
-          <div className="absolute left-full top-0 z-[70] ml-2 flex max-h-80 w-72 flex-col rounded-xl border border-slate-200 bg-white p-3 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-2 dark:border-slate-700">
-              <span className="text-xs font-bold text-slate-900 dark:text-white">
-                Objek Gambar ({drawings.length})
-              </span>
-
-              <button
-                type="button"
-                onClick={() => setShowObjectList(false)}
-                aria-label="Tutup daftar objek"
-                className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="my-2 flex-1 space-y-1.5 overflow-y-auto pr-1">
-              {drawings.length === 0 ? (
-                <div className="py-5 text-center text-[11px] text-slate-400">
-                  Belum ada objek gambar.
-                </div>
-              ) : (
-                drawings.map((drawing, index) => (
-                  <div
-                    key={drawing.id}
-                    className="flex items-center justify-between gap-2 rounded-lg border border-slate-100 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-800/50"
-                  >
-                    <div className="flex min-w-0 items-center gap-2">
-                      <span
-                        className="h-2.5 w-2.5 shrink-0 rounded-full"
-                        style={{ backgroundColor: drawing.color }}
-                      />
-
-                      <span className="truncate text-[11px] font-semibold text-slate-800 dark:text-slate-200">
-                        {drawing.type.replace(/_/g, ' ')} #{index + 1}
-                      </span>
-                    </div>
-
-                    <div className="flex shrink-0 items-center gap-0.5">
-                      <button
-                        type="button"
-                        onClick={() => onToggleDrawingVisible(drawing.id)}
-                        aria-label={
-                          drawing.visible
-                            ? 'Sembunyikan objek'
-                            : 'Tampilkan objek'
-                        }
-                        title={drawing.visible ? 'Sembunyikan' : 'Tampilkan'}
-                        className="rounded p-1 text-slate-400 hover:bg-slate-200 hover:text-blue-500 dark:hover:bg-slate-700"
-                      >
-                        {drawing.visible ? (
-                          <Eye className="h-3.5 w-3.5 text-blue-500" />
-                        ) : (
-                          <EyeOff className="h-3.5 w-3.5" />
-                        )}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => onToggleDrawingLock(drawing.id)}
-                        aria-label={
-                          drawing.locked
-                            ? 'Buka kunci objek'
-                            : 'Kunci objek'
-                        }
-                        title={drawing.locked ? 'Buka Kunci' : 'Kunci Objek'}
-                        className="rounded p-1 text-slate-400 hover:bg-slate-200 hover:text-amber-500 dark:hover:bg-slate-700"
-                      >
-                        {drawing.locked ? (
-                          <Lock className="h-3.5 w-3.5 text-amber-500" />
-                        ) : (
-                          <Unlock className="h-3.5 w-3.5" />
-                        )}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => onDeleteDrawing(drawing.id)}
-                        aria-label="Hapus objek"
-                        title="Hapus"
-                        className="rounded p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-950"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-
-            {drawings.length > 0 && (
-              <div className="flex justify-end border-t border-slate-200 pt-2 dark:border-slate-700">
-                <button
-                  type="button"
-                  onClick={onClearAll}
-                  className="rounded px-2 py-1 text-[11px] font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950"
-                >
-                  Hapus Semua Objek
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+        <span className="pointer-events-none absolute left-full top-1/2 z-[60] ml-2 -translate-y-1/2 whitespace-nowrap rounded-md bg-slate-900 px-2.5 py-1.5 text-[11px] text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+          Hapus semua gambar
+        </span>
+      </button>
     </aside>
   );
 };
