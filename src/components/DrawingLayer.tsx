@@ -12,6 +12,8 @@ import type { HorizontalLineStyle } from './Chart/Drawing/HorizontalLine/horizon
 import { TrendLineRenderer } from './Chart/Drawing/TrendLine/TrendLineRenderer.js';
 import { RectangleRenderer } from './Chart/Drawing/Rectangle/RectangleRenderer.js';
 import { RectanglePreview } from './Chart/Drawing/Rectangle/RectanglePreview.js';
+import { TextRenderer } from './Chart/Drawing/Text/TextRenderer.js';
+import { createTextDrawing } from './Chart/Drawing/Text/TextCreator.js';
 
 interface DrawingLayerProps {
   drawings: DrawingObject[];
@@ -555,29 +557,16 @@ export const DrawingLayer: React.FC<DrawingLayerProps> = ({
         return;
       }
 
+    
     // TEXT
     if (activeTool === 'TEXT') {
-      const text = window.prompt(
-        'Masukkan teks / catatan analisis:',
-        'Support Level',
-      );
+      const newDrawing = createTextDrawing({
+        point,
+        color: currentColor,
+        strokeWidth: currentStrokeWidth,
+      });
 
-      if (text?.trim()) {
-        const newDrawing: DrawingObject = {
-          id: `draw-${Date.now()}`,
-          sessionId: '',
-          type: 'TEXT',
-          points: [point],
-          color: currentColor,
-          strokeWidth: currentStrokeWidth,
-          text: text.trim(),
-          fontSize: 12,
-          locked: false,
-          visible: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-
+      if (newDrawing) {
         onAddDrawing(newDrawing);
         onSelectTool('CURSOR');
         onSelectDrawing(newDrawing.id);
@@ -585,6 +574,7 @@ export const DrawingLayer: React.FC<DrawingLayerProps> = ({
 
       return;
     }
+
 
     // TREND LINE, RECTANGLE, FIBONACCI
     if (
@@ -1527,6 +1517,7 @@ export const DrawingLayer: React.FC<DrawingLayerProps> = ({
               );
             }
 
+            
             // Text / Label
             if (drawing.type === 'TEXT') {
               const point = pixelCoords[0];
@@ -1534,46 +1525,18 @@ export const DrawingLayer: React.FC<DrawingLayerProps> = ({
               if (!point) return null;
 
               return (
-                <g
+                <TextRenderer
                   key={drawing.id}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onSelectDrawing(drawing.id);
-                  }}
-                  onMouseDown={(event) =>
-                    startDragging(event, -1, drawing)
-                  }
-                  className="cursor-move"
-                  style={{ pointerEvents: 'auto' }}
-                >
-                  <rect
-                    x={point.x - 4}
-                    y={point.y - 14}
-                    width={(drawing.text?.length || 10) * 7.5 + 12}
-                    height={22}
-                    rx={4}
-                    fill={
-                      isDarkMode
-                        ? 'rgba(15, 23, 42, 0.9)'
-                        : 'rgba(255, 255, 255, 0.95)'
-                    }
-                    stroke={drawing.color}
-                    strokeWidth={isSelected ? 2 : 1}
-                  />
-                  <text
-                    x={point.x + 3}
-                    y={point.y + 1}
-                    fill={drawing.color}
-                    fontSize={drawing.fontSize || 12}
-                    fontWeight="600"
-                    fontFamily="sans-serif"
-                    style={{ pointerEvents: 'none' }}
-                  >
-                    {drawing.text || ''}
-                  </text>
-                </g>
+                  drawing={drawing}
+                  point={point}
+                  isSelected={isSelected}
+                  isDarkMode={isDarkMode}
+                  onSelect={onSelectDrawing}
+                  onStartDragging={startDragging}
+                />
               );
             }
+
 
             return null;
           })}
