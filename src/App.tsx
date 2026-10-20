@@ -206,19 +206,24 @@ export default function App({ mode }: AppProps) {
 
         setSourceCandles(raw);
 
-        let targetIndex = 0;
+        // Defaultnya tampilkan FULL semua bar (raw.length - 1)
+        let targetIndex = raw.length > 0 ? raw.length - 1 : 0;
 
         if (raw.length > 0) {
           const targetTime = Number(session.currentReplayTime);
 
-          if (targetTime && !Number.isNaN(targetTime)) {
+          if (targetTime && !Number.isNaN(targetTime) && targetTime > 0) {
             const found = raw.findIndex(
               (candle) => candle.timestamp >= targetTime
             );
 
             targetIndex =
               found !== -1 ? found : raw.length - 1;
-          } else if (session.currentCandleIndex !== undefined) {
+          } else if (
+            session.currentCandleIndex !== undefined &&
+            session.currentCandleIndex !== null &&
+            Number(session.currentCandleIndex) > 0
+          ) {
             targetIndex = Math.max(
               0,
               Math.min(
@@ -226,6 +231,9 @@ export default function App({ mode }: AppProps) {
                 raw.length - 1
               )
             );
+          } else {
+            // Default: full semua bar
+            targetIndex = raw.length - 1;
           }
 
           const cutoffTime =

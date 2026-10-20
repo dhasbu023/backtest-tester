@@ -52,7 +52,18 @@ export function useChartPreferences({
         indicators?: IndicatorConfig[] | null;
       } | null
     ) => {
-      setDrawings(loadedDrawings ?? []);
+      let finalDrawings = loadedDrawings ?? [];
+      if (finalDrawings.length === 0 && activeSession?.id) {
+        try {
+          const cached = localStorage.getItem(`chart_drawings_${activeSession.id}`);
+          if (cached) {
+            finalDrawings = JSON.parse(cached);
+          }
+        } catch {
+          // ignore
+        }
+      }
+      setDrawings(finalDrawings);
 
       if (loadedPref) {
         setActiveTimezone(
@@ -83,7 +94,7 @@ export function useChartPreferences({
         setIndicators([]);
       }
     },
-    []
+    [activeSession]
   );
 
   const resetChartPreferences = useCallback(() => {
@@ -99,6 +110,16 @@ export function useChartPreferences({
   const handleUpdateDrawings = useCallback(
     (newDrawings: DrawingObject[]) => {
       setDrawings(newDrawings);
+
+      // Simpan langsung ke localStorage agar tersimpan aman
+      const storageKey = activeSession?.id
+        ? `chart_drawings_${activeSession.id}`
+        : 'chart_drawings_default';
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(newDrawings));
+      } catch {
+        // ignore
+      }
 
       if (!activeSession) {
         return;

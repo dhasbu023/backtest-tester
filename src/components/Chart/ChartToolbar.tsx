@@ -6,6 +6,7 @@ import {
   ChevronDown,
   Play,
   X,
+  Maximize2,
 } from 'lucide-react';
 
 import type {
@@ -33,6 +34,9 @@ interface ChartToolbarProps {
   indicators: IndicatorConfig[];
   onOpenIndicatorsModal: () => void;
 
+  // Fit content
+  onFitContent?: () => void;
+
   // Kontrol replay
   showReplayControls: boolean;
   onToggleReplay: () => void;
@@ -54,6 +58,7 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
 
   indicators,
   onOpenIndicatorsModal,
+  onFitContent,
 
   showReplayControls,
   onToggleReplay,
@@ -292,6 +297,19 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
             </div>
           )}
         </div>
+
+        {/* Fit Content / Auto Scale button */}
+        {onFitContent && (
+          <button
+            type="button"
+            onClick={onFitContent}
+            title="Paskan Tampilan Chart ke Layar (Auto Fit)"
+            className="flex shrink-0 items-center gap-1 rounded-lg border border-slate-300 bg-white px-2 py-1.5 font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-100 hover:text-blue-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white"
+          >
+            <Maximize2 className="h-3.5 w-3.5" />
+            <span className="hidden md:inline">Paskan Layar</span>
+          </button>
+        )}
 
         {/* Replay button */}
      {/* Replay button + DEBUG */}

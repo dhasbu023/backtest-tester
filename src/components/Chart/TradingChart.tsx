@@ -13,11 +13,14 @@ import {
   CrosshairMode,
   CandlestickSeries,
   LineSeries,
+  HistogramSeries,
+  TickMarkType,
   type IChartApi,
   type ISeriesApi,
   type Time,
   type CandlestickData,
   type LineData,
+  type HistogramData,
 } from 'lightweight-charts';
 
 import type {
@@ -158,6 +161,9 @@ export const TradingChart: React.FC<TradingChartProps> = ({
 
   const candlestickSeriesRef =
     useRef<ISeriesApi<'Candlestick'> | null>(null);
+
+  const volumeSeriesRef =
+    useRef<ISeriesApi<'Histogram'> | null>(null);
 
   const lineSeriesMapRef =
     useRef<Map<string, ISeriesApi<'Line'>>>(new Map());
@@ -513,10 +519,36 @@ export const TradingChart: React.FC<TradingChartProps> = ({
         fixLeftEdge: false,
         fixRightEdge: false,
         lockVisibleTimeRangeOnResize: true,
-        tickMarkFormatter: (time: Time) => {
+        tickMarkFormatter: (time: Time, tickMarkType: TickMarkType) => {
           const timestamp = toUnixTimestamp(time);
           if (timestamp === null) return '';
-          return formatTimeOnly(timestamp, activeTimezone);
+          const date = new Date(timestamp * 1000);
+
+          if (tickMarkType === TickMarkType.Year) {
+            return date.toLocaleDateString('en-GB', {
+              year: 'numeric',
+              timeZone: activeTimezone,
+            });
+          }
+          if (tickMarkType === TickMarkType.Month) {
+            return date.toLocaleDateString('en-GB', {
+              month: 'short',
+              timeZone: activeTimezone,
+            });
+          }
+          if (tickMarkType === TickMarkType.DayOfMonth) {
+            return date.toLocaleDateString('en-GB', {
+              day: '2-digit',
+              month: 'short',
+              timeZone: activeTimezone,
+            });
+          }
+          return date.toLocaleTimeString('en-GB', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+            timeZone: activeTimezone,
+          });
         },
       },
 
@@ -525,7 +557,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
         autoScale: true,
         scaleMargins: {
           top: 0.08,
-          bottom: 0.08,
+          bottom: 0.22, // leave space at bottom for volume
         },
       },
     });
@@ -544,6 +576,25 @@ export const TradingChart: React.FC<TradingChartProps> = ({
     );
 
     candlestickSeriesRef.current = candlestickSeries;
+
+    // Volume Series (Histogram at bottom of main chart pane)
+    const volumeSeries = chart.addSeries(HistogramSeries, {
+      color: '#26a69a',
+      priceFormat: {
+        type: 'volume',
+      },
+      priceScaleId: 'volume_scale',
+    });
+
+    volumeSeries.priceScale().applyOptions({
+      scaleMargins: {
+        top: 0.8, // volume occupies bottom 20%
+        bottom: 0,
+      },
+      visible: false,
+    });
+
+    volumeSeriesRef.current = volumeSeries;
 
     chart.subscribeCrosshairMove((param) => {
       if (
@@ -630,6 +681,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
       if (chartRef.current === chart) {
         chartRef.current = null;
         candlestickSeriesRef.current = null;
+        volumeSeriesRef.current = null;
       }
 
       lineSeriesMapRef.current.clear();
@@ -704,13 +756,46 @@ export const TradingChart: React.FC<TradingChartProps> = ({
       ).sort((a, b) => Number(a.time) - Number(b.time));
 
       series.setData(sortedCandles);
+
+      // Update volume series data
+      const volSeries = volumeSeriesRef.current;
+      if (volSeries) {
+        if (!showVolume) {
+          volSeries.applyOptions({ visible: false });
+        } else {
+          volSeries.applyOptions({ visible: true });
+          const volumeData: HistogramData<Time>[] = [];
+          for (const candle of candles) {
+            const timestamp = Math.floor(candle.timestamp);
+            if (!Number.isFinite(timestamp) || timestamp <= 0) continue;
+            const isUp = candle.close >= candle.open;
+            const vol =
+              volumeType === 'REAL'
+                ? candle.realVolume || candle.tickVolume || 0
+                : candle.tickVolume || candle.realVolume || 0;
+            volumeData.push({
+              time: timestamp as Time,
+              value: vol,
+              color: isUp
+                ? isDarkMode
+                  ? 'rgba(16, 185, 129, 0.45)'
+                  : 'rgba(16, 185, 129, 0.55)'
+                : isDarkMode
+                  ? 'rgba(239, 68, 68, 0.45)'
+                  : 'rgba(239, 68, 68, 0.55)',
+            });
+          }
+          volumeData.sort((a, b) => Number(a.time) - Number(b.time));
+          volSeries.setData(volumeData);
+        }
+      }
     } catch (error) {
       console.error(
-        '[TradingChart] Error updating candle data:',
+        '[TradingChart] Error updating candle/volume data:',
         error,
       );
     }
-  }, [candles, isDarkMode, activeTimezone]);
+  }, [candles, showVolume, volumeType, isDarkMode, activeTimezone]);
 
   // =========================================================
   // UPDATE MAIN INDICATORS: EMA, SMA, BOLLINGER
@@ -925,6 +1010,13 @@ export const TradingChart: React.FC<TradingChartProps> = ({
     [indicators, onUpdateIndicators],
   );
 
+  const handleFitContent = useCallback(() => {
+    if (chartRef.current) {
+      chartRef.current.timeScale().fitContent();
+      chartRef.current.priceScale('right').applyOptions({ autoScale: true });
+    }
+  }, []);
+
   // =========================================================
   // RENDER
   // =========================================================
@@ -948,6 +1040,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
           onOpenIndicatorsModal={() =>
             setIsIndicatorModalOpen(true)
           }
+          onFitContent={handleFitContent}
           showReplayControls={showReplayControls}
           onToggleReplay={onToggleReplay}
         />
@@ -1076,6 +1169,16 @@ export const TradingChart: React.FC<TradingChartProps> = ({
             containerWidth={containerDimensions.width}
             containerHeight={containerDimensions.height}
           />
+
+          {/* AUTO-FIT FLOATING BUTTON (TRADINGVIEW STYLE) */}
+          <button
+            type="button"
+            onClick={handleFitContent}
+            title="Paskan Layar (Auto Fit Content)"
+            className="absolute bottom-8 right-16 z-25 flex items-center gap-1 rounded border border-slate-300 bg-white/90 px-2 py-0.5 text-[10px] font-bold text-slate-700 shadow-sm backdrop-blur transition-all hover:border-blue-500 hover:bg-blue-600 hover:text-white dark:border-slate-700 dark:bg-slate-900/90 dark:text-slate-300 dark:hover:bg-blue-600 dark:hover:text-white"
+          >
+            auto
+          </button>
 
           {/* LOADING OVERLAY */}
           {isLoading && (

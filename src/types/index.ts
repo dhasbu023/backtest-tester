@@ -125,11 +125,14 @@ export interface IndicatorConfig {
 // Drawing Tools Types & Definitions
 export type DrawingToolType =
   | 'CURSOR'
+  | 'CROSS'
   | 'HORIZONTAL_LINE'
   | 'TREND_LINE'
   | 'RECTANGLE'
   | 'VERTICAL_LINE'
   | 'FIBO_RETRACEMENT'
+  | 'LONG_POSITION'
+  | 'SHORT_POSITION'
   | 'TEXT';
 
 export interface DrawingPoint {
@@ -148,8 +151,15 @@ export interface DrawingObject {
   opacity?: number;
   text?: string;
   fontSize?: number;
-  levels?: { ratio: number; color?: string }[]; // for Fibo Retracement
+  levels?: { ratio: number; color?: string; visible?: boolean }[]; // for Fibo Retracement
   extensionLevels?: { ratio: number; color?: string }[]; // for Fibo Extension
+  extendRight?: boolean; // for Fibonacci extend right
+  showLabels?: boolean; // for Fibonacci show labels
+  // Long & Short position properties
+  entryPrice?: number;
+  targetPrice?: number;
+  stopPrice?: number;
+  riskReward?: number;
   locked: boolean;
   visible: boolean;
   createdAt: string;

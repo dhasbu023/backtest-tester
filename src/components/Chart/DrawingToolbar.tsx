@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import {
   MousePointer,
+  Plus,
   Minus,
   TrendingUp,
   Square,
   MoveVertical,
   AlignJustify,
+  ArrowUpCircle,
+  ArrowDownCircle,
   Layers,
   Type,
   Undo2,
@@ -43,11 +46,14 @@ const TOOLS: {
   icon: React.ElementType;
 }[] = [
   { type: 'CURSOR', label: 'Kursor / Pilih', icon: MousePointer },
+  { type: 'CROSS', label: 'Cross (Tanda Silang)', icon: Plus },
   { type: 'HORIZONTAL_LINE', label: 'Horizontal Line', icon: Minus },
   { type: 'TREND_LINE', label: 'Trend Line', icon: TrendingUp },
   { type: 'RECTANGLE', label: 'Rectangle / Zona', icon: Square },
   { type: 'VERTICAL_LINE', label: 'Vertical Line', icon: MoveVertical },
   { type: 'FIBO_RETRACEMENT', label: 'Fibonacci Retracement', icon: AlignJustify },
+  { type: 'LONG_POSITION', label: 'Posisi Pembelian (Long)', icon: ArrowUpCircle },
+  { type: 'SHORT_POSITION', label: 'Posisi Penjualan (Short)', icon: ArrowDownCircle },
   { type: 'TEXT', label: 'Teks / Catatan', icon: Type },
 ];
 

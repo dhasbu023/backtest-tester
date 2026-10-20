@@ -70,7 +70,7 @@
       "datasetId": "a0607134-c715-42cb-8a50-b7becef4f410",
       "symbol": "XAUUSD",
       "sourceTimeframe": "M1",
-      "activeTimeframe": "D1",
+      "activeTimeframe": "M1",
       "startReplayTime": 1782864000,
       "currentReplayTime": 1785937740,
       "currentCandleIndex": 35036,
@@ -78,7 +78,7 @@
       "status": "ACTIVE",
       "notes": "",
       "createdAt": "2026-10-19T11:52:23.852Z",
-      "updatedAt": "2026-10-20T03:59:34.838Z"
+      "updatedAt": "2026-10-20T04:15:33.973Z"
     },
     {
       "id": "00e62d2b-6d6f-4e5e-8c57-51aab321aacc",
@@ -86,7 +86,7 @@
       "datasetId": "814b8e32-41c5-4967-ac39-4d06a45fbd7d",
       "symbol": "XAUUSD",
       "sourceTimeframe": "M1",
-      "activeTimeframe": "M15",
+      "activeTimeframe": "H4",
       "startReplayTime": 1704150300,
       "currentReplayTime": 1721872680,
       "currentCandleIndex": 199999,
@@ -94,32 +94,102 @@
       "status": "ACTIVE",
       "notes": "",
       "createdAt": "2026-10-19T11:57:57.536Z",
-      "updatedAt": "2026-10-19T15:13:56.546Z"
+      "updatedAt": "2026-10-20T04:29:25.223Z"
     }
   ],
   "replayStates": [
     {
-      "id": "76956225-965b-4414-a5c9-d5b47aadefff",
+      "id": "c979c168-d19b-47f8-88e6-bc94f050d274",
       "sessionId": "d0ab9058-7c8b-431a-8a69-f2f65e8f905a",
       "currentTime": 1785937740,
       "currentIndex": 35036,
       "speed": 1,
-      "activeTimeframe": "D1",
+      "activeTimeframe": "M1",
       "isPlaying": false,
-      "lastSavedAt": "2026-10-20T03:59:34.838Z"
+      "lastSavedAt": "2026-10-20T04:15:33.972Z"
     },
     {
-      "id": "0a179c50-37df-4108-8cb2-8ed6fe0b819f",
+      "id": "041131d1-ca03-4d71-85c5-84dfaaf25455",
       "sessionId": "00e62d2b-6d6f-4e5e-8c57-51aab321aacc",
       "currentTime": 1721872680,
       "currentIndex": 199999,
       "speed": 1,
-      "activeTimeframe": "M15",
+      "activeTimeframe": "H4",
       "isPlaying": false,
-      "lastSavedAt": "2026-10-19T15:13:56.546Z"
+      "lastSavedAt": "2026-10-20T04:29:25.223Z"
     }
   ],
-  "drawings": [],
+  "drawings": [
+    {
+      "id": "draw-1792469737175",
+      "sessionId": "d0ab9058-7c8b-431a-8a69-f2f65e8f905a",
+      "type": "RECTANGLE",
+      "points": [
+        {
+          "timestamp": 1785929700,
+          "price": 4189.014192646761
+        },
+        {
+          "timestamp": 1785933360,
+          "price": 4175.055327195853
+        }
+      ],
+      "color": "#3b82f6",
+      "strokeWidth": 2,
+      "fillColor": "#3b82f6",
+      "opacity": 0.18,
+      "locked": false,
+      "visible": true,
+      "createdAt": "2026-10-20T04:15:37.175Z",
+      "updatedAt": "2026-10-20T04:15:37.175Z"
+    },
+    {
+      "id": "draw-1792470332156",
+      "sessionId": "d0ab9058-7c8b-431a-8a69-f2f65e8f905a",
+      "type": "LONG_POSITION",
+      "points": [
+        {
+          "timestamp": 1785933600,
+          "price": 4110.7635700301535
+        },
+        {
+          "timestamp": 1786189440,
+          "price": 4220.777116178191
+        },
+        {
+          "timestamp": 1786189440,
+          "price": 4127.213091435325
+        }
+      ],
+      "entryPrice": 4110.7635700301535,
+      "targetPrice": 4173.139586525398,
+      "stopPrice": 4079.5755617825316,
+      "riskReward": 2.0000000000000293,
+      "color": "#10b981",
+      "strokeWidth": 2,
+      "locked": false,
+      "visible": true,
+      "createdAt": "2026-10-20T04:25:32.156Z",
+      "updatedAt": "2026-10-20T04:26:18.750Z"
+    },
+    {
+      "id": "draw-1792470390226",
+      "sessionId": "00e62d2b-6d6f-4e5e-8c57-51aab321aacc",
+      "type": "CROSS",
+      "points": [
+        {
+          "timestamp": 1721799000,
+          "price": 2407.800757531301
+        }
+      ],
+      "color": "#3b82f6",
+      "strokeWidth": 2,
+      "locked": false,
+      "visible": true,
+      "createdAt": "2026-10-20T04:26:30.226Z",
+      "updatedAt": "2026-10-20T04:26:37.804Z"
+    }
+  ],
   "preferences": [
     {
       "sessionId": "d0ab9058-7c8b-431a-8a69-f2f65e8f905a",
@@ -140,15 +210,15 @@
           "id": "ema-200",
           "type": "EMA",
           "name": "EMA 200",
-          "visible": false,
+          "visible": true,
           "period": 200,
           "color": "#ef4444",
           "strokeWidth": 2,
           "pane": "main"
         }
       ],
-      "id": "ab9ed30b-41c6-474d-916b-4221d5e80187",
-      "updatedAt": "2026-10-19T15:13:52.442Z"
+      "id": "e74e5d5c-99db-4cb7-85ba-6daaa543cb3e",
+      "updatedAt": "2026-10-20T04:26:51.237Z"
     }
   ]
 }
