@@ -46,6 +46,14 @@ type AppProps = {
   mode: 'SESSIONS' | 'CHART' | 'BACKTEST';
 };
 
+type AggregationCache = {
+  source: Candle[];
+  sourceTimeframe: Timeframe;
+  targetTimeframe: Timeframe;
+  sourceIndex: number;
+  result: Candle[];
+};
+
 export default function App({ mode }: AppProps) {
   const navigate = useNavigate();
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -81,7 +89,6 @@ export default function App({ mode }: AppProps) {
     volumeType,
     indicators,
     drawings,
-    setDrawings,
     loadChartPreferences,
     resetChartPreferences,
     handleUpdateDrawings,
@@ -107,12 +114,12 @@ export default function App({ mode }: AppProps) {
     useState<Timeframe>('M1');
 
   const [isPlaying, setIsPlaying] = useState(false);
-  const [replaySpeed, setReplaySpeed] = useState(1.0);
+  const [replaySpeed, setReplaySpeed] = useState(1);
   const [isChartLoading, setIsChartLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   // =========================================================
-  // TIMER & DEBOUNCE REFERENCES
+  // REFERENCES
   // =========================================================
 
   const replayTimerRef =
@@ -121,8 +128,96 @@ export default function App({ mode }: AppProps) {
   const saveTimeoutRef =
     useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const currentLoadedSessionIdRef =
-    useRef<string | null>(null);
+  const currentLoadedSessionIdRef = useRef<string | null>(null);
+
+  // Cache satu hasil agregasi terakhir.
+  // Cache hanya digunakan jika sumber, timeframe, dan indeks sama.
+  // Dengan demikian, cache tidak menggunakan candle masa depan.
+  const aggregationCacheRef = useRef<AggregationCache | null>(null);
+
+  // =========================================================
+  // AGGREGATION HELPER
+  // =========================================================
+
+  const getAggregatedCandles = useCallback(
+    (
+      source: Candle[],
+      sourceTf: Timeframe,
+      targetTf: Timeframe,
+      sourceIndex: number
+    ): Candle[] => {
+      if (source.length === 0) {
+        return [];
+      }
+
+      const safeIndex = Math.max(
+        0,
+        Math.min(sourceIndex, source.length - 1)
+      );
+
+      const cached = aggregationCacheRef.current;
+
+      if (
+        cached &&
+        cached.source === source &&
+        cached.sourceTimeframe === sourceTf &&
+        cached.targetTimeframe === targetTf &&
+        cached.sourceIndex === safeIndex
+      ) {
+        return cached.result;
+      }
+
+      const currentCandle = source[safeIndex];
+
+      if (!currentCandle) {
+        return [];
+      }
+
+      const result = aggregateCandles(
+        source,
+        sourceTf,
+        targetTf,
+        currentCandle.timestamp
+      );
+
+      aggregationCacheRef.current = {
+        source,
+        sourceTimeframe: sourceTf,
+        targetTimeframe: targetTf,
+        sourceIndex: safeIndex,
+        result,
+      };
+
+      return result;
+    },
+    []
+  );
+
+  // =========================================================
+  // TIMESTAMP SEARCH
+  // =========================================================
+
+  // Mencari candle pertama dengan timestamp >= target.
+  // Mengasumsikan data candle sudah terurut ascending.
+  const findCandleIndexAtOrAfter = useCallback(
+    (candles: Candle[], targetTimestamp: number): number => {
+      let left = 0;
+      let right = candles.length;
+
+      while (left < right) {
+        const middle = left + Math.floor((right - left) / 2);
+
+        if (candles[middle].timestamp < targetTimestamp) {
+          left = middle + 1;
+        } else {
+          right = middle;
+        }
+      }
+
+      return left < candles.length ? left : -1;
+    },
+    []
+  );
 
   // =========================================================
   // LOAD SESSIONS
@@ -162,6 +257,8 @@ export default function App({ mode }: AppProps) {
       setIsPlaying(false);
       setGlobalError(null);
 
+      aggregationCacheRef.current = null;
+
       try {
         const session = await fetchSession(id);
 
@@ -187,7 +284,7 @@ export default function App({ mode }: AppProps) {
         }
 
         setActiveTimeframe(tf);
-        setReplaySpeed(session.replaySpeed || 1.0);
+        setReplaySpeed(session.replaySpeed || 1);
 
         const [loadedDrawings, loadedPref] = await Promise.all([
           fetchDrawings(session.id).catch(() => []),
@@ -209,15 +306,18 @@ export default function App({ mode }: AppProps) {
 
         setSourceCandles(raw);
 
-        // Defaultnya tampilkan FULL semua bar (raw.length - 1)
         let targetIndex = raw.length > 0 ? raw.length - 1 : 0;
 
         if (raw.length > 0) {
           const targetTime = Number(session.currentReplayTime);
 
-          if (targetTime && !Number.isNaN(targetTime) && targetTime > 0) {
-            const found = raw.findIndex(
-              (candle) => candle.timestamp >= targetTime
+          if (
+            Number.isFinite(targetTime) &&
+            targetTime > 0
+          ) {
+            const found = findCandleIndexAtOrAfter(
+              raw,
+              targetTime
             );
 
             targetIndex =
@@ -234,25 +334,18 @@ export default function App({ mode }: AppProps) {
                 raw.length - 1
               )
             );
-          } else {
-            // Default: full semua bar
-            targetIndex = raw.length - 1;
           }
 
-          const cutoffTime =
-            raw[targetIndex]?.timestamp ||
-            raw[0]?.timestamp ||
-            0;
-
-          const aggregated = aggregateCandles(
+          const aggregated = getAggregatedCandles(
             raw,
             dataset.timeframe,
             tf,
-            cutoffTime
+            targetIndex
           );
 
           setDisplayCandles(aggregated);
         } else {
+          aggregationCacheRef.current = null;
           setDisplayCandles([]);
         }
 
@@ -267,16 +360,25 @@ export default function App({ mode }: AppProps) {
 
         setGlobalError('Gagal membuka sesi: ' + message);
 
+        aggregationCacheRef.current = null;
+
         setActiveSession(null);
         setActiveDataset(null);
         setSourceCandles([]);
         setDisplayCandles([]);
+        setCurrentIndex(0);
+
         resetChartPreferences();
       } finally {
         setIsChartLoading(false);
       }
     },
-    [loadChartPreferences, resetChartPreferences]
+    [
+      findCandleIndexAtOrAfter,
+      getAggregatedCandles,
+      loadChartPreferences,
+      resetChartPreferences,
+    ]
   );
 
   // =========================================================
@@ -289,23 +391,27 @@ export default function App({ mode }: AppProps) {
 
   useEffect(() => {
     if (sessionId) {
-      // Hanya muat sesi jika ID sesi di URL benar-benar berubah
       if (currentLoadedSessionIdRef.current !== sessionId) {
         currentLoadedSessionIdRef.current = sessionId;
         void handleOpenSession(sessionId);
       }
+
       return;
     }
 
     currentLoadedSessionIdRef.current = null;
+
     setIsPlaying(false);
     setActiveSession(null);
     setActiveDataset(null);
     setSourceCandles([]);
     setDisplayCandles([]);
-    resetChartPreferences();
     setCurrentIndex(0);
     setIsChartLoading(false);
+
+    aggregationCacheRef.current = null;
+
+    resetChartPreferences();
   }, [sessionId, handleOpenSession, resetChartPreferences]);
 
   // =========================================================
@@ -323,22 +429,30 @@ export default function App({ mode }: AppProps) {
         Math.min(index, sourceCandles.length - 1)
       );
 
-      const currentCandle = sourceCandles[clampedIndex];
+      const cached = aggregationCacheRef.current;
 
-      if (!currentCandle) {
+      // Hindari menghitung ulang dan memperbarui state
+      // jika posisi serta timeframe tidak berubah.
+      if (
+        cached &&
+        cached.source === sourceCandles &&
+        cached.sourceTimeframe === activeDataset.timeframe &&
+        cached.targetTimeframe === tf &&
+        cached.sourceIndex === clampedIndex
+      ) {
         return;
       }
 
-      const aggregated = aggregateCandles(
+      const aggregated = getAggregatedCandles(
         sourceCandles,
         activeDataset.timeframe,
         tf,
-        currentCandle.timestamp
+        clampedIndex
       );
 
       setDisplayCandles(aggregated);
     },
-    [sourceCandles, activeDataset]
+    [sourceCandles, activeDataset, getAggregatedCandles]
   );
 
   // =========================================================
@@ -351,7 +465,12 @@ export default function App({ mode }: AppProps) {
         return;
       }
 
-      const candle = sourceCandles[index];
+      const safeIndex = Math.max(
+        0,
+        Math.min(index, sourceCandles.length - 1)
+      );
+
+      const candle = sourceCandles[safeIndex];
 
       if (!candle) {
         return;
@@ -369,7 +488,7 @@ export default function App({ mode }: AppProps) {
         try {
           await saveReplayState(sessionIdToSave, {
             currentTime: candle.timestamp,
-            currentIndex: index,
+            currentIndex: safeIndex,
             speed,
             activeTimeframe: tf,
             isPlaying: false,
@@ -384,6 +503,19 @@ export default function App({ mode }: AppProps) {
     },
     [activeSession, sourceCandles]
   );
+
+  // Bersihkan timer save jika komponen dilepas.
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current !== null) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+
+      if (replayTimerRef.current !== null) {
+        clearInterval(replayTimerRef.current);
+      }
+    };
+  }, []);
 
   // =========================================================
   // REPLAY: NEXT CANDLE
@@ -512,22 +644,40 @@ export default function App({ mode }: AppProps) {
           `Timeframe ${newTimeframe} tidak diperbolehkan ` +
           `untuk timeframe sumber ${activeDataset.timeframe}`
         );
+
         return;
       }
 
       setGlobalError(null);
+
+      // Jangan lakukan pekerjaan tambahan jika timeframe sama.
+      if (newTimeframe === activeTimeframe) {
+        return;
+      }
+
+      // Replay tetap menggunakan indeks candle sumber.
+      // Yang berubah hanya timeframe tampilan chart.
+      const safeIndex = sourceCandles.length > 0
+        ? Math.max(
+            0,
+            Math.min(currentIndex, sourceCandles.length - 1)
+          )
+        : 0;
+
       setActiveTimeframe(newTimeframe);
 
-      updateVisibleCandles(currentIndex, newTimeframe);
+      updateVisibleCandles(safeIndex, newTimeframe);
 
       triggerDebouncedSave(
-        currentIndex,
+        safeIndex,
         newTimeframe,
         replaySpeed
       );
     },
     [
       activeDataset,
+      activeTimeframe,
+      sourceCandles.length,
       currentIndex,
       replaySpeed,
       updateVisibleCandles,
@@ -566,25 +716,29 @@ export default function App({ mode }: AppProps) {
         return;
       }
 
-      let foundIndex = sourceCandles.findIndex(
-        (candle) => candle.timestamp >= targetTimestamp
+      const foundIndex = findCandleIndexAtOrAfter(
+        sourceCandles,
+        targetTimestamp
       );
 
-      if (foundIndex === -1) {
-        foundIndex = sourceCandles.length - 1;
-      }
+      const targetIndex =
+        foundIndex === -1
+          ? sourceCandles.length - 1
+          : foundIndex;
 
-      setCurrentIndex(foundIndex);
-      updateVisibleCandles(foundIndex, activeTimeframe);
+      setCurrentIndex(targetIndex);
+
+      updateVisibleCandles(targetIndex, activeTimeframe);
 
       triggerDebouncedSave(
-        foundIndex,
+        targetIndex,
         activeTimeframe,
         replaySpeed
       );
     },
     [
       sourceCandles,
+      findCandleIndexAtOrAfter,
       updateVisibleCandles,
       activeTimeframe,
       triggerDebouncedSave,
@@ -641,7 +795,7 @@ export default function App({ mode }: AppProps) {
   ]);
 
   // =========================================================
-  // KEYBOARD SHORTCUTS — MOVED TO useReplayKeyboard
+  // KEYBOARD SHORTCUTS
   // =========================================================
 
   useReplayKeyboard({
@@ -668,8 +822,11 @@ export default function App({ mode }: AppProps) {
         setActiveDataset(null);
         setSourceCandles([]);
         setDisplayCandles([]);
-        resetChartPreferences();
         setCurrentIndex(0);
+
+        aggregationCacheRef.current = null;
+
+        resetChartPreferences();
 
         navigate('/sessions');
       }

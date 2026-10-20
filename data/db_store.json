@@ -72,13 +72,13 @@
       "sourceTimeframe": "M1",
       "activeTimeframe": "M1",
       "startReplayTime": 1782864000,
-      "currentReplayTime": 1785937740,
-      "currentCandleIndex": 35036,
-      "replaySpeed": 1,
+      "currentReplayTime": 1788220800,
+      "currentCandleIndex": 60381,
+      "replaySpeed": 10,
       "status": "ACTIVE",
       "notes": "",
       "createdAt": "2026-10-19T11:52:23.852Z",
-      "updatedAt": "2026-10-20T05:04:57.752Z"
+      "updatedAt": "2026-10-20T05:14:59.890Z"
     },
     {
       "id": "00e62d2b-6d6f-4e5e-8c57-51aab321aacc",
@@ -99,14 +99,14 @@
   ],
   "replayStates": [
     {
-      "id": "84b7a535-919b-45a9-82f4-9630558cbc49",
+      "id": "42572ebb-7294-4dd0-b727-8dc4593afb9e",
       "sessionId": "d0ab9058-7c8b-431a-8a69-f2f65e8f905a",
-      "currentTime": 1785937740,
-      "currentIndex": 35036,
-      "speed": 1,
+      "currentTime": 1788220800,
+      "currentIndex": 60381,
+      "speed": 10,
       "activeTimeframe": "M1",
       "isPlaying": false,
-      "lastSavedAt": "2026-10-20T05:04:57.752Z"
+      "lastSavedAt": "2026-10-20T05:14:59.890Z"
     },
     {
       "id": "041131d1-ca03-4d71-85c5-84dfaaf25455",
@@ -144,9 +144,30 @@
       "timezone": "Asia/Jakarta",
       "showVolume": true,
       "volumeType": "TICK",
-      "indicators": [],
-      "id": "fc68274c-6c52-4974-920e-d1e08a51c9b7",
-      "updatedAt": "2026-10-20T03:58:41.418Z"
+      "indicators": [
+        {
+          "id": "ind-826fd5f2-2414-4936-9b7e-3884b181b39c",
+          "type": "EMA",
+          "name": "EMA 9",
+          "visible": true,
+          "period": 9,
+          "color": "#e2e8f0",
+          "strokeWidth": 3,
+          "pane": "main"
+        },
+        {
+          "id": "ind-5a894909-c42b-423a-abaf-744538031966",
+          "type": "EMA",
+          "name": "EMA 21",
+          "visible": true,
+          "period": 21,
+          "color": "#f59e0b",
+          "strokeWidth": 3,
+          "pane": "main"
+        }
+      ],
+      "id": "cd0ecbd8-4512-4525-b047-714c6b32b67b",
+      "updatedAt": "2026-10-20T05:10:54.146Z"
     },
     {
       "sessionId": "00e62d2b-6d6f-4e5e-8c57-51aab321aacc",
