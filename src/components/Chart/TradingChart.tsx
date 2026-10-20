@@ -45,7 +45,6 @@ import {
 
 import {
   formatDateTimeWithTz,
-  formatTimeOnly,
 } from '../../utils/timezone.js';
 
 import { TrendingUp, TrendingDown } from 'lucide-react';
@@ -68,14 +67,12 @@ interface TradingChartProps {
   indicators: IndicatorConfig[];
   onUpdateIndicators: (indicators: IndicatorConfig[]) => void;
 
-  // Volume controls
   showVolume: boolean;
   onToggleVolume: () => void;
   volumeType: 'TICK' | 'REAL';
   onChangeVolumeType: (type: 'TICK' | 'REAL') => void;
   hasRealVolume: boolean;
 
-  // Replay controls
   showReplayControls: boolean;
   onToggleReplay: () => void;
 }
@@ -109,13 +106,13 @@ function toUnixTimestamp(time: Time): number | null {
       day: number;
     };
 
-    const parsed = Date.UTC(
-      businessDay.year,
-      businessDay.month - 1,
-      businessDay.day,
+    return Math.floor(
+      Date.UTC(
+        businessDay.year,
+        businessDay.month - 1,
+        businessDay.day,
+      ) / 1000,
     );
-
-    return Math.floor(parsed / 1000);
   }
 
   return null;
@@ -125,7 +122,62 @@ function isSameDrawings(
   first: DrawingObject[],
   second: DrawingObject[],
 ): boolean {
-  return JSON.stringify(first) === JSON.stringify(second);
+  if (first === second) return true;
+  if (first.length !== second.length) return false;
+
+  for (let i = 0; i < first.length; i++) {
+    const a = first[i];
+    const b = second[i];
+
+    if (!a || !b) return false;
+
+    if (
+      a.id !== b.id ||
+      a.type !== b.type ||
+      a.color !== b.color ||
+      a.strokeWidth !== b.strokeWidth ||
+      a.locked !== b.locked ||
+      a.visible !== b.visible ||
+      a.updatedAt !== b.updatedAt ||
+      a.points.length !== b.points.length
+    ) {
+      return false;
+    }
+
+    if (
+      a.entryPrice !== b.entryPrice ||
+      a.targetPrice !== b.targetPrice ||
+      a.stopPrice !== b.stopPrice ||
+      a.riskReward !== b.riskReward ||
+      a.lineStyle !== b.lineStyle ||
+      a.extendRight !== b.extendRight ||
+      a.showLabels !== b.showLabels ||
+      a.opacity !== b.opacity ||
+      a.fillColor !== b.fillColor
+    ) {
+      return false;
+    }
+
+    for (let j = 0; j < a.points.length; j++) {
+      const ap = a.points[j];
+      const bp = b.points[j];
+
+      if (
+        !ap ||
+        !bp ||
+        ap.timestamp !== bp.timestamp ||
+        ap.price !== bp.price
+      ) {
+        return false;
+      }
+    }
+
+    if (JSON.stringify(a.levels) !== JSON.stringify(b.levels)) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 export const TradingChart: React.FC<TradingChartProps> = ({
@@ -170,6 +222,23 @@ export const TradingChart: React.FC<TradingChartProps> = ({
 
   const candlesRef = useRef<Candle[]>(candles);
 
+  const drawingsRef = useRef<DrawingObject[]>(drawings);
+
+  // Snapshot awal satu sesi drag. History hanya dicatat
+  // sekali saat drag selesai, bukan pada setiap gerakan mouse.
+  const drawingDragStartRef =
+    useRef<DrawingObject[] | null>(null);
+
+  const isDarkModeRef = useRef(isDarkMode);
+  const activeTimezoneRef = useRef(activeTimezone);
+
+  // Perbarui nilai ref langsung agar callback chart selalu
+  // menggunakan data/config terbaru tanpa membuat chart baru.
+  candlesRef.current = candles;
+  drawingsRef.current = drawings;
+  isDarkModeRef.current = isDarkMode;
+  activeTimezoneRef.current = activeTimezone;
+
   // =========================================================
   // STATE
   // =========================================================
@@ -203,11 +272,6 @@ export const TradingChart: React.FC<TradingChartProps> = ({
 
   const [isIndicatorModalOpen, setIsIndicatorModalOpen] =
     useState(false);
-
-  // Selalu gunakan candle terbaru di callback chart.
-  useEffect(() => {
-    candlesRef.current = candles;
-  }, [candles]);
 
   // =========================================================
   // CANDLE INFORMATION
@@ -248,10 +312,11 @@ export const TradingChart: React.FC<TradingChartProps> = ({
 
   const commitDrawingsWithHistory = useCallback(
     (newDrawings: DrawingObject[]) => {
-      if (isSameDrawings(drawings, newDrawings)) {
+      if (isSameDrawings(drawingsRef.current, newDrawings)) {
         return;
       }
 
+      drawingsRef.current = newDrawings;
       onUpdateDrawings(newDrawings);
 
       const nextHistory = drawingHistory.slice(
@@ -265,7 +330,6 @@ export const TradingChart: React.FC<TradingChartProps> = ({
       setHistoryIndex(nextHistory.length - 1);
     },
     [
-      drawings,
       drawingHistory,
       historyIndex,
       onUpdateDrawings,
@@ -273,36 +337,38 @@ export const TradingChart: React.FC<TradingChartProps> = ({
   );
 
   const handleUndo = useCallback(() => {
-    if (historyIndex <= 0) {
-      return;
-    }
+    if (historyIndex <= 0) return;
 
     const nextIndex = historyIndex - 1;
     const previousDrawings = drawingHistory[nextIndex];
 
-    if (!previousDrawings) {
-      return;
-    }
+    if (!previousDrawings) return;
 
+    drawingDragStartRef.current = null;
+
+    const restored = [...previousDrawings];
+
+    drawingsRef.current = restored;
     setHistoryIndex(nextIndex);
-    onUpdateDrawings([...previousDrawings]);
+    onUpdateDrawings(restored);
     setSelectedDrawingId(null);
   }, [historyIndex, drawingHistory, onUpdateDrawings]);
 
   const handleRedo = useCallback(() => {
-    if (historyIndex >= drawingHistory.length - 1) {
-      return;
-    }
+    if (historyIndex >= drawingHistory.length - 1) return;
 
     const nextIndex = historyIndex + 1;
     const nextDrawings = drawingHistory[nextIndex];
 
-    if (!nextDrawings) {
-      return;
-    }
+    if (!nextDrawings) return;
 
+    drawingDragStartRef.current = null;
+
+    const restored = [...nextDrawings];
+
+    drawingsRef.current = restored;
     setHistoryIndex(nextIndex);
-    onUpdateDrawings([...nextDrawings]);
+    onUpdateDrawings(restored);
     setSelectedDrawingId(null);
   }, [historyIndex, drawingHistory, onUpdateDrawings]);
 
@@ -312,35 +378,94 @@ export const TradingChart: React.FC<TradingChartProps> = ({
 
   const handleAddDrawing = useCallback(
     (drawing: DrawingObject) => {
-      const drawingWithSession = {
+      const drawingWithSession: DrawingObject = {
         ...drawing,
         sessionId,
-      } as DrawingObject;
+      };
 
-      const updated = [...drawings, drawingWithSession];
+      const updated = [
+        ...drawingsRef.current,
+        drawingWithSession,
+      ];
 
       commitDrawingsWithHistory(updated);
       setSelectedDrawingId(drawing.id);
     },
-    [drawings, sessionId, commitDrawingsWithHistory],
+    [sessionId, commitDrawingsWithHistory],
   );
 
   const handleUpdateDrawing = useCallback(
     (drawing: DrawingObject) => {
-      const updated = drawings.map((item) =>
+      const current = drawingsRef.current;
+      const existing = current.find(
+        (item) => item.id === drawing.id,
+      );
+
+      if (!existing) return;
+
+      // Tidak membuat array baru bila nilai gambar sama.
+      if (existing === drawing) return;
+
+      const updated = current.map((item) =>
         item.id === drawing.id ? drawing : item,
       );
 
+      drawingsRef.current = updated;
+
+      if (drawingDragStartRef.current !== null) {
+        // Selama drag, perbarui gambar saja.
+        // Jangan membuat snapshot Undo/Redo setiap frame.
+        onUpdateDrawings(updated);
+        return;
+      }
+
       commitDrawingsWithHistory(updated);
     },
-    [drawings, commitDrawingsWithHistory],
+    [commitDrawingsWithHistory, onUpdateDrawings],
   );
+
+  const handleDrawingDragStart = useCallback(() => {
+    // Simpan satu snapshot sebelum drawing mulai digeser.
+    if (drawingDragStartRef.current === null) {
+      drawingDragStartRef.current = [
+        ...drawingsRef.current,
+      ];
+    }
+  }, []);
+
+  const handleDrawingDragEnd = useCallback(() => {
+    const initialDrawings = drawingDragStartRef.current;
+
+    if (initialDrawings === null) return;
+
+    // Reset terlebih dahulu supaya pembaruan selanjutnya
+    // tidak dianggap bagian dari drag sebelumnya.
+    drawingDragStartRef.current = null;
+
+    const finalDrawings = drawingsRef.current;
+
+    if (isSameDrawings(initialDrawings, finalDrawings)) {
+      return;
+    }
+
+    const nextHistory = drawingHistory.slice(
+      0,
+      historyIndex + 1,
+    );
+
+    nextHistory.push([...finalDrawings]);
+
+    setDrawingHistory(nextHistory);
+    setHistoryIndex(nextHistory.length - 1);
+  }, [drawingHistory, historyIndex]);
 
   const handleDeleteDrawing = useCallback(
     (id: string) => {
-      const updated = drawings.filter(
+      const updated = drawingsRef.current.filter(
         (drawing) => drawing.id !== id,
       );
+
+      if (updated.length === drawingsRef.current.length) return;
 
       commitDrawingsWithHistory(updated);
 
@@ -348,65 +473,57 @@ export const TradingChart: React.FC<TradingChartProps> = ({
         previous === id ? null : previous,
       );
     },
-    [drawings, commitDrawingsWithHistory],
+    [commitDrawingsWithHistory],
   );
 
   const handleClearAllDrawings = useCallback(() => {
-    if (drawings.length === 0) {
-      return;
-    }
+    if (drawingsRef.current.length === 0) return;
 
     commitDrawingsWithHistory([]);
     setSelectedDrawingId(null);
-  }, [drawings, commitDrawingsWithHistory]);
+  }, [commitDrawingsWithHistory]);
 
   const handleToggleDrawingVisible = useCallback(
     (id: string) => {
-      const updated = drawings.map((drawing) =>
+      const updated = drawingsRef.current.map((drawing) =>
         drawing.id === id
-          ? {
-              ...drawing,
-              visible: !drawing.visible,
-            }
+          ? { ...drawing, visible: !drawing.visible }
           : drawing,
       );
 
       commitDrawingsWithHistory(updated);
     },
-    [drawings, commitDrawingsWithHistory],
+    [commitDrawingsWithHistory],
   );
 
   const handleToggleDrawingLock = useCallback(
     (id: string) => {
-      const updated = drawings.map((drawing) =>
+      const updated = drawingsRef.current.map((drawing) =>
         drawing.id === id
-          ? {
-              ...drawing,
-              locked: !drawing.locked,
-            }
+          ? { ...drawing, locked: !drawing.locked }
           : drawing,
       );
 
       commitDrawingsWithHistory(updated);
     },
-    [drawings, commitDrawingsWithHistory],
+    [commitDrawingsWithHistory],
   );
 
-  // Sinkronisasi drawing dari parent tanpa menambahkan
-  // duplikat pada history ketika undo/redo dilakukan.
+  // Sinkronisasi drawing dari parent.
+  // Selama drag, jangan membuat snapshot history tambahan.
   useEffect(() => {
+    if (drawingDragStartRef.current !== null) {
+      return;
+    }
+
     setDrawingHistory((previous) => {
       const current = previous[historyIndex];
 
-      if (
-        current &&
-        isSameDrawings(current, drawings)
-      ) {
+      if (current && isSameDrawings(current, drawings)) {
         return previous;
       }
 
       const next = previous.slice(0, historyIndex + 1);
-
       next.push([...drawings]);
 
       setHistoryIndex(next.length - 1);
@@ -417,17 +534,20 @@ export const TradingChart: React.FC<TradingChartProps> = ({
 
   // =========================================================
   // INITIALIZE CHART
+  // Chart dibuat satu kali selama komponen tetap terpasang.
+  // Perubahan tema/timezone ditangani oleh efek terpisah.
   // =========================================================
 
   useEffect(() => {
     const container = containerRef.current;
 
-    if (!container) {
-      return;
-    }
+    if (!container) return;
 
     const initialWidth = Math.max(container.clientWidth, 1);
     const initialHeight = Math.max(container.clientHeight, 1);
+
+    const initialDarkMode = isDarkModeRef.current;
+    const initialTimezone = activeTimezoneRef.current;
 
     setContainerDimensions({
       width: initialWidth,
@@ -441,9 +561,9 @@ export const TradingChart: React.FC<TradingChartProps> = ({
       layout: {
         background: {
           type: ColorType.Solid,
-          color: isDarkMode ? '#0b0f19' : '#ffffff',
+          color: initialDarkMode ? '#0b0f19' : '#ffffff',
         },
-        textColor: isDarkMode ? '#94a3b8' : '#475569',
+        textColor: initialDarkMode ? '#94a3b8' : '#475569',
         fontSize: 11,
         fontFamily:
           "'JetBrains Mono', monospace, -apple-system, sans-serif",
@@ -451,12 +571,12 @@ export const TradingChart: React.FC<TradingChartProps> = ({
 
       grid: {
         vertLines: {
-          color: isDarkMode
+          color: initialDarkMode
             ? 'rgba(30, 41, 59, 0.6)'
             : '#f1f5f9',
         },
         horzLines: {
-          color: isDarkMode
+          color: initialDarkMode
             ? 'rgba(30, 41, 59, 0.6)'
             : '#f1f5f9',
         },
@@ -464,21 +584,19 @@ export const TradingChart: React.FC<TradingChartProps> = ({
 
       crosshair: {
         mode: CrosshairMode.Normal,
-
         vertLine: {
-          color: isDarkMode ? '#3b82f6' : '#2563eb',
+          color: initialDarkMode ? '#3b82f6' : '#2563eb',
           width: 1,
           style: 3,
-          labelBackgroundColor: isDarkMode
+          labelBackgroundColor: initialDarkMode
             ? '#1e293b'
             : '#2563eb',
         },
-
         horzLine: {
-          color: isDarkMode ? '#3b82f6' : '#2563eb',
+          color: initialDarkMode ? '#3b82f6' : '#2563eb',
           width: 1,
           style: 3,
-          labelBackgroundColor: isDarkMode
+          labelBackgroundColor: initialDarkMode
             ? '#1e293b'
             : '#2563eb',
         },
@@ -486,7 +604,10 @@ export const TradingChart: React.FC<TradingChartProps> = ({
 
       localization: {
         timeFormatter: (timeValue: number) =>
-          formatDateTimeWithTz(timeValue, activeTimezone),
+          formatDateTimeWithTz(
+            timeValue,
+            activeTimezoneRef.current,
+          ),
       },
 
       handleScroll: {
@@ -510,7 +631,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
       },
 
       timeScale: {
-        borderColor: isDarkMode ? '#1e293b' : '#e2e8f0',
+        borderColor: initialDarkMode ? '#1e293b' : '#e2e8f0',
         timeVisible: true,
         secondsVisible: false,
         rightOffset: 8,
@@ -519,45 +640,55 @@ export const TradingChart: React.FC<TradingChartProps> = ({
         fixLeftEdge: false,
         fixRightEdge: false,
         lockVisibleTimeRangeOnResize: true,
-        tickMarkFormatter: (time: Time, tickMarkType: TickMarkType) => {
+
+        tickMarkFormatter: (
+          time: Time,
+          tickMarkType: TickMarkType,
+        ) => {
           const timestamp = toUnixTimestamp(time);
+
           if (timestamp === null) return '';
+
           const date = new Date(timestamp * 1000);
+          const timezone = activeTimezoneRef.current;
 
           if (tickMarkType === TickMarkType.Year) {
             return date.toLocaleDateString('en-GB', {
               year: 'numeric',
-              timeZone: activeTimezone,
+              timeZone: timezone,
             });
           }
+
           if (tickMarkType === TickMarkType.Month) {
             return date.toLocaleDateString('en-GB', {
               month: 'short',
-              timeZone: activeTimezone,
+              timeZone: timezone,
             });
           }
+
           if (tickMarkType === TickMarkType.DayOfMonth) {
             return date.toLocaleDateString('en-GB', {
               day: '2-digit',
               month: 'short',
-              timeZone: activeTimezone,
+              timeZone: timezone,
             });
           }
+
           return date.toLocaleTimeString('en-GB', {
             hour: '2-digit',
             minute: '2-digit',
             hour12: false,
-            timeZone: activeTimezone,
+            timeZone: timezone,
           });
         },
       },
 
       rightPriceScale: {
-        borderColor: isDarkMode ? '#1e293b' : '#e2e8f0',
+        borderColor: initialDarkMode ? '#1e293b' : '#e2e8f0',
         autoScale: true,
         scaleMargins: {
           top: 0.08,
-          bottom: 0.22, // leave space at bottom for volume
+          bottom: 0.22,
         },
       },
     });
@@ -577,7 +708,6 @@ export const TradingChart: React.FC<TradingChartProps> = ({
 
     candlestickSeriesRef.current = candlestickSeries;
 
-    // Volume Series (Histogram at bottom of main chart pane)
     const volumeSeries = chart.addSeries(HistogramSeries, {
       color: '#26a69a',
       priceFormat: {
@@ -588,7 +718,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
 
     volumeSeries.priceScale().applyOptions({
       scaleMargins: {
-        top: 0.8, // volume occupies bottom 20%
+        top: 0.8,
         bottom: 0,
       },
       visible: false,
@@ -602,7 +732,9 @@ export const TradingChart: React.FC<TradingChartProps> = ({
         !param.seriesData ||
         param.point === undefined
       ) {
-        setHoveredCandle(null);
+        setHoveredCandle((previous) =>
+          previous === null ? previous : null,
+        );
         return;
       }
 
@@ -617,30 +749,46 @@ export const TradingChart: React.FC<TradingChartProps> = ({
         typeof barData.low !== 'number' ||
         typeof barData.close !== 'number'
       ) {
-        setHoveredCandle(null);
+        setHoveredCandle((previous) =>
+          previous === null ? previous : null,
+        );
         return;
       }
 
       const timestamp = toUnixTimestamp(param.time);
 
-      if (timestamp === null) {
-        setHoveredCandle(null);
-        return;
-      }
+      if (timestamp === null) return;
 
+      // Cari hanya ketika pointer berada di atas candle.
+      // Nilai OHLC yang sama tidak memicu render tambahan.
       const matched = candlesRef.current.find(
         (candle) =>
           Math.floor(candle.timestamp) === timestamp,
       );
 
-      setHoveredCandle({
-        timestamp,
-        open: barData.open,
-        high: barData.high,
-        low: barData.low,
-        close: barData.close,
-        tickVolume: matched?.tickVolume ?? 0,
-        realVolume: matched?.realVolume ?? 0,
+      setHoveredCandle((previous) => {
+        if (
+          previous &&
+          previous.timestamp === timestamp &&
+          previous.open === barData.open &&
+          previous.high === barData.high &&
+          previous.low === barData.low &&
+          previous.close === barData.close &&
+          previous.tickVolume === (matched?.tickVolume ?? 0) &&
+          previous.realVolume === (matched?.realVolume ?? 0)
+        ) {
+          return previous;
+        }
+
+        return {
+          timestamp,
+          open: barData.open,
+          high: barData.high,
+          low: barData.low,
+          close: barData.close,
+          tickVolume: matched?.tickVolume ?? 0,
+          realVolume: matched?.realVolume ?? 0,
+        };
       });
     });
 
@@ -651,25 +799,20 @@ export const TradingChart: React.FC<TradingChartProps> = ({
     const resizeObserver = new ResizeObserver((entries) => {
       const entry = entries[0];
 
-      if (!entry) {
-        return;
-      }
+      if (!entry) return;
 
-      const { width, height } = entry.contentRect;
+      const width = Math.floor(entry.contentRect.width);
+      const height = Math.floor(entry.contentRect.height);
 
-      if (width <= 0 || height <= 0) {
-        return;
-      }
+      if (width <= 0 || height <= 0) return;
 
-      chart.applyOptions({
-        width: Math.floor(width),
-        height: Math.floor(height),
-      });
+      chart.applyOptions({ width, height });
 
-      setContainerDimensions({
-        width: Math.floor(width),
-        height: Math.floor(height),
-      });
+      setContainerDimensions((previous) =>
+        previous.width === width && previous.height === height
+          ? previous
+          : { width, height },
+      );
     });
 
     resizeObserver.observe(container);
@@ -686,46 +829,111 @@ export const TradingChart: React.FC<TradingChartProps> = ({
 
       lineSeriesMapRef.current.clear();
     };
-  }, [isDarkMode, activeTimezone]);
+  }, []);
 
   // =========================================================
-  // UPDATE CANDLE DATA
+  // UPDATE CHART OPTIONS: THEME
+  // Mengubah tema tidak membuat chart baru.
+  // =========================================================
+
+  useEffect(() => {
+    const chart = chartRef.current;
+
+    if (!chart) return;
+
+    chart.applyOptions({
+      layout: {
+        background: {
+          type: ColorType.Solid,
+          color: isDarkMode ? '#0b0f19' : '#ffffff',
+        },
+        textColor: isDarkMode ? '#94a3b8' : '#475569',
+      },
+
+      grid: {
+        vertLines: {
+          color: isDarkMode
+            ? 'rgba(30, 41, 59, 0.6)'
+            : '#f1f5f9',
+        },
+        horzLines: {
+          color: isDarkMode
+            ? 'rgba(30, 41, 59, 0.6)'
+            : '#f1f5f9',
+        },
+      },
+
+      crosshair: {
+        vertLine: {
+          color: isDarkMode ? '#3b82f6' : '#2563eb',
+          labelBackgroundColor: isDarkMode
+            ? '#1e293b'
+            : '#2563eb',
+        },
+        horzLine: {
+          color: isDarkMode ? '#3b82f6' : '#2563eb',
+          labelBackgroundColor: isDarkMode
+            ? '#1e293b'
+            : '#2563eb',
+        },
+      },
+
+      timeScale: {
+        borderColor: isDarkMode ? '#1e293b' : '#e2e8f0',
+      },
+
+      rightPriceScale: {
+        borderColor: isDarkMode ? '#1e293b' : '#e2e8f0',
+      },
+    });
+  }, [isDarkMode]);
+
+  // =========================================================
+  // TIMEZONE
+  // Formatter membaca activeTimezoneRef agar tidak perlu
+  // menginisialisasi ulang chart ketika timezone berubah.
+  // =========================================================
+
+  useEffect(() => {
+    activeTimezoneRef.current = activeTimezone;
+
+    // Paksa chart menghitung ulang label waktu tanpa
+    // memuat ulang data candle.
+    chartRef.current?.applyOptions({
+      localization: {
+        timeFormatter: (timeValue: number) =>
+          formatDateTimeWithTz(timeValue, activeTimezone),
+      },
+    });
+  }, [activeTimezone]);
+
+  // =========================================================
+  // UPDATE CANDLE AND VOLUME DATA
   // =========================================================
 
   useEffect(() => {
     const series = candlestickSeriesRef.current;
 
-    if (!series) {
-      return;
-    }
+    if (!series) return;
 
     if (!candles || candles.length === 0) {
       series.setData([]);
+      volumeSeriesRef.current?.setData([]);
       setHoveredCandle(null);
       return;
     }
 
     try {
-      const candleMap = new Map<
-        number,
-        CandlestickData<Time>
-      >();
+      const candleMap = new Map<number, CandlestickData<Time>>();
 
       for (const candle of candles) {
-        if (!candle) {
-          continue;
-        }
+        if (!candle) continue;
 
         const timestamp = Math.floor(candle.timestamp);
 
         if (
           !Number.isFinite(timestamp) ||
-          timestamp <= 0
-        ) {
-          continue;
-        }
-
-        if (
+          timestamp <= 0 ||
           !Number.isFinite(candle.open) ||
           !Number.isFinite(candle.high) ||
           !Number.isFinite(candle.low) ||
@@ -751,62 +959,74 @@ export const TradingChart: React.FC<TradingChartProps> = ({
         });
       }
 
-      const sortedCandles = Array.from(
-        candleMap.values(),
-      ).sort((a, b) => Number(a.time) - Number(b.time));
+      const sortedCandles = Array.from(candleMap.values()).sort(
+        (a, b) => Number(a.time) - Number(b.time),
+      );
 
       series.setData(sortedCandles);
 
-      // Update volume series data
       const volSeries = volumeSeriesRef.current;
-      if (volSeries) {
-        if (!showVolume) {
-          volSeries.applyOptions({ visible: false });
-        } else {
-          volSeries.applyOptions({ visible: true });
-          const volumeData: HistogramData<Time>[] = [];
-          for (const candle of candles) {
-            const timestamp = Math.floor(candle.timestamp);
-            if (!Number.isFinite(timestamp) || timestamp <= 0) continue;
-            const isUp = candle.close >= candle.open;
-            const vol =
-              volumeType === 'REAL'
-                ? candle.realVolume || candle.tickVolume || 0
-                : candle.tickVolume || candle.realVolume || 0;
-            volumeData.push({
-              time: timestamp as Time,
-              value: vol,
-              color: isUp
-                ? isDarkMode
-                  ? 'rgba(16, 185, 129, 0.45)'
-                  : 'rgba(16, 185, 129, 0.55)'
-                : isDarkMode
-                  ? 'rgba(239, 68, 68, 0.45)'
-                  : 'rgba(239, 68, 68, 0.55)',
-            });
-          }
-          volumeData.sort((a, b) => Number(a.time) - Number(b.time));
-          volSeries.setData(volumeData);
-        }
+
+      if (!volSeries) return;
+
+      if (!showVolume) {
+        volSeries.applyOptions({ visible: false });
+        volSeries.setData([]);
+        return;
       }
+
+      volSeries.applyOptions({ visible: true });
+
+      const volumeData: HistogramData<Time>[] = [];
+
+      for (const candle of candles) {
+        const timestamp = Math.floor(candle.timestamp);
+
+        if (!Number.isFinite(timestamp) || timestamp <= 0) {
+          continue;
+        }
+
+        const isUp = candle.close >= candle.open;
+
+        const volume =
+          volumeType === 'REAL'
+            ? candle.realVolume || candle.tickVolume || 0
+            : candle.tickVolume || candle.realVolume || 0;
+
+        volumeData.push({
+          time: timestamp as Time,
+          value: volume,
+          color: isUp
+            ? isDarkMode
+              ? 'rgba(16, 185, 129, 0.45)'
+              : 'rgba(16, 185, 129, 0.55)'
+            : isDarkMode
+              ? 'rgba(239, 68, 68, 0.45)'
+              : 'rgba(239, 68, 68, 0.55)',
+        });
+      }
+
+      volumeData.sort(
+        (a, b) => Number(a.time) - Number(b.time),
+      );
+
+      volSeries.setData(volumeData);
     } catch (error) {
       console.error(
         '[TradingChart] Error updating candle/volume data:',
         error,
       );
     }
-  }, [candles, showVolume, volumeType, isDarkMode, activeTimezone]);
+  }, [candles, showVolume, volumeType, isDarkMode]);
 
   // =========================================================
-  // UPDATE MAIN INDICATORS: EMA, SMA, BOLLINGER
+  // MAIN INDICATORS: EMA, SMA, BOLLINGER
   // =========================================================
 
   useEffect(() => {
     const chart = chartRef.current;
 
-    if (!chart || !candlestickSeriesRef.current) {
-      return;
-    }
+    if (!chart || !candlestickSeriesRef.current) return;
 
     const activeIndicators = indicators.filter(
       (indicator) =>
@@ -822,9 +1042,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
       ) {
         neededSeriesIds.add(indicator.id);
 
-        let series = lineSeriesMapRef.current.get(
-          indicator.id,
-        );
+        let series = lineSeriesMapRef.current.get(indicator.id);
 
         if (!series) {
           series = chart.addSeries(LineSeries, {
@@ -834,10 +1052,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
             crosshairMarkerVisible: true,
           });
 
-          lineSeriesMapRef.current.set(
-            indicator.id,
-            series,
-          );
+          lineSeriesMapRef.current.set(indicator.id, series);
         } else {
           series.applyOptions({
             color: indicator.color,
@@ -874,14 +1089,9 @@ export const TradingChart: React.FC<TradingChartProps> = ({
         neededSeriesIds.add(middleId);
         neededSeriesIds.add(lowerId);
 
-        let upperSeries =
-          lineSeriesMapRef.current.get(upperId);
-
-        let middleSeries =
-          lineSeriesMapRef.current.get(middleId);
-
-        let lowerSeries =
-          lineSeriesMapRef.current.get(lowerId);
+        let upperSeries = lineSeriesMapRef.current.get(upperId);
+        let middleSeries = lineSeriesMapRef.current.get(middleId);
+        let lowerSeries = lineSeriesMapRef.current.get(lowerId);
 
         if (!upperSeries) {
           upperSeries = chart.addSeries(LineSeries, {
@@ -890,10 +1100,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
             title: 'BB Upper',
           });
 
-          lineSeriesMapRef.current.set(
-            upperId,
-            upperSeries,
-          );
+          lineSeriesMapRef.current.set(upperId, upperSeries);
         } else {
           upperSeries.applyOptions({
             color: indicator.upperColor || indicator.color,
@@ -909,10 +1116,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
             title: 'BB Mid',
           });
 
-          lineSeriesMapRef.current.set(
-            middleId,
-            middleSeries,
-          );
+          lineSeriesMapRef.current.set(middleId, middleSeries);
         } else {
           middleSeries.applyOptions({
             color: indicator.color,
@@ -928,10 +1132,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
             title: 'BB Lower',
           });
 
-          lineSeriesMapRef.current.set(
-            lowerId,
-            lowerSeries,
-          );
+          lineSeriesMapRef.current.set(lowerId, lowerSeries);
         } else {
           lowerSeries.applyOptions({
             color: indicator.lowerColor || indicator.color,
@@ -970,9 +1171,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
     }
 
     for (const [id, series] of lineSeriesMapRef.current) {
-      if (neededSeriesIds.has(id)) {
-        continue;
-      }
+      if (neededSeriesIds.has(id)) continue;
 
       try {
         chart.removeSeries(series);
@@ -982,7 +1181,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
 
       lineSeriesMapRef.current.delete(id);
     }
-  }, [candles, indicators, isDarkMode, activeTimezone]);
+  }, [candles, indicators]);
 
   // =========================================================
   // SUB-INDICATORS
@@ -1011,10 +1210,13 @@ export const TradingChart: React.FC<TradingChartProps> = ({
   );
 
   const handleFitContent = useCallback(() => {
-    if (chartRef.current) {
-      chartRef.current.timeScale().fitContent();
-      chartRef.current.priceScale('right').applyOptions({ autoScale: true });
-    }
+    if (!chartRef.current) return;
+
+    chartRef.current.timeScale().fitContent();
+
+    chartRef.current.priceScale('right').applyOptions({
+      autoScale: true,
+    });
   }, []);
 
   // =========================================================
@@ -1023,7 +1225,6 @@ export const TradingChart: React.FC<TradingChartProps> = ({
 
   return (
     <div className="relative flex h-full min-h-0 w-full flex-col overflow-hidden bg-white text-slate-900 dark:bg-[#0b0f19] dark:text-slate-100">
-      {/* TOOLBAR ATAS */}
       <div className="relative z-20 shrink-0 border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-[#0b0f19]">
         <ChartToolbar
           sourceTimeframe={sourceTimeframe}
@@ -1046,7 +1247,6 @@ export const TradingChart: React.FC<TradingChartProps> = ({
         />
       </div>
 
-      {/* SYMBOL DAN INFORMASI OHLC */}
       <div className="relative z-10 flex min-h-9 shrink-0 items-center gap-3 overflow-x-auto border-b border-slate-200 bg-white px-3 py-1.5 dark:border-slate-800 dark:bg-[#0b0f19]">
         <div className="flex shrink-0 items-center gap-2 font-sans text-xs font-semibold">
           <span className="text-slate-900 dark:text-white">
@@ -1120,9 +1320,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
         )}
       </div>
 
-      {/* AREA CHART DAN DRAWING TOOLBAR */}
       <div className="relative flex min-h-0 flex-1 overflow-hidden bg-white dark:bg-[#0b0f19]">
-        {/* SIDEBAR DRAWING KIRI */}
         <div className="relative z-30 w-12 shrink-0 overflow-visible border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-[#0b0f19]">
           <DrawingToolbar
             activeTool={activeTool}
@@ -1143,14 +1341,12 @@ export const TradingChart: React.FC<TradingChartProps> = ({
           />
         </div>
 
-        {/* CHART UTAMA */}
         <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
           <div
             ref={containerRef}
             className="absolute inset-0 h-full w-full"
           />
 
-          {/* LAYER GAMBARAN / DRAWING */}
           <DrawingLayer
             drawings={drawings}
             activeTool={activeTool}
@@ -1160,6 +1356,8 @@ export const TradingChart: React.FC<TradingChartProps> = ({
             onAddDrawing={handleAddDrawing}
             onUpdateDrawing={handleUpdateDrawing}
             onDeleteDrawing={handleDeleteDrawing}
+            onDrawingDragStart={handleDrawingDragStart}
+            onDrawingDragEnd={handleDrawingDragEnd}
             chart={chartRef.current}
             series={candlestickSeriesRef.current}
             currentColor={currentColor}
@@ -1170,7 +1368,6 @@ export const TradingChart: React.FC<TradingChartProps> = ({
             containerHeight={containerDimensions.height}
           />
 
-          {/* AUTO-FIT FLOATING BUTTON (TRADINGVIEW STYLE) */}
           <button
             type="button"
             onClick={handleFitContent}
@@ -1180,7 +1377,6 @@ export const TradingChart: React.FC<TradingChartProps> = ({
             auto
           </button>
 
-          {/* LOADING OVERLAY */}
           {isLoading && (
             <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center bg-slate-900/20">
               <div className="flex items-center gap-2 rounded-full bg-slate-900/90 px-4 py-2.5 text-xs text-white shadow-xl">
@@ -1190,7 +1386,6 @@ export const TradingChart: React.FC<TradingChartProps> = ({
             </div>
           )}
 
-          {/* EMPTY STATE */}
           {!isLoading && candles.length === 0 && (
             <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 p-4 text-center text-xs text-slate-400">
               <p className="font-semibold text-slate-600 dark:text-slate-300">
@@ -1206,7 +1401,6 @@ export const TradingChart: React.FC<TradingChartProps> = ({
         </div>
       </div>
 
-      {/* SUB-INDICATORS */}
       {subIndicators.length > 0 && (
         <div className="relative z-10 shrink-0 border-t border-slate-200 bg-white dark:border-slate-800 dark:bg-[#0b0f19]">
           <SubIndicatorsPane
@@ -1218,7 +1412,6 @@ export const TradingChart: React.FC<TradingChartProps> = ({
         </div>
       )}
 
-      {/* INDICATOR MODAL */}
       <IndicatorModal
         isOpen={isIndicatorModalOpen}
         onClose={() => setIsIndicatorModalOpen(false)}

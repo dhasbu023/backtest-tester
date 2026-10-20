@@ -78,7 +78,7 @@
       "status": "ACTIVE",
       "notes": "",
       "createdAt": "2026-10-19T11:52:23.852Z",
-      "updatedAt": "2026-10-20T08:57:38.483Z"
+      "updatedAt": "2026-10-20T09:49:03.367Z"
     },
     {
       "id": "00e62d2b-6d6f-4e5e-8c57-51aab321aacc",
@@ -99,14 +99,14 @@
   ],
   "replayStates": [
     {
-      "id": "d85dff6b-80ba-4ad0-887a-e95bdf4f54fe",
+      "id": "1a8fa268-687a-427b-8b47-e73e6afa9086",
       "sessionId": "d0ab9058-7c8b-431a-8a69-f2f65e8f905a",
       "currentTime": 1788220800,
       "currentIndex": 60381,
       "speed": 10,
       "activeTimeframe": "M15",
       "isPlaying": false,
-      "lastSavedAt": "2026-10-20T08:57:38.483Z"
+      "lastSavedAt": "2026-10-20T09:49:03.367Z"
     },
     {
       "id": "041131d1-ca03-4d71-85c5-84dfaaf25455",
@@ -136,6 +136,56 @@
       "visible": true,
       "createdAt": "2026-10-20T04:26:30.226Z",
       "updatedAt": "2026-10-20T04:26:37.804Z"
+    },
+    {
+      "id": "draw-1792490381448",
+      "sessionId": "d0ab9058-7c8b-431a-8a69-f2f65e8f905a",
+      "type": "RECTANGLE",
+      "points": [
+        {
+          "timestamp": 1788183000,
+          "price": 4535.222845308903
+        },
+        {
+          "timestamp": 1787945400,
+          "price": 4572.525464050192
+        }
+      ],
+      "color": "#3b82f6",
+      "strokeWidth": 2,
+      "fillColor": "#3b82f6",
+      "opacity": 0.18,
+      "extendRight": false,
+      "showLabels": true,
+      "locked": false,
+      "visible": true,
+      "createdAt": "2026-10-20T09:59:41.448Z",
+      "updatedAt": "2026-10-20T09:59:41.448Z"
+    },
+    {
+      "id": "draw-1792490388784",
+      "sessionId": "d0ab9058-7c8b-431a-8a69-f2f65e8f905a",
+      "type": "RECTANGLE",
+      "points": [
+        {
+          "timestamp": 1788201000,
+          "price": 4551.661287466081
+        },
+        {
+          "timestamp": 1788145200,
+          "price": 4621.840790521726
+        }
+      ],
+      "color": "#3b82f6",
+      "strokeWidth": 2,
+      "fillColor": "#3b82f6",
+      "opacity": 0.18,
+      "extendRight": false,
+      "showLabels": true,
+      "locked": false,
+      "visible": true,
+      "createdAt": "2026-10-20T09:59:48.784Z",
+      "updatedAt": "2026-10-20T09:59:48.784Z"
     }
   ],
   "preferences": [

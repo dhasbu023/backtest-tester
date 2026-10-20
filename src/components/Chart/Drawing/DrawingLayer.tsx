@@ -356,11 +356,14 @@ export const DrawingLayer: React.FC<DrawingLayerProps> = ({
 
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
+    // Preview hanya perlu diperbarui ketika membuat drawing baru.
+    // Jangan memicu render tambahan ketika menggeser drawing yang sudah ada.
+    if (inProgressPoints.length > 0 && !isDragging) {
+      const point = pixelToPoint(x, y);
 
-    const point = pixelToPoint(x, y);
-
-    if (point) {
-      setCurrentMousePoint(point);
+      if (point) {
+        setCurrentMousePoint(point);
+      }
     }
 
     if (
