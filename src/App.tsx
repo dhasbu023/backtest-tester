@@ -121,6 +121,9 @@ export default function App({ mode }: AppProps) {
   const saveTimeoutRef =
     useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const currentLoadedSessionIdRef =
+    useRef<string | null>(null);
+
   // =========================================================
   // LOAD SESSIONS
   // =========================================================
@@ -286,10 +289,15 @@ export default function App({ mode }: AppProps) {
 
   useEffect(() => {
     if (sessionId) {
-      void handleOpenSession(sessionId);
+      // Hanya muat sesi jika ID sesi di URL benar-benar berubah
+      if (currentLoadedSessionIdRef.current !== sessionId) {
+        currentLoadedSessionIdRef.current = sessionId;
+        void handleOpenSession(sessionId);
+      }
       return;
     }
 
+    currentLoadedSessionIdRef.current = null;
     setIsPlaying(false);
     setActiveSession(null);
     setActiveDataset(null);
@@ -773,6 +781,7 @@ export default function App({ mode }: AppProps) {
             hasRealVolume={hasRealVolume}
             onRetryOpenSession={() => {
               if (sessionId) {
+                currentLoadedSessionIdRef.current = null;
                 void handleOpenSession(sessionId);
               }
             }}

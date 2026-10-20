@@ -70,7 +70,7 @@
       "datasetId": "a0607134-c715-42cb-8a50-b7becef4f410",
       "symbol": "XAUUSD",
       "sourceTimeframe": "M1",
-      "activeTimeframe": "M1",
+      "activeTimeframe": "D1",
       "startReplayTime": 1782864000,
       "currentReplayTime": 1785937740,
       "currentCandleIndex": 35036,
@@ -78,7 +78,7 @@
       "status": "ACTIVE",
       "notes": "",
       "createdAt": "2026-10-19T11:52:23.852Z",
-      "updatedAt": "2026-10-20T04:15:33.973Z"
+      "updatedAt": "2026-10-20T04:54:24.743Z"
     },
     {
       "id": "00e62d2b-6d6f-4e5e-8c57-51aab321aacc",
@@ -99,14 +99,14 @@
   ],
   "replayStates": [
     {
-      "id": "c979c168-d19b-47f8-88e6-bc94f050d274",
+      "id": "5641cd5e-bb4a-44d7-92aa-366a248bd878",
       "sessionId": "d0ab9058-7c8b-431a-8a69-f2f65e8f905a",
       "currentTime": 1785937740,
       "currentIndex": 35036,
       "speed": 1,
-      "activeTimeframe": "M1",
+      "activeTimeframe": "D1",
       "isPlaying": false,
-      "lastSavedAt": "2026-10-20T04:15:33.972Z"
+      "lastSavedAt": "2026-10-20T04:54:24.743Z"
     },
     {
       "id": "041131d1-ca03-4d71-85c5-84dfaaf25455",
@@ -120,58 +120,6 @@
     }
   ],
   "drawings": [
-    {
-      "id": "draw-1792469737175",
-      "sessionId": "d0ab9058-7c8b-431a-8a69-f2f65e8f905a",
-      "type": "RECTANGLE",
-      "points": [
-        {
-          "timestamp": 1785929700,
-          "price": 4189.014192646761
-        },
-        {
-          "timestamp": 1785933360,
-          "price": 4175.055327195853
-        }
-      ],
-      "color": "#3b82f6",
-      "strokeWidth": 2,
-      "fillColor": "#3b82f6",
-      "opacity": 0.18,
-      "locked": false,
-      "visible": true,
-      "createdAt": "2026-10-20T04:15:37.175Z",
-      "updatedAt": "2026-10-20T04:15:37.175Z"
-    },
-    {
-      "id": "draw-1792470332156",
-      "sessionId": "d0ab9058-7c8b-431a-8a69-f2f65e8f905a",
-      "type": "LONG_POSITION",
-      "points": [
-        {
-          "timestamp": 1785933600,
-          "price": 4110.7635700301535
-        },
-        {
-          "timestamp": 1786189440,
-          "price": 4220.777116178191
-        },
-        {
-          "timestamp": 1786189440,
-          "price": 4127.213091435325
-        }
-      ],
-      "entryPrice": 4110.7635700301535,
-      "targetPrice": 4173.139586525398,
-      "stopPrice": 4079.5755617825316,
-      "riskReward": 2.0000000000000293,
-      "color": "#10b981",
-      "strokeWidth": 2,
-      "locked": false,
-      "visible": true,
-      "createdAt": "2026-10-20T04:25:32.156Z",
-      "updatedAt": "2026-10-20T04:26:18.750Z"
-    },
     {
       "id": "draw-1792470390226",
       "sessionId": "00e62d2b-6d6f-4e5e-8c57-51aab321aacc",

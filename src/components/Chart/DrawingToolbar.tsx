@@ -1,7 +1,7 @@
+
 import React, { useState } from 'react';
 import {
   MousePointer,
-  Plus,
   Minus,
   TrendingUp,
   Square,
@@ -46,14 +46,25 @@ const TOOLS: {
   icon: React.ElementType;
 }[] = [
   { type: 'CURSOR', label: 'Kursor / Pilih', icon: MousePointer },
-  { type: 'CROSS', label: 'Cross (Tanda Silang)', icon: Plus },
   { type: 'HORIZONTAL_LINE', label: 'Horizontal Line', icon: Minus },
   { type: 'TREND_LINE', label: 'Trend Line', icon: TrendingUp },
   { type: 'RECTANGLE', label: 'Rectangle / Zona', icon: Square },
   { type: 'VERTICAL_LINE', label: 'Vertical Line', icon: MoveVertical },
-  { type: 'FIBO_RETRACEMENT', label: 'Fibonacci Retracement', icon: AlignJustify },
-  { type: 'LONG_POSITION', label: 'Posisi Pembelian (Long)', icon: ArrowUpCircle },
-  { type: 'SHORT_POSITION', label: 'Posisi Penjualan (Short)', icon: ArrowDownCircle },
+  {
+    type: 'FIBO_RETRACEMENT',
+    label: 'Fibonacci Retracement',
+    icon: AlignJustify,
+  },
+  {
+    type: 'LONG_POSITION',
+    label: 'Posisi Pembelian (Long)',
+    icon: ArrowUpCircle,
+  },
+  {
+    type: 'SHORT_POSITION',
+    label: 'Posisi Penjualan (Short)',
+    icon: ArrowDownCircle,
+  },
   { type: 'TEXT', label: 'Teks / Catatan', icon: Type },
 ];
 
@@ -129,6 +140,7 @@ export const DrawingToolbar: React.FC<DrawingToolbarProps> = ({
             setShowObjectList(false);
           }}
           aria-label="Warna dan ketebalan garis"
+          aria-pressed={showColorPicker}
           title="Warna dan ketebalan garis"
           className={`group relative flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${
             showColorPicker
@@ -152,6 +164,7 @@ export const DrawingToolbar: React.FC<DrawingToolbarProps> = ({
               <span className="text-xs font-bold text-slate-800 dark:text-slate-100">
                 Pengaturan Garis
               </span>
+
               <button
                 type="button"
                 onClick={() => setShowColorPicker(false)}
@@ -231,6 +244,7 @@ export const DrawingToolbar: React.FC<DrawingToolbarProps> = ({
         className="group relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-30 dark:hover:bg-slate-800"
       >
         <Undo2 className="h-[18px] w-[18px]" />
+
         <span className="pointer-events-none absolute left-full top-1/2 z-[60] ml-2 -translate-y-1/2 whitespace-nowrap rounded-md bg-slate-900 px-2.5 py-1.5 text-[11px] text-white opacity-0 group-hover:opacity-100">
           Undo
         </span>
@@ -246,6 +260,7 @@ export const DrawingToolbar: React.FC<DrawingToolbarProps> = ({
         className="group relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-30 dark:hover:bg-slate-800"
       >
         <Redo2 className="h-[18px] w-[18px]" />
+
         <span className="pointer-events-none absolute left-full top-1/2 z-[60] ml-2 -translate-y-1/2 whitespace-nowrap rounded-md bg-slate-900 px-2.5 py-1.5 text-[11px] text-white opacity-0 group-hover:opacity-100">
           Redo
         </span>
@@ -312,6 +327,7 @@ export const DrawingToolbar: React.FC<DrawingToolbarProps> = ({
                         className="h-2.5 w-2.5 shrink-0 rounded-full"
                         style={{ backgroundColor: drawing.color }}
                       />
+
                       <span className="truncate text-[11px] font-semibold text-slate-800 dark:text-slate-200">
                         {drawing.type.replace(/_/g, ' ')} #{index + 1}
                       </span>
@@ -321,7 +337,11 @@ export const DrawingToolbar: React.FC<DrawingToolbarProps> = ({
                       <button
                         type="button"
                         onClick={() => onToggleDrawingVisible(drawing.id)}
-                        aria-label={drawing.visible ? 'Sembunyikan objek' : 'Tampilkan objek'}
+                        aria-label={
+                          drawing.visible
+                            ? 'Sembunyikan objek'
+                            : 'Tampilkan objek'
+                        }
                         title={drawing.visible ? 'Sembunyikan' : 'Tampilkan'}
                         className="rounded p-1 text-slate-400 hover:bg-slate-200 hover:text-blue-500 dark:hover:bg-slate-700"
                       >
@@ -335,7 +355,11 @@ export const DrawingToolbar: React.FC<DrawingToolbarProps> = ({
                       <button
                         type="button"
                         onClick={() => onToggleDrawingLock(drawing.id)}
-                        aria-label={drawing.locked ? 'Buka kunci objek' : 'Kunci objek'}
+                        aria-label={
+                          drawing.locked
+                            ? 'Buka kunci objek'
+                            : 'Kunci objek'
+                        }
                         title={drawing.locked ? 'Buka Kunci' : 'Kunci Objek'}
                         className="rounded p-1 text-slate-400 hover:bg-slate-200 hover:text-amber-500 dark:hover:bg-slate-700"
                       >
