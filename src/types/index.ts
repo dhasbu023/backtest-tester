@@ -151,15 +151,23 @@ export interface DrawingObject {
   opacity?: number;
   text?: string;
   fontSize?: number;
-  levels?: { ratio: number; color?: string; visible?: boolean }[]; // for Fibo Retracement
+  levels?: { id?: string; ratio: number; color?: string; visible?: boolean; enabled?: boolean }[]; // for Fibo Retracement
   extensionLevels?: { ratio: number; color?: string }[]; // for Fibo Extension
+  extendLeft?: boolean; // for Fibonacci extend left
   extendRight?: boolean; // for Fibonacci extend right
   showLabels?: boolean; // for Fibonacci show labels
+  showPrice?: boolean; // for Fibonacci / Position show price
+  showRatio?: boolean; // for Fibonacci show ratio
+  showBackground?: boolean; // for Fibonacci show background
+  visibleTimeframes?: string[]; // list of timeframes allowed
   // Long & Short position properties
   entryPrice?: number;
   targetPrice?: number;
   stopPrice?: number;
   riskReward?: number;
+  profitColor?: string;
+  lossColor?: string;
+  showStats?: boolean;
   lineStyle?: 'solid' | 'dashed' | 'dotted';
   locked: boolean;
   visible: boolean;

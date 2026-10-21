@@ -4,18 +4,24 @@ import type {
 } from './FibonacciProperties.types.js';
 
 export interface FibonacciLevel {
+  id?: string;
   ratio: number;
   color: string;
+  enabled?: boolean;
+  visible?: boolean;
 }
 
 export const DEFAULT_FIBONACCI_LEVELS: FibonacciLevel[] = [
-  { ratio: 0, color: '#3b82f6' },
-  { ratio: 0.236, color: '#f59e0b' },
-  { ratio: 0.382, color: '#10b981' },
-  { ratio: 0.5, color: '#3b82f6' },
-  { ratio: 0.618, color: '#8b5cf6' },
-  { ratio: 0.786, color: '#ec4899' },
-  { ratio: 1, color: '#3b82f6' },
+  { id: 'fibo-0', ratio: 0, color: '#787b86', enabled: true },
+  { id: 'fibo-0.236', ratio: 0.236, color: '#f23645', enabled: true },
+  { id: 'fibo-0.382', ratio: 0.382, color: '#ff9800', enabled: true },
+  { id: 'fibo-0.5', ratio: 0.5, color: '#4caf50', enabled: true },
+  { id: 'fibo-0.618', ratio: 0.618, color: '#089981', enabled: true },
+  { id: 'fibo-0.786', ratio: 0.786, color: '#00bcd4', enabled: true },
+  { id: 'fibo-1', ratio: 1, color: '#787b86', enabled: true },
+  { id: 'fibo-1.272', ratio: 1.272, color: '#2962ff', enabled: false },
+  { id: 'fibo-1.618', ratio: 1.618, color: '#2962ff', enabled: false },
+  { id: 'fibo-2.618', ratio: 2.618, color: '#9c27b0', enabled: false },
 ];
 
 export const createDefaultFibonacciProperties = (
@@ -26,8 +32,10 @@ export const createDefaultFibonacciProperties = (
   color,
 
   levels: DEFAULT_FIBONACCI_LEVELS.map((level) => ({
-    ...level,
-    enabled: true,
+    id: level.id || `fibo-${level.ratio}`,
+    ratio: level.ratio,
+    color: level.color,
+    enabled: level.enabled ?? true,
   })),
 
   lineWidth: 1,
@@ -44,18 +52,12 @@ export const createDefaultFibonacciProperties = (
   secondPoint: { price: secondPrice },
 
   visibleTimeframes: [
-    '1m',
-    '3m',
-    '5m',
-    '15m',
-    '30m',
-    '45m',
-    '1h',
-    '2h',
-    '3h',
-    '4h',
-    '1D',
-    '1W',
-    '1M',
+    'M1',
+    'M5',
+    'M15',
+    'M30',
+    'H1',
+    'H4',
+    'D1',
   ],
 });

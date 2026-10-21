@@ -9,6 +9,7 @@ export type FibonacciPropertiesTab =
 export type FibonacciLineStyle = 'solid' | 'dashed' | 'dotted';
 
 export interface FibonacciPropertiesLevel extends FibonacciLevel {
+  id?: string;
   enabled: boolean;
 }
 
@@ -46,17 +47,11 @@ export interface FibonacciPropertiesModalProps {
 }
 
 export const FIBONACCI_TIMEFRAMES = [
-  '1m',
-  '3m',
-  '5m',
-  '15m',
-  '30m',
-  '45m',
-  '1h',
-  '2h',
-  '3h',
-  '4h',
-  '1D',
-  '1W',
-  '1M',
+  'M1',
+  'M5',
+  'M15',
+  'M30',
+  'H1',
+  'H4',
+  'D1',
 ] as const;

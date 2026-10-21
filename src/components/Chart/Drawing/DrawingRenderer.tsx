@@ -36,10 +36,13 @@ interface DrawingRendererProps {
   containerHeight: number;
   activeTimezone: string;
   isDarkMode: boolean;
+  timeframe?: string;
   onSelectDrawing: (id: string | null) => void;
   onStartDragging: StartDraggingHandler;
   onUpdateDrawing: (drawing: DrawingObject) => void;
   onOpenHorizontalLineProperties: (id: string) => void;
+  onOpenProperties?: (id: string) => void;
+  onContextMenu?: (event: React.MouseEvent, id: string) => void;
 }
 
 export const DrawingRenderer: React.FC<DrawingRendererProps> = ({
@@ -51,15 +54,28 @@ export const DrawingRenderer: React.FC<DrawingRendererProps> = ({
   containerHeight,
   activeTimezone,
   isDarkMode,
+  timeframe,
   onSelectDrawing,
   onStartDragging,
   onUpdateDrawing,
   onOpenHorizontalLineProperties,
+  onOpenProperties,
+  onContextMenu,
 }) => {
   return (
     <>
       {drawings
-        .filter((drawing) => drawing.visible)
+        .filter((drawing) => {
+          if (!drawing.visible) return false;
+          if (
+            drawing.visibleTimeframes &&
+            drawing.visibleTimeframes.length > 0 &&
+            timeframe
+          ) {
+            return drawing.visibleTimeframes.includes(timeframe);
+          }
+          return true;
+        })
         .map((drawing) => {
           const isSelected = selectedDrawingId === drawing.id;
           const pixelCoords = drawing.points.map(pointToPixel);
@@ -71,16 +87,25 @@ export const DrawingRenderer: React.FC<DrawingRendererProps> = ({
             if (!point) return null;
 
             return (
-              <HorizontalLineRenderer
+              <g
                 key={drawing.id}
-                drawing={drawing}
-                isSelected={isSelected}
-                y={point.y}
-                containerWidth={containerWidth}
-                onSelect={onSelectDrawing}
-                onStartDragging={onStartDragging}
-                onOpenProperties={onOpenHorizontalLineProperties}
-              />
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onSelectDrawing(drawing.id);
+                  onContextMenu?.(e, drawing.id);
+                }}
+              >
+                <HorizontalLineRenderer
+                  drawing={drawing}
+                  isSelected={isSelected}
+                  y={point.y}
+                  containerWidth={containerWidth}
+                  onSelect={onSelectDrawing}
+                  onStartDragging={onStartDragging}
+                  onOpenProperties={onOpenHorizontalLineProperties}
+                />
+              </g>
             );
           }
 
@@ -98,6 +123,12 @@ export const DrawingRenderer: React.FC<DrawingRendererProps> = ({
                 onClick={(event) => {
                   event.stopPropagation();
                   onSelectDrawing(drawing.id);
+                }}
+                onContextMenu={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  onSelectDrawing(drawing.id);
+                  onContextMenu?.(event, drawing.id);
                 }}
                 onMouseDown={(event) =>
                   onStartDragging(event, -1, drawing)
@@ -151,15 +182,24 @@ export const DrawingRenderer: React.FC<DrawingRendererProps> = ({
             if (!firstPoint || !secondPoint) return null;
 
             return (
-              <TrendLineRenderer
+              <g
                 key={drawing.id}
-                drawing={drawing}
-                isSelected={isSelected}
-                firstPoint={firstPoint}
-                secondPoint={secondPoint}
-                onSelect={onSelectDrawing}
-                onStartDragging={onStartDragging}
-              />
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onSelectDrawing(drawing.id);
+                  onContextMenu?.(e, drawing.id);
+                }}
+              >
+                <TrendLineRenderer
+                  drawing={drawing}
+                  isSelected={isSelected}
+                  firstPoint={firstPoint}
+                  secondPoint={secondPoint}
+                  onSelect={onSelectDrawing}
+                  onStartDragging={onStartDragging}
+                />
+              </g>
             );
           }
 
@@ -170,20 +210,27 @@ export const DrawingRenderer: React.FC<DrawingRendererProps> = ({
             if (!firstPoint || !secondPoint) return null;
 
             return (
-              <RectangleRenderer
+              <g
                 key={drawing.id}
-                drawing={drawing}
-                firstPoint={firstPoint}
-                secondPoint={secondPoint}
-                isSelected={isSelected}
-                onSelect={onSelectDrawing}
-                onStartDragging={onStartDragging}
-              />
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onSelectDrawing(drawing.id);
+                  onContextMenu?.(e, drawing.id);
+                }}
+              >
+                <RectangleRenderer
+                  drawing={drawing}
+                  firstPoint={firstPoint}
+                  secondPoint={secondPoint}
+                  isSelected={isSelected}
+                  onSelect={onSelectDrawing}
+                  onStartDragging={onStartDragging}
+                />
+              </g>
             );
           }
 
-          // Fibonacci Retracement
-          
           // Fibonacci Retracement
           if (drawing.type === 'FIBO_RETRACEMENT') {
             const [firstPoint, secondPoint] = pixelCoords;
@@ -203,12 +250,12 @@ export const DrawingRenderer: React.FC<DrawingRendererProps> = ({
                 onSelect={onSelectDrawing}
                 onStartDragging={onStartDragging}
                 onUpdateDrawing={onUpdateDrawing}
+                onOpenProperties={onOpenProperties}
+                onContextMenu={onContextMenu}
               />
             );
           }
-          
 
-         
           // Long Position
           if (drawing.type === 'LONG_POSITION') {
             const entryPoint = pixelCoords[0];
@@ -226,32 +273,34 @@ export const DrawingRenderer: React.FC<DrawingRendererProps> = ({
                 isDarkMode={isDarkMode}
                 onSelect={onSelectDrawing}
                 onStartDragging={onStartDragging}
+                onOpenProperties={onOpenProperties}
+                onContextMenu={onContextMenu}
               />
             );
           }
 
-          
+          // Short Position
+          if (drawing.type === 'SHORT_POSITION') {
+            const entryPoint = pixelCoords[0];
 
-        // Short Position
-        if (drawing.type === 'SHORT_POSITION') {
-          const entryPoint = pixelCoords[0];
+            if (!entryPoint) return null;
 
-          if (!entryPoint) return null;
-
-          return (
-            <ShortPositionRenderer
-              key={drawing.id}
-              drawing={drawing}
-              isSelected={isSelected}
-              entryPoint={entryPoint}
-              rightPoint={pixelCoords[1] ?? null}
-              series={series}
-              isDarkMode={isDarkMode}
-              onSelect={onSelectDrawing}
-              onStartDragging={onStartDragging}
-            />
-          );
-        }
+            return (
+              <ShortPositionRenderer
+                key={drawing.id}
+                drawing={drawing}
+                isSelected={isSelected}
+                entryPoint={entryPoint}
+                rightPoint={pixelCoords[1] ?? null}
+                series={series}
+                isDarkMode={isDarkMode}
+                onSelect={onSelectDrawing}
+                onStartDragging={onStartDragging}
+                onOpenProperties={onOpenProperties}
+                onContextMenu={onContextMenu}
+              />
+            );
+          }
 
           // Text / Label
           if (drawing.type === 'TEXT') {
@@ -260,15 +309,24 @@ export const DrawingRenderer: React.FC<DrawingRendererProps> = ({
             if (!point) return null;
 
             return (
-              <TextRenderer
+              <g
                 key={drawing.id}
-                drawing={drawing}
-                point={point}
-                isSelected={isSelected}
-                isDarkMode={isDarkMode}
-                onSelect={onSelectDrawing}
-                onStartDragging={onStartDragging}
-              />
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onSelectDrawing(drawing.id);
+                  onContextMenu?.(e, drawing.id);
+                }}
+              >
+                <TextRenderer
+                  drawing={drawing}
+                  point={point}
+                  isSelected={isSelected}
+                  isDarkMode={isDarkMode}
+                  onSelect={onSelectDrawing}
+                  onStartDragging={onStartDragging}
+                />
+              </g>
             );
           }
 

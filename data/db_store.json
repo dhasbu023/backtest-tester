@@ -138,17 +138,17 @@
       "updatedAt": "2026-10-20T04:26:37.804Z"
     },
     {
-      "id": "draw-1792548810595",
+      "id": "draw-1792550513055",
       "sessionId": "d0ab9058-7c8b-431a-8a69-f2f65e8f905a",
       "type": "FIBO_RETRACEMENT",
       "points": [
         {
-          "timestamp": 1782868680,
-          "price": 3989.6772283298033
+          "timestamp": 1782872940,
+          "price": 3978.64311046125
         },
         {
-          "timestamp": 1782870840,
-          "price": 4005.336266605776
+          "timestamp": 1782873480,
+          "price": 3986.427140661134
         }
       ],
       "color": "#3b82f6",
@@ -157,38 +157,70 @@
       "showLabels": true,
       "levels": [
         {
+          "id": "fibo-0",
           "ratio": 0,
-          "color": "#3b82f6"
+          "color": "#3b82f6",
+          "enabled": true
         },
         {
+          "id": "fibo-0.236",
           "ratio": 0.236,
-          "color": "#f59e0b"
+          "color": "#f23645",
+          "enabled": true
         },
         {
+          "id": "fibo-0.382",
           "ratio": 0.382,
-          "color": "#10b981"
+          "color": "#ff9800",
+          "enabled": true
         },
         {
+          "id": "fibo-0.5",
           "ratio": 0.5,
-          "color": "#3b82f6"
+          "color": "#4caf50",
+          "enabled": true
         },
         {
+          "id": "fibo-0.618",
           "ratio": 0.618,
-          "color": "#8b5cf6"
+          "color": "#089981",
+          "enabled": true
         },
         {
+          "id": "fibo-0.786",
           "ratio": 0.786,
-          "color": "#ec4899"
+          "color": "#00bcd4",
+          "enabled": true
         },
         {
+          "id": "fibo-1",
           "ratio": 1,
-          "color": "#3b82f6"
+          "color": "#787b86",
+          "enabled": true
+        },
+        {
+          "id": "fibo-1.272",
+          "ratio": 1.272,
+          "color": "#2962ff",
+          "enabled": false
+        },
+        {
+          "id": "fibo-1.618",
+          "ratio": 1.618,
+          "color": "#2962ff",
+          "enabled": false
+        },
+        {
+          "id": "fibo-2.618",
+          "ratio": 2.618,
+          "color": "#3b82f6",
+          "enabled": false
         }
       ],
       "locked": false,
       "visible": true,
-      "createdAt": "2026-10-21T02:13:30.595Z",
-      "updatedAt": "2026-10-21T02:13:33.091Z"
+      "createdAt": "2026-10-21T02:41:53.055Z",
+      "updatedAt": "2026-10-21T02:41:53.055Z"
     }
   ],
   "preferences": [

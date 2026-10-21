@@ -2,9 +2,11 @@
 import React from 'react';
 import type { ISeriesApi } from 'lightweight-charts';
 
-import type {
-  DrawingObject,
-} from '../../../../types/index.js';
+import type { DrawingObject } from '../../../../types/index.js';
+import {
+  DEFAULT_FIBONACCI_LEVELS,
+  type FibonacciLevel,
+} from './fibonacci.defaults.js';
 
 interface PixelPoint {
   x: number;
@@ -28,22 +30,9 @@ interface FibonacciRendererProps {
   onSelect: (id: string | null) => void;
   onStartDragging: StartDraggingHandler;
   onUpdateDrawing: (drawing: DrawingObject) => void;
+  onOpenProperties?: (id: string) => void;
+  onContextMenu?: (event: React.MouseEvent, id: string) => void;
 }
-
-interface FibonacciLevel {
-  ratio: number;
-  color: string;
-}
-
-const DEFAULT_FIBONACCI_LEVELS: FibonacciLevel[] = [
-  { ratio: 0, color: '#3b82f6' },
-  { ratio: 0.236, color: '#f59e0b' },
-  { ratio: 0.382, color: '#10b981' },
-  { ratio: 0.5, color: '#3b82f6' },
-  { ratio: 0.618, color: '#8b5cf6' },
-  { ratio: 0.786, color: '#ec4899' },
-  { ratio: 1, color: '#3b82f6' },
-];
 
 export const FibonacciRenderer: React.FC<FibonacciRendererProps> = ({
   drawing,
@@ -56,6 +45,8 @@ export const FibonacciRenderer: React.FC<FibonacciRendererProps> = ({
   onSelect,
   onStartDragging,
   onUpdateDrawing,
+  onOpenProperties,
+  onContextMenu,
 }) => {
   const startPrice = drawing.points[0]?.price;
   const endPrice = drawing.points[1]?.price;
@@ -66,19 +57,38 @@ export const FibonacciRenderer: React.FC<FibonacciRendererProps> = ({
 
   const diff = endPrice - startPrice;
 
-  const levels: FibonacciLevel[] =
-    drawing.levels?.map((level) => ({
-      ratio: level.ratio,
-      color: level.color || drawing.color,
-    })) ?? DEFAULT_FIBONACCI_LEVELS;
+  // Gunakan level tersimpan atau fallback ke default
+  const rawLevels =
+    drawing.levels && drawing.levels.length > 0
+      ? drawing.levels
+      : DEFAULT_FIBONACCI_LEVELS;
 
-  const leftX = Math.min(firstPoint.x, secondPoint.x);
+  const activeLevels = rawLevels.filter(
+    (level) => level.enabled !== false && level.visible !== false,
+  );
+
+  const leftX = drawing.extendLeft
+    ? 0
+    : Math.min(firstPoint.x, secondPoint.x);
 
   const rightX = drawing.extendRight
-    ? containerWidth - 10
+    ? containerWidth
     : Math.max(firstPoint.x, secondPoint.x);
 
-  const topY = Math.min(firstPoint.y, secondPoint.y);
+  const strokeDasharray =
+    drawing.lineStyle === 'dashed'
+      ? '4 4'
+      : drawing.lineStyle === 'dotted'
+      ? '2 2'
+      : undefined;
+
+  const strokeWidth = drawing.strokeWidth || 1;
+  const showRatio = drawing.showRatio ?? true;
+  const showPrice = drawing.showPrice ?? true;
+  const showBackground = drawing.showBackground ?? true;
+  const showLabels = drawing.showLabels ?? true;
+
+  const pricePrecision = Math.abs(startPrice) > 500 ? 2 : 4;
 
   return (
     <g
@@ -86,13 +96,24 @@ export const FibonacciRenderer: React.FC<FibonacciRendererProps> = ({
         event.stopPropagation();
         onSelect(drawing.id);
       }}
+      onDoubleClick={(event) => {
+        event.stopPropagation();
+        onSelect(drawing.id);
+        onOpenProperties?.(drawing.id);
+      }}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onSelect(drawing.id);
+        onContextMenu?.(event, drawing.id);
+      }}
       onMouseDown={(event) => {
         onStartDragging(event, -1, drawing);
       }}
       className="cursor-pointer"
       style={{ pointerEvents: 'auto' }}
     >
-      {/* Garis penghubung dua anchor Fibonacci */}
+      {/* Garis penghubung diagonal kedua anchor Fibonacci */}
       <line
         x1={firstPoint.x}
         y1={firstPoint.y}
@@ -101,12 +122,12 @@ export const FibonacciRenderer: React.FC<FibonacciRendererProps> = ({
         stroke={drawing.color}
         strokeWidth={1}
         strokeDasharray="3 3"
-        opacity={0.6}
+        opacity={isSelected ? 0.75 : 0.4}
         style={{ pointerEvents: 'none' }}
       />
 
       {/* Level-level Fibonacci */}
-      {levels.map((level) => {
+      {activeLevels.map((level, idx) => {
         const levelPrice = startPrice + diff * level.ratio;
         const levelY = series?.priceToCoordinate(levelPrice);
 
@@ -116,8 +137,34 @@ export const FibonacciRenderer: React.FC<FibonacciRendererProps> = ({
 
         const levelColor = level.color || drawing.color;
 
+        // Label teks: rasio dan/atau harga
+        const labelParts: string[] = [];
+        if (showRatio) {
+          const ratioDisplay =
+            level.ratio >= 0 && level.ratio <= 1
+              ? `${(level.ratio * 100).toFixed(1)}%`
+              : `${level.ratio}`;
+          labelParts.push(ratioDisplay);
+        }
+        if (showPrice) {
+          labelParts.push(`(${levelPrice.toFixed(pricePrecision)})`);
+        }
+        const labelText = labelParts.join(' ');
+        const labelWidth = Math.max(60, labelText.length * 6.5 + 14);
+
         return (
-          <g key={level.ratio}>
+          <g key={level.id || `fibo-level-${idx}-${level.ratio}`}>
+            {/* Area hit testing transparan yang lebih lebar agar mudah diklik */}
+            <line
+              x1={leftX}
+              y1={levelY}
+              x2={rightX}
+              y2={levelY}
+              stroke="transparent"
+              strokeWidth={12}
+            />
+
+            {/* Garis level visual */}
             <line
               x1={leftX}
               y1={levelY}
@@ -125,99 +172,60 @@ export const FibonacciRenderer: React.FC<FibonacciRendererProps> = ({
               y2={levelY}
               stroke={levelColor}
               strokeWidth={
-                level.ratio === 0.5 || level.ratio === 0.618
-                  ? 2
-                  : 1
+                isSelected && (level.ratio === 0.5 || level.ratio === 0.618)
+                  ? strokeWidth + 1
+                  : strokeWidth
               }
               strokeDasharray={
                 level.ratio === 0 || level.ratio === 1
                   ? undefined
-                  : '4 4'
+                  : strokeDasharray
               }
-              opacity={0.85}
+              opacity={0.88}
               style={{ pointerEvents: 'none' }}
             />
 
-            <rect
-              x={rightX - 90}
-              y={levelY - 8}
-              width={85}
-              height={16}
-              rx={3}
-              fill={isDarkMode ? '#0f172a' : '#ffffff'}
-              stroke={levelColor}
-              strokeWidth={1}
-              opacity={0.9}
-              style={{ pointerEvents: 'none' }}
-            />
+            {/* Label level */}
+            {showLabels && labelText.length > 0 && (
+              <g style={{ pointerEvents: 'none' }}>
+                {showBackground && (
+                  <rect
+                    x={rightX - labelWidth - 8}
+                    y={levelY - 9}
+                    width={labelWidth}
+                    height={18}
+                    rx={4}
+                    fill={isDarkMode ? '#0f172a' : '#ffffff'}
+                    stroke={levelColor}
+                    strokeWidth={1}
+                    opacity={0.92}
+                  />
+                )}
 
-            <text
-              x={rightX - 48}
-              y={levelY + 3.5}
-              textAnchor="middle"
-              fill={levelColor}
-              fontSize={9}
-              fontWeight="bold"
-              fontFamily="monospace"
-              style={{ pointerEvents: 'none' }}
-            >
-              {(level.ratio * 100).toFixed(1)}%{' '}
-              {levelPrice.toFixed(2)}
-            </text>
+                <text
+                  x={rightX - labelWidth / 2 - 8}
+                  y={levelY + 3.5}
+                  textAnchor="middle"
+                  fill={levelColor}
+                  fontSize={10}
+                  fontWeight="bold"
+                  fontFamily="monospace"
+                >
+                  {labelText}
+                </text>
+              </g>
+            )}
           </g>
         );
       })}
 
-      {/* Kontrol memperpanjang Fibonacci ke kanan */}
-      {isSelected && (
-        <g
-          className="cursor-pointer select-none"
-          onMouseDown={(event) => {
-            // Jangan sampai klik kontrol memulai drag seluruh drawing.
-            event.stopPropagation();
-          }}
-          onClick={(event) => {
-            event.stopPropagation();
-
-            onUpdateDrawing({
-              ...drawing,
-              extendRight: !drawing.extendRight,
-              updatedAt: new Date().toISOString(),
-            });
-          }}
-        >
-          <rect
-            x={leftX}
-            y={topY - 26}
-            width={125}
-            height={20}
-            rx={4}
-            fill={isDarkMode ? '#1e293b' : '#ffffff'}
-            stroke={drawing.color}
-            strokeWidth={1}
-          />
-
-          <text
-            x={leftX + 62}
-            y={topY - 12}
-            textAnchor="middle"
-            fill={drawing.color}
-            fontSize={10}
-            fontWeight="bold"
-            style={{ pointerEvents: 'none' }}
-          >
-            {drawing.extendRight ? '➔ Kanan: ON' : '➔ Kanan: OFF'}
-          </text>
-        </g>
-      )}
-
-      {/* Anchor untuk mengubah titik awal dan akhir */}
+      {/* Anchor handles untuk mengubah titik pertama dan kedua */}
       {isSelected && (
         <>
           <circle
             cx={firstPoint.x}
             cy={firstPoint.y}
-            r={5}
+            r={6}
             fill="#ffffff"
             stroke={drawing.color}
             strokeWidth={2}
@@ -231,7 +239,7 @@ export const FibonacciRenderer: React.FC<FibonacciRendererProps> = ({
           <circle
             cx={secondPoint.x}
             cy={secondPoint.y}
-            r={5}
+            r={6}
             fill="#ffffff"
             stroke={drawing.color}
             strokeWidth={2}

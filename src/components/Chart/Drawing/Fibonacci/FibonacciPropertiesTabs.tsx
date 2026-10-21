@@ -7,6 +7,7 @@ import type {
 } from './FibonacciProperties.types.js';
 
 import { FIBONACCI_TIMEFRAMES } from './FibonacciProperties.types.js';
+import { DEFAULT_FIBONACCI_LEVELS } from './fibonacci.defaults.js';
 
 interface FibonacciPropertiesTabsProps {
   activeTab: FibonacciPropertiesTab;
@@ -72,11 +73,23 @@ export const FibonacciPropertiesTabs: React.FC<
       levels: [
         ...settings.levels,
         {
+          id: `fibo-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
           ratio: 1.272,
           color: settings.color,
           enabled: true,
         },
       ],
+    });
+  };
+
+  const resetLevels = () => {
+    update({
+      levels: DEFAULT_FIBONACCI_LEVELS.map((level) => ({
+        id: level.id || `fibo-${level.ratio}`,
+        ratio: level.ratio,
+        color: level.color,
+        enabled: level.enabled ?? true,
+      })),
     });
   };
 
@@ -252,19 +265,28 @@ export const FibonacciPropertiesTabs: React.FC<
                   Fibonacci levels
                 </h3>
 
-                <button
-                  type="button"
-                  onClick={addLevel}
-                  className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
-                >
-                  + Tambah level
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={resetLevels}
+                    className="rounded-md border border-gray-300 dark:border-gray-700 px-2.5 py-1 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  >
+                    Reset Default
+                  </button>
+                  <button
+                    type="button"
+                    onClick={addLevel}
+                    className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
+                  >
+                    + Tambah level
+                  </button>
+                </div>
               </div>
 
               <div className="space-y-2">
                 {settings.levels.map((level, index) => (
                   <div
-                    key={`${index}-${level.ratio}`}
+                    key={level.id || `level-${index}`}
                     className="grid grid-cols-[24px_minmax(0,1fr)_64px_32px] items-center gap-2"
                   >
                     <input

@@ -78,7 +78,7 @@ export const FibonacciPropertiesModal: React.FC<
     const validLevels = validSettings.levels.every(
       (level) =>
         Number.isFinite(level.ratio) &&
-        /^#[0-9a-fA-F]{6}$/.test(level.color),
+        Boolean(level.color && level.color.trim()),
     );
 
     if (!validLevels) {
