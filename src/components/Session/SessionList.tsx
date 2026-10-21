@@ -12,7 +12,7 @@ import {
   Database,
   ArrowRight,
 } from 'lucide-react';
-import { BacktestSession } from '../types/index.js';
+import { BacktestSession } from '../../types/index.js';
 
 interface SessionListProps {
   sessions: BacktestSession[];

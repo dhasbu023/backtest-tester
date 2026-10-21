@@ -19,6 +19,9 @@ type UseChartPreferencesOptions = {
 export function useChartPreferences({
   activeSession,
 }: UseChartPreferencesOptions) {
+  const activeSessionRef = useRef(activeSession);
+  activeSessionRef.current = activeSession;
+
   const [activeTimezone, setActiveTimezone] =
     useState('Asia/Jakarta');
 
@@ -50,12 +53,14 @@ export function useChartPreferences({
         showVolume?: boolean;
         volumeType?: 'TICK' | 'REAL' | null;
         indicators?: IndicatorConfig[] | null;
-      } | null
+      } | null,
+      explicitSessionId?: string
     ) => {
+      const sessionId = explicitSessionId || activeSessionRef.current?.id;
       let finalDrawings = loadedDrawings ?? [];
-      if (finalDrawings.length === 0 && activeSession?.id) {
+      if (finalDrawings.length === 0 && sessionId) {
         try {
-          const cached = localStorage.getItem(`chart_drawings_${activeSession.id}`);
+          const cached = localStorage.getItem(`chart_drawings_${sessionId}`);
           if (cached) {
             finalDrawings = JSON.parse(cached);
           }
@@ -94,7 +99,7 @@ export function useChartPreferences({
         setIndicators([]);
       }
     },
-    [activeSession]
+    []
   );
 
   const resetChartPreferences = useCallback(() => {
@@ -111,9 +116,10 @@ export function useChartPreferences({
     (newDrawings: DrawingObject[]) => {
       setDrawings(newDrawings);
 
+      const session = activeSessionRef.current;
       // Simpan langsung ke localStorage agar tersimpan aman
-      const storageKey = activeSession?.id
-        ? `chart_drawings_${activeSession.id}`
+      const storageKey = session?.id
+        ? `chart_drawings_${session.id}`
         : 'chart_drawings_default';
       try {
         localStorage.setItem(storageKey, JSON.stringify(newDrawings));
@@ -121,7 +127,7 @@ export function useChartPreferences({
         // ignore
       }
 
-      if (!activeSession) {
+      if (!session) {
         return;
       }
 
@@ -129,11 +135,12 @@ export function useChartPreferences({
         clearTimeout(drawingSaveTimeoutRef.current);
       }
 
+      const sessionIdToSave = session.id;
       drawingSaveTimeoutRef.current = setTimeout(
         async () => {
           try {
             await saveDrawings(
-              activeSession.id,
+              sessionIdToSave,
               newDrawings
             );
           } catch (err) {
@@ -146,7 +153,7 @@ export function useChartPreferences({
         500
       );
     },
-    [activeSession]
+    []
   );
 
   const saveCurrentPreferences = useCallback(
@@ -156,7 +163,8 @@ export function useChartPreferences({
       type: 'TICK' | 'REAL',
       currentIndicators: IndicatorConfig[]
     ) => {
-      if (!activeSession) {
+      const session = activeSessionRef.current;
+      if (!session) {
         return;
       }
 
@@ -164,11 +172,12 @@ export function useChartPreferences({
         clearTimeout(prefSaveTimeoutRef.current);
       }
 
+      const sessionIdToSave = session.id;
       prefSaveTimeoutRef.current = setTimeout(
         async () => {
           try {
-            await savePreference(activeSession.id, {
-              sessionId: activeSession.id,
+            await savePreference(sessionIdToSave, {
+              sessionId: sessionIdToSave,
               timezone,
               showVolume: volumeVisible,
               volumeType: type,
@@ -184,7 +193,7 @@ export function useChartPreferences({
         500
       );
     },
-    [activeSession]
+    []
   );
 
   const handleChangeTimezone = useCallback(

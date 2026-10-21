@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 
 import type { ElementType } from 'react';
-import type { DrawingToolType } from '../../types/index.js';
+import type { DrawingToolType } from '../../../types/index.js';
 
 export interface DrawingToolDefinition {
   type: DrawingToolType;

@@ -1,5 +1,5 @@
 
-import type { DrawingPoint } from '../../../types/index.js';
+import type { DrawingPoint } from '../../../../types/index.js';
 import {
   DEFAULT_FIBONACCI_LEVELS,
   type FibonacciLevel,

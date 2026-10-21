@@ -644,7 +644,7 @@ class DatabaseManager {
     if (this.activeEngine === 'POSTGRES_EXTERNAL' && this.pgPool) {
       await this.pgPool.query('DELETE FROM drawing_objects WHERE session_id = $1', [sessionId]);
       for (const d of drawings) {
-        await this.saveDrawing(d);
+        await this.saveDrawing({ ...d, sessionId });
       }
       return;
     }
@@ -657,7 +657,7 @@ class DatabaseManager {
     }
     // Set new
     for (const d of drawings) {
-      this.memoryCache.drawings.set(d.id, d);
+      this.memoryCache.drawings.set(d.id, { ...d, sessionId });
     }
     this.saveLocalStore();
   }

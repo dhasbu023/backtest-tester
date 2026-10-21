@@ -10,6 +10,7 @@ import {
 
 import type {
   DrawingToolType,
+  DrawingObject,
 } from '../../types/index.js';
 
 import {
@@ -29,6 +30,10 @@ interface DrawingToolbarProps {
   onUndo: () => void;
   onRedo: () => void;
   onClearAll: () => void;
+  drawings?: DrawingObject[];
+  onToggleDrawingVisible?: (id: string) => void;
+  onToggleDrawingLock?: (id: string) => void;
+  onDeleteDrawing?: (id: string) => void;
 }
 
 export const DrawingToolbar: React.FC<DrawingToolbarProps> = ({

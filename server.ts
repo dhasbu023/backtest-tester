@@ -25,7 +25,19 @@ async function main() {
   // In development, mount Vite dev middleware
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        watch: {
+          ignored: [
+            '**/data/**',
+            '**/data/**/*',
+            '**/data/candles/**',
+            '**/data/db_store.json',
+            '**/*.json',
+            '**/FILE ORI/**',
+          ],
+        },
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);

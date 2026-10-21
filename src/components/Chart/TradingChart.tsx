@@ -516,21 +516,14 @@ export const TradingChart: React.FC<TradingChartProps> = ({
       return;
     }
 
-    setDrawingHistory((previous) => {
-      const current = previous[historyIndex];
+    if (isSameDrawings(drawingsRef.current, drawings)) {
+      return;
+    }
 
-      if (current && isSameDrawings(current, drawings)) {
-        return previous;
-      }
-
-      const next = previous.slice(0, historyIndex + 1);
-      next.push([...drawings]);
-
-      setHistoryIndex(next.length - 1);
-
-      return next;
-    });
-  }, [drawings, historyIndex]);
+    drawingsRef.current = drawings;
+    setDrawingHistory([[...drawings]]);
+    setHistoryIndex(0);
+  }, [drawings]);
 
   // =========================================================
   // INITIALIZE CHART
@@ -1348,6 +1341,8 @@ export const TradingChart: React.FC<TradingChartProps> = ({
           />
 
           <DrawingLayer
+            candles={candles}
+            timeframe={timeframe}
             drawings={drawings}
             activeTool={activeTool}
             onSelectTool={setActiveTool}

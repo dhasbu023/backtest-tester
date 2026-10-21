@@ -11,7 +11,7 @@ import {
   Clock,
   Sparkles,
 } from 'lucide-react';
-import { Dataset, Timeframe, CSVPreviewResult } from ' ../../types/index.js';
+import { Dataset, Timeframe, CSVPreviewResult } from '../../types/index.js';
 import { fetchDatasets, previewCSV, importCSV, createSession } from "../../services/api.js";
 import { getAllowedTimeframes } from '../../server/timeframeAggregator.js';
 

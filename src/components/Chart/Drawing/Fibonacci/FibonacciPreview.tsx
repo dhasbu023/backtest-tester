@@ -1,6 +1,6 @@
 
 import React from 'react';
-import type { DrawingPoint } from '../../../types/index.js';
+import type { DrawingPoint } from '../../../../types/index.js';
 import type { FibonacciLevel } from './fibonacci.defaults.js';
 import { calculateFibonacciLevels } from './fibonacci.utils.js';
 

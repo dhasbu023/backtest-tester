@@ -293,7 +293,8 @@ export default function App({ mode }: AppProps) {
 
         loadChartPreferences(
           loadedDrawings || [],
-          loadedPref
+          loadedPref,
+          session.id
         );
 
         const candlesData = await fetchCandles({

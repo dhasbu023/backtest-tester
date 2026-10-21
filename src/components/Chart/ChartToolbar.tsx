@@ -12,7 +12,7 @@ import {
 import type {
   Timeframe,
   IndicatorConfig,
-} from '../types/index.js';
+} from '../../types/index.js';
 
 import { TIMEZONE_OPTIONS } from "../../types/index.js";
 import { getAllowedTimeframes } from "../../server/timeframeAggregator.js";
@@ -25,11 +25,11 @@ interface ChartToolbarProps {
   activeTimezone: string;
   onChangeTimezone: (tz: string) => void;
 
-  showVolume: boolean;
-  onToggleVolume: () => void;
-  volumeType: 'TICK' | 'REAL';
-  onChangeVolumeType: (type: 'TICK' | 'REAL') => void;
-  hasRealVolume: boolean;
+  showVolume?: boolean;
+  onToggleVolume?: () => void;
+  volumeType?: 'TICK' | 'REAL';
+  onChangeVolumeType?: (type: 'TICK' | 'REAL') => void;
+  hasRealVolume?: boolean;
 
   indicators: IndicatorConfig[];
   onOpenIndicatorsModal: () => void;
@@ -38,8 +38,8 @@ interface ChartToolbarProps {
   onFitContent?: () => void;
 
   // Kontrol replay
-  showReplayControls: boolean;
-  onToggleReplay: () => void;
+  showReplayControls?: boolean;
+  onToggleReplay?: () => void;
 }
 
 export const ChartToolbar: React.FC<ChartToolbarProps> = ({
@@ -50,18 +50,18 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
   activeTimezone,
   onChangeTimezone,
 
-  showVolume,
-  onToggleVolume,
-  volumeType,
-  onChangeVolumeType,
-  hasRealVolume,
+  showVolume = true,
+  onToggleVolume = () => {},
+  volumeType = 'TICK',
+  onChangeVolumeType = () => {},
+  hasRealVolume = false,
 
   indicators,
   onOpenIndicatorsModal,
   onFitContent,
 
-  showReplayControls,
-  onToggleReplay,
+  showReplayControls = false,
+  onToggleReplay = () => {},
 }) => {
   const [showTzDropdown, setShowTzDropdown] =
     React.useState(false);

@@ -16,6 +16,8 @@ import type {
   DrawingObject,
   DrawingPoint,
   DrawingToolType,
+  Candle,
+  Timeframe,
 } from '../../../types/index.js';
 
 import HorizontalLineProperties from './HorizontalLine/HorizontalLineProperties.js';
@@ -29,6 +31,8 @@ import { createLongPositionDrawing } from './LongPosition/longPosition.utils.js'
 import { createShortPositionDrawing } from './ShortPosition/shortPosition.utils.js';
 
 interface DrawingLayerProps {
+  candles?: Candle[];
+  timeframe?: Timeframe;
   drawings: DrawingObject[];
   activeTool: DrawingToolType;
   onSelectTool: (tool: DrawingToolType) => void;
@@ -37,6 +41,8 @@ interface DrawingLayerProps {
   onAddDrawing: (drawing: DrawingObject) => void;
   onUpdateDrawing: (drawing: DrawingObject) => void;
   onDeleteDrawing: (id: string) => void;
+  onDrawingDragStart?: () => void;
+  onDrawingDragEnd?: () => void;
   chart: IChartApi | null;
   series: ISeriesApi<'Candlestick'> | null;
   currentColor: string;
@@ -71,7 +77,94 @@ const isPositionDrawing = (
 const getTimestamp = (time: Time): number =>
   typeof time === 'number' ? time : Number(time);
 
+export function timestampToCoordinate(
+  chart: IChartApi,
+  candles: Candle[] | undefined,
+  timestamp: number,
+): number | null {
+  const timeScale = chart.timeScale();
+  // 1. Direct lookup from chart
+  try {
+    const directX = timeScale.timeToCoordinate(timestamp as Time);
+    if (directX !== null && Number.isFinite(directX)) {
+      return directX;
+    }
+  } catch {
+    // ignore
+  }
+
+  if (!candles || candles.length === 0) {
+    return null;
+  }
+
+  // 2. Before first candle
+  if (timestamp <= candles[0].timestamp) {
+    const x0 = timeScale.timeToCoordinate(candles[0].timestamp as Time);
+    if (x0 === null || !Number.isFinite(x0)) return null;
+    if (candles.length > 1) {
+      const x1 = timeScale.timeToCoordinate(candles[1].timestamp as Time);
+      if (x1 !== null && Number.isFinite(x1)) {
+        const dt = candles[1].timestamp - candles[0].timestamp;
+        if (dt > 0) {
+          const dxPerSec = (x1 - x0) / dt;
+          return x0 - (candles[0].timestamp - timestamp) * dxPerSec;
+        }
+      }
+    }
+    return x0;
+  }
+
+  // 3. After last candle
+  const lastIndex = candles.length - 1;
+  if (timestamp >= candles[lastIndex].timestamp) {
+    const xLast = timeScale.timeToCoordinate(candles[lastIndex].timestamp as Time);
+    if (xLast === null || !Number.isFinite(xLast)) return null;
+    if (candles.length > 1) {
+      const xPrev = timeScale.timeToCoordinate(candles[lastIndex - 1].timestamp as Time);
+      if (xPrev !== null && Number.isFinite(xPrev)) {
+        const dt = candles[lastIndex].timestamp - candles[lastIndex - 1].timestamp;
+        if (dt > 0) {
+          const dxPerSec = (xLast - xPrev) / dt;
+          return xLast + (timestamp - candles[lastIndex].timestamp) * dxPerSec;
+        }
+      }
+    }
+    return xLast;
+  }
+
+  // 4. Binary search for candle interval
+  let low = 0;
+  let high = lastIndex;
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2);
+    if (candles[mid].timestamp <= timestamp) {
+      if (mid === lastIndex || candles[mid + 1].timestamp > timestamp) {
+        const c1 = candles[mid];
+        const c2 = candles[mid + 1];
+        const x1 = timeScale.timeToCoordinate(c1.timestamp as Time);
+        const x2 = timeScale.timeToCoordinate(c2.timestamp as Time);
+
+        if (x1 !== null && x2 !== null && Number.isFinite(x1) && Number.isFinite(x2)) {
+          const dt = c2.timestamp - c1.timestamp;
+          const ratio = dt > 0 ? (timestamp - c1.timestamp) / dt : 0;
+          return x1 + (x2 - x1) * ratio;
+        }
+        if (x1 !== null && Number.isFinite(x1)) return x1;
+        if (x2 !== null && Number.isFinite(x2)) return x2;
+        return null;
+      }
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
+  }
+
+  return null;
+}
+
 export const DrawingLayer: React.FC<DrawingLayerProps> = ({
+  candles,
+  timeframe,
   drawings,
   activeTool,
   onSelectTool,
@@ -80,6 +173,8 @@ export const DrawingLayer: React.FC<DrawingLayerProps> = ({
   onAddDrawing,
   onUpdateDrawing,
   onDeleteDrawing,
+  onDrawingDragStart,
+  onDrawingDragEnd,
   chart,
   series,
   currentColor,
@@ -132,7 +227,7 @@ export const DrawingLayer: React.FC<DrawingLayerProps> = ({
     useState<DrawingPoint[]>([]);
 
   // --------------------------------------------------
-  // Refresh drawing positions when the chart moves
+  // Refresh drawing positions when the chart moves or timeframe changes
   // --------------------------------------------------
 
   const [, setTick] = useState(0);
@@ -155,6 +250,14 @@ export const DrawingLayer: React.FC<DrawingLayerProps> = ({
     };
   }, [chart]);
 
+  useEffect(() => {
+    // When candles, timeframe, or container dimensions change, force recalculation of positions on next frame
+    const raf = requestAnimationFrame(() => {
+      setTick((tick) => (tick + 1) % 1_000_000);
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [candles, timeframe, containerWidth, containerHeight]);
+
   // --------------------------------------------------
   // Coordinate conversion
   // --------------------------------------------------
@@ -164,19 +267,16 @@ export const DrawingLayer: React.FC<DrawingLayerProps> = ({
       if (!chart || !series) return null;
 
       try {
-        const x = chart
-          .timeScale()
-          .timeToCoordinate(point.timestamp as Time);
-
         const y = series.priceToCoordinate(point.price);
-
-        if (
-          x == null ||
-          y == null ||
-          !Number.isFinite(x) ||
-          !Number.isFinite(y)
-        ) {
+        if (y == null || !Number.isFinite(y)) {
           return null;
+        }
+
+        const x = timestampToCoordinate(chart, candles, point.timestamp);
+
+        // Fallback x for drawings (like Horizontal Line) that only need y
+        if (x == null || !Number.isFinite(x)) {
+          return { x: 0, y };
         }
 
         return { x, y };
@@ -184,7 +284,7 @@ export const DrawingLayer: React.FC<DrawingLayerProps> = ({
         return null;
       }
     },
-    [chart, series],
+    [chart, series, candles],
   );
 
   const pixelToPoint = useCallback(
@@ -192,16 +292,27 @@ export const DrawingLayer: React.FC<DrawingLayerProps> = ({
       if (!chart || !series) return null;
 
       try {
-        const time = chart.timeScale().coordinateToTime(x);
+        let time = chart.timeScale().coordinateToTime(x);
         const price = series.coordinateToPrice(y);
 
-        if (
-          time == null ||
-          price == null ||
-          !Number.isFinite(price)
-        ) {
+        if (price == null || !Number.isFinite(price)) {
           return null;
         }
+
+        if (time == null && candles && candles.length > 0) {
+          const logical = chart.timeScale().coordinateToLogical(x);
+          if (logical != null && Number.isFinite(logical)) {
+            const lastCandle = candles[candles.length - 1];
+            const prevCandle = candles.length > 1 ? candles[candles.length - 2] : null;
+            const barInterval = prevCandle
+              ? Math.max(60, lastCandle.timestamp - prevCandle.timestamp)
+              : 60;
+            const barsBeyond = logical - (candles.length - 1);
+            time = (lastCandle.timestamp + Math.round(barsBeyond * barInterval)) as unknown as Time;
+          }
+        }
+
+        if (time == null) return null;
 
         return {
           timestamp: getTimestamp(time),
@@ -211,7 +322,7 @@ export const DrawingLayer: React.FC<DrawingLayerProps> = ({
         return null;
       }
     },
-    [chart, series],
+    [chart, series, candles],
   );
 
   // --------------------------------------------------
@@ -219,11 +330,26 @@ export const DrawingLayer: React.FC<DrawingLayerProps> = ({
   // --------------------------------------------------
 
   const stopDragging = useCallback(() => {
+    if (isDragging) {
+      onDrawingDragEnd?.();
+    }
     setIsDragging(false);
     setDragAnchorIndex(null);
     setDragStartMouse(null);
     setDragInitialPoints([]);
-  }, []);
+  }, [isDragging, onDrawingDragEnd]);
+
+  useEffect(() => {
+    const handleGlobalMouseUp = () => {
+      if (isDragging) {
+        stopDragging();
+      }
+    };
+    window.addEventListener('mouseup', handleGlobalMouseUp);
+    return () => {
+      window.removeEventListener('mouseup', handleGlobalMouseUp);
+    };
+  }, [isDragging, stopDragging]);
 
   const startDragging = useCallback(
     (
@@ -237,6 +363,7 @@ export const DrawingLayer: React.FC<DrawingLayerProps> = ({
 
       const rect = svgRef.current.getBoundingClientRect();
 
+      onDrawingDragStart?.();
       setIsDragging(true);
       setDragAnchorIndex(index);
 
@@ -251,7 +378,7 @@ export const DrawingLayer: React.FC<DrawingLayerProps> = ({
 
       onSelectDrawing(drawing.id);
     },
-    [onSelectDrawing],
+    [onDrawingDragStart, onSelectDrawing],
   );
 
   // --------------------------------------------------

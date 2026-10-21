@@ -160,6 +160,7 @@ export interface DrawingObject {
   targetPrice?: number;
   stopPrice?: number;
   riskReward?: number;
+  lineStyle?: 'solid' | 'dashed' | 'dotted';
   locked: boolean;
   visible: boolean;
   createdAt: string;
