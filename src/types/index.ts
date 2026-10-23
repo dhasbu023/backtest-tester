@@ -151,7 +151,7 @@ export interface DrawingObject {
   opacity?: number;
   text?: string;
   fontSize?: number;
-  levels?: { id?: string; ratio: number; color?: string; visible?: boolean; enabled?: boolean }[]; // for Fibo Retracement
+  levels?: { id?: string; ratio: number; color?: string; visible?: boolean; enabled?: boolean; label?: string }[]; // for Fibo Retracement
   extensionLevels?: { ratio: number; color?: string }[]; // for Fibo Extension
   extendLeft?: boolean; // for Fibonacci extend left
   extendRight?: boolean; // for Fibonacci extend right

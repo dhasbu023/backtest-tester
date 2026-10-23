@@ -257,11 +257,12 @@ export const ShortPositionRenderer: React.FC<
             stroke="#ffffff"
             strokeWidth={2}
             className="cursor-ns-resize"
-            title="Ubah Target"
             onMouseDown={(event) =>
               onStartDragging(event, 101, drawing)
             }
-          />
+          >
+            <title>Ubah Target</title>
+          </circle>
 
           {/* Handle stop-loss */}
           <circle
@@ -272,11 +273,12 @@ export const ShortPositionRenderer: React.FC<
             stroke="#ffffff"
             strokeWidth={2}
             className="cursor-ns-resize"
-            title="Ubah Stop Loss"
             onMouseDown={(event) =>
               onStartDragging(event, 102, drawing)
             }
-          />
+          >
+            <title>Ubah Stop Loss</title>
+          </circle>
 
           {/* Handle entry */}
           <circle
@@ -287,11 +289,12 @@ export const ShortPositionRenderer: React.FC<
             stroke="#ffffff"
             strokeWidth={2}
             className="cursor-ns-resize"
-            title="Ubah Entry Price"
             onMouseDown={(event) =>
               onStartDragging(event, 100, drawing)
             }
-          />
+          >
+            <title>Ubah Entry Price</title>
+          </circle>
 
           {/* Handle lebar posisi kanan */}
           <circle
@@ -302,11 +305,12 @@ export const ShortPositionRenderer: React.FC<
             stroke="#ffffff"
             strokeWidth={2}
             className="cursor-ew-resize"
-            title="Ubah Rentang Waktu"
             onMouseDown={(event) =>
               onStartDragging(event, 103, drawing)
             }
-          />
+          >
+            <title>Ubah Rentang Waktu</title>
+          </circle>
 
           {/* Handle waktu kiri */}
           <circle
@@ -317,11 +321,12 @@ export const ShortPositionRenderer: React.FC<
             stroke={entryColor}
             strokeWidth={2}
             className="cursor-ew-resize"
-            title="Ubah Waktu Awal"
             onMouseDown={(event) =>
               onStartDragging(event, 104, drawing)
             }
-          />
+          >
+            <title>Ubah Waktu Awal</title>
+          </circle>
         </>
       )}
     </g>

@@ -70,15 +70,15 @@
       "datasetId": "a0607134-c715-42cb-8a50-b7becef4f410",
       "symbol": "XAUUSD",
       "sourceTimeframe": "M1",
-      "activeTimeframe": "M1",
+      "activeTimeframe": "M5",
       "startReplayTime": 1782864000,
-      "currentReplayTime": 1782874260,
-      "currentCandleIndex": 171,
+      "currentReplayTime": 1788220800,
+      "currentCandleIndex": 60381,
       "replaySpeed": 20,
       "status": "ACTIVE",
       "notes": "",
       "createdAt": "2026-10-19T11:52:23.852Z",
-      "updatedAt": "2026-10-21T02:13:17.157Z"
+      "updatedAt": "2026-10-23T11:47:42.932Z"
     },
     {
       "id": "00e62d2b-6d6f-4e5e-8c57-51aab321aacc",
@@ -99,14 +99,14 @@
   ],
   "replayStates": [
     {
-      "id": "fe63a500-b9de-4387-9d56-a001a85e040c",
+      "id": "a6491afe-bdd1-4d1b-9efd-7068513ceec3",
       "sessionId": "d0ab9058-7c8b-431a-8a69-f2f65e8f905a",
-      "currentTime": 1782874260,
-      "currentIndex": 171,
+      "currentTime": 1788220800,
+      "currentIndex": 60381,
       "speed": 20,
-      "activeTimeframe": "M1",
+      "activeTimeframe": "M5",
       "isPlaying": false,
-      "lastSavedAt": "2026-10-21T02:13:17.156Z"
+      "lastSavedAt": "2026-10-23T11:47:42.932Z"
     },
     {
       "id": "041131d1-ca03-4d71-85c5-84dfaaf25455",
@@ -138,89 +138,106 @@
       "updatedAt": "2026-10-20T04:26:37.804Z"
     },
     {
-      "id": "draw-1792550513055",
+      "id": "draw-1792759090093",
       "sessionId": "d0ab9058-7c8b-431a-8a69-f2f65e8f905a",
       "type": "FIBO_RETRACEMENT",
       "points": [
         {
-          "timestamp": 1782872940,
-          "price": 3978.64311046125
+          "timestamp": 1788194400,
+          "price": 4421.978561542123
         },
         {
-          "timestamp": 1782873480,
-          "price": 3986.427140661134
+          "timestamp": 1788201300,
+          "price": 4446.569129248781
         }
       ],
       "color": "#3b82f6",
-      "strokeWidth": 2,
+      "strokeWidth": 1,
+      "lineStyle": "solid",
+      "extendLeft": false,
       "extendRight": false,
       "showLabels": true,
+      "showPrice": false,
+      "showRatio": true,
+      "showBackground": false,
       "levels": [
+        {
+          "id": "fibo-1.272",
+          "ratio": -0.27,
+          "color": "#2962ff",
+          "enabled": true,
+          "label": "0.27"
+        },
         {
           "id": "fibo-0",
           "ratio": 0,
-          "color": "#3b82f6",
-          "enabled": true
+          "color": "#fafbff",
+          "enabled": true,
+          "label": "0"
         },
         {
           "id": "fibo-0.236",
           "ratio": 0.236,
           "color": "#f23645",
-          "enabled": true
+          "enabled": true,
+          "label": "0.236"
         },
         {
           "id": "fibo-0.382",
           "ratio": 0.382,
           "color": "#ff9800",
-          "enabled": true
+          "enabled": true,
+          "label": "0.382"
         },
         {
           "id": "fibo-0.5",
           "ratio": 0.5,
-          "color": "#4caf50",
-          "enabled": true
+          "color": "#fbd309",
+          "enabled": true,
+          "label": "0.5"
         },
         {
           "id": "fibo-0.618",
           "ratio": 0.618,
-          "color": "#089981",
-          "enabled": true
+          "color": "#d9e70d",
+          "enabled": true,
+          "label": "0.618"
         },
         {
           "id": "fibo-0.786",
           "ratio": 0.786,
-          "color": "#00bcd4",
-          "enabled": true
+          "color": "#e1f00a",
+          "enabled": true,
+          "label": "0.786"
         },
         {
           "id": "fibo-1",
           "ratio": 1,
-          "color": "#787b86",
-          "enabled": true
-        },
-        {
-          "id": "fibo-1.272",
-          "ratio": 1.272,
-          "color": "#2962ff",
-          "enabled": false
-        },
-        {
-          "id": "fibo-1.618",
-          "ratio": 1.618,
-          "color": "#2962ff",
-          "enabled": false
+          "color": "#ffffff",
+          "enabled": true,
+          "label": "1"
         },
         {
           "id": "fibo-2.618",
           "ratio": 2.618,
-          "color": "#3b82f6",
-          "enabled": false
+          "color": "#9c27b0",
+          "enabled": false,
+          "label": "2.618"
         }
+      ],
+      "visibleTimeframes": [
+        "M1",
+        "M5",
+        "M15",
+        "M30",
+        "H1",
+        "H4",
+        "D1"
       ],
       "locked": false,
       "visible": true,
-      "createdAt": "2026-10-21T02:41:53.055Z",
-      "updatedAt": "2026-10-21T02:41:53.055Z"
+      "createdAt": "2026-10-23T12:38:10.093Z",
+      "updatedAt": "2026-10-23T12:38:10.093Z"
     }
   ],
   "preferences": [

@@ -1,4 +1,3 @@
-
 import type { FibonacciLevel } from './fibonacci.defaults.js';
 
 export type FibonacciPropertiesTab =
@@ -11,6 +10,7 @@ export type FibonacciLineStyle = 'solid' | 'dashed' | 'dotted';
 export interface FibonacciPropertiesLevel extends FibonacciLevel {
   id?: string;
   enabled: boolean;
+  label?: string;
 }
 
 export interface FibonacciAnchorCoordinates {
@@ -44,6 +44,7 @@ export interface FibonacciPropertiesModalProps {
   initialSettings: FibonacciPropertiesSettings;
   onClose: () => void;
   onApply: (settings: FibonacciPropertiesSettings) => void;
+  onSaveAsDefault?: (settings: FibonacciPropertiesSettings) => void;
 }
 
 export const FIBONACCI_TIMEFRAMES = [

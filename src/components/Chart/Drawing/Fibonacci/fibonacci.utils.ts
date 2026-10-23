@@ -1,18 +1,24 @@
-
 import type { DrawingPoint } from '../../../../types/index.js';
 import {
   DEFAULT_FIBONACCI_LEVELS,
+  getActiveDefaultFibonacciSettings,
   type FibonacciLevel,
 } from './fibonacci.defaults.js';
 
 export function createFibonacciLevels(
-  currentColor: string,
+  currentColor?: string,
+  baseLevels?: FibonacciLevel[],
 ): FibonacciLevel[] {
-  return DEFAULT_FIBONACCI_LEVELS.map((level, index) => ({
+  const sourceLevels =
+    baseLevels && baseLevels.length > 0
+      ? baseLevels
+      : getActiveDefaultFibonacciSettings(currentColor).levels;
+
+  return sourceLevels.map((level, index) => ({
     ...level,
+    label: level.label !== undefined ? level.label : String(level.ratio),
     color:
-      index === 0 ||
-      index === DEFAULT_FIBONACCI_LEVELS.length - 1
+      currentColor && (index === 0 || index === sourceLevels.length - 1)
         ? currentColor
         : level.color,
   }));
@@ -33,6 +39,7 @@ export function calculateFibonacciLevels(
 ) {
   return levels.map((level) => ({
     ...level,
+    label: level.label !== undefined ? level.label : String(level.ratio),
     price: calculateFibonacciPrice(
       firstPoint.price,
       secondPoint.price,

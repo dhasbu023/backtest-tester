@@ -210,9 +210,12 @@ export const TradingChart: React.FC<TradingChartProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
 
   const chartRef = useRef<IChartApi | null>(null);
+  const [chartInstance, setChartInstance] = useState<IChartApi | null>(null);
 
   const candlestickSeriesRef =
     useRef<ISeriesApi<'Candlestick'> | null>(null);
+  const [candlestickSeriesInstance, setCandlestickSeriesInstance] =
+    useState<ISeriesApi<'Candlestick'> | null>(null);
 
   const volumeSeriesRef =
     useRef<ISeriesApi<'Histogram'> | null>(null);
@@ -687,6 +690,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
     });
 
     chartRef.current = chart;
+    setChartInstance(chart);
 
     const candlestickSeries = chart.addSeries(
       CandlestickSeries,
@@ -700,6 +704,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
     );
 
     candlestickSeriesRef.current = candlestickSeries;
+    setCandlestickSeriesInstance(candlestickSeries);
 
     const volumeSeries = chart.addSeries(HistogramSeries, {
       color: '#26a69a',
@@ -818,6 +823,8 @@ export const TradingChart: React.FC<TradingChartProps> = ({
         chartRef.current = null;
         candlestickSeriesRef.current = null;
         volumeSeriesRef.current = null;
+        setChartInstance(null);
+        setCandlestickSeriesInstance(null);
       }
 
       lineSeriesMapRef.current.clear();
@@ -1353,8 +1360,8 @@ export const TradingChart: React.FC<TradingChartProps> = ({
             onDeleteDrawing={handleDeleteDrawing}
             onDrawingDragStart={handleDrawingDragStart}
             onDrawingDragEnd={handleDrawingDragEnd}
-            chart={chartRef.current}
-            series={candlestickSeriesRef.current}
+            chart={chartInstance}
+            series={candlestickSeriesInstance}
             currentColor={currentColor}
             currentStrokeWidth={currentStrokeWidth}
             activeTimezone={activeTimezone}
