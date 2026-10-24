@@ -29,7 +29,8 @@ export function calculateFibonacciPrice(
   endPrice: number,
   ratio: number,
 ): number {
-  return startPrice + (endPrice - startPrice) * ratio;
+  const diff = endPrice - startPrice;
+  return startPrice + diff * ratio;
 }
 
 export function calculateFibonacciLevels(
@@ -37,12 +38,15 @@ export function calculateFibonacciLevels(
   secondPoint: DrawingPoint,
   levels: FibonacciLevel[] = DEFAULT_FIBONACCI_LEVELS,
 ) {
+  // In TradingView style, the first anchor represents the 100% (level 1) point,
+  // and the second anchor represents the 0% (level 0) point. Therefore we treat
+  // `secondPoint` as the start (0%) and `firstPoint` as the end (100%).
   return levels.map((level) => ({
     ...level,
     label: level.label !== undefined ? level.label : String(level.ratio),
     price: calculateFibonacciPrice(
-      firstPoint.price,
-      secondPoint.price,
+      secondPoint.price, // start price (level 0)
+      firstPoint.price,  // end price (level 1)
       level.ratio,
     ),
   }));

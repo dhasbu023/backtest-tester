@@ -86,6 +86,7 @@ export const FibonacciPropertiesTabs: React.FC<
           label: String(nextRatio),
           color: settings.color || '#3b82f6',
           enabled: true,
+          labelPosition: 'right',
         },
       ],
     });
@@ -104,6 +105,7 @@ export const FibonacciPropertiesTabs: React.FC<
         label: level.label ?? String(level.ratio),
         color: level.color,
         enabled: level.enabled ?? true,
+        labelPosition: 'right',
       })),
     });
   };
@@ -324,6 +326,19 @@ export const FibonacciPropertiesTabs: React.FC<
                         placeholder={String(level.ratio)}
                         className={inputClass}
                       />
+                    </div>
+                    {/* Posisi label */}
+                    <div>
+                      <select
+                        aria-label={`Posisi label level ${index + 1}`}
+                        value={level.labelPosition || 'right'}
+                        onChange={(e) => updateLevel(index, { labelPosition: e.target.value as any })}
+                        className={inputClass}
+                      >
+                        <option value="left">Kiri</option>
+                        <option value="center">Tengah</option>
+                        <option value="right">Kanan</option>
+                      </select>
                     </div>
 
                     {/* Warna baris */}

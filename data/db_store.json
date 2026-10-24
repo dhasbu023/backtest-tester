@@ -78,7 +78,7 @@
       "status": "ACTIVE",
       "notes": "",
       "createdAt": "2026-10-19T11:52:23.852Z",
-      "updatedAt": "2026-10-23T11:47:42.932Z"
+      "updatedAt": "2026-10-24T02:19:53.222Z"
     },
     {
       "id": "00e62d2b-6d6f-4e5e-8c57-51aab321aacc",
@@ -99,14 +99,14 @@
   ],
   "replayStates": [
     {
-      "id": "a6491afe-bdd1-4d1b-9efd-7068513ceec3",
+      "id": "a22a1310-0c18-4b15-8d95-c206d8289803",
       "sessionId": "d0ab9058-7c8b-431a-8a69-f2f65e8f905a",
       "currentTime": 1788220800,
       "currentIndex": 60381,
       "speed": 20,
       "activeTimeframe": "M5",
       "isPlaying": false,
-      "lastSavedAt": "2026-10-23T11:47:42.932Z"
+      "lastSavedAt": "2026-10-24T02:19:53.222Z"
     },
     {
       "id": "041131d1-ca03-4d71-85c5-84dfaaf25455",
@@ -138,17 +138,17 @@
       "updatedAt": "2026-10-20T04:26:37.804Z"
     },
     {
-      "id": "draw-1792759090093",
+      "id": "draw-1792809052332",
       "sessionId": "d0ab9058-7c8b-431a-8a69-f2f65e8f905a",
       "type": "FIBO_RETRACEMENT",
       "points": [
         {
-          "timestamp": 1788194400,
-          "price": 4421.978561542123
+          "timestamp": 1788200700,
+          "price": 4425.703127347033
         },
         {
-          "timestamp": 1788201300,
-          "price": 4446.569129248781
+          "timestamp": 1788207900,
+          "price": 4456.388768496385
         }
       ],
       "color": "#3b82f6",
@@ -166,63 +166,72 @@
           "ratio": -0.27,
           "color": "#2962ff",
           "enabled": true,
-          "label": "0.27"
+          "label": "-0.27",
+          "labelPosition": "right"
         },
         {
           "id": "fibo-0",
           "ratio": 0,
           "color": "#fafbff",
           "enabled": true,
-          "label": "0"
+          "label": "0",
+          "labelPosition": "right"
         },
         {
           "id": "fibo-0.236",
           "ratio": 0.236,
           "color": "#f23645",
           "enabled": true,
-          "label": "0.236"
+          "label": "0.236",
+          "labelPosition": "right"
         },
         {
           "id": "fibo-0.382",
           "ratio": 0.382,
           "color": "#ff9800",
           "enabled": true,
-          "label": "0.382"
+          "label": "0.382",
+          "labelPosition": "right"
         },
         {
           "id": "fibo-0.5",
           "ratio": 0.5,
           "color": "#fbd309",
           "enabled": true,
-          "label": "0.5"
+          "label": "0.5",
+          "labelPosition": "right"
         },
         {
           "id": "fibo-0.618",
           "ratio": 0.618,
           "color": "#d9e70d",
           "enabled": true,
-          "label": "0.618"
+          "label": "0.618",
+          "labelPosition": "right"
         },
         {
           "id": "fibo-0.786",
           "ratio": 0.786,
           "color": "#e1f00a",
           "enabled": true,
-          "label": "0.786"
+          "label": "0.786",
+          "labelPosition": "right"
         },
         {
           "id": "fibo-1",
           "ratio": 1,
           "color": "#ffffff",
           "enabled": true,
-          "label": "1"
+          "label": "1",
+          "labelPosition": "right"
         },
         {
           "id": "fibo-2.618",
           "ratio": 2.618,
           "color": "#9c27b0",
           "enabled": false,
-          "label": "2.618"
+          "label": "2.618",
+          "labelPosition": "right"
         }
       ],
       "visibleTimeframes": [
@@ -236,8 +245,8 @@
       ],
       "locked": false,
       "visible": true,
-      "createdAt": "2026-10-23T12:38:10.093Z",
-      "updatedAt": "2026-10-23T12:38:10.093Z"
+      "createdAt": "2026-10-24T02:30:52.332Z",
+      "updatedAt": "2026-10-24T02:31:01.489Z"
     }
   ],
   "preferences": [

@@ -11,6 +11,8 @@ export interface FibonacciPropertiesLevel extends FibonacciLevel {
   id?: string;
   enabled: boolean;
   label?: string;
+  /** Position of the level label */
+  labelPosition?: 'left' | 'center' | 'right';
 }
 
 export interface FibonacciAnchorCoordinates {

@@ -46,8 +46,9 @@ export const FibonacciRenderer: React.FC<FibonacciRendererProps> = ({
   onOpenProperties,
   onContextMenu,
 }) => {
-  const startPrice = drawing.points[0]?.price;
-  const endPrice = drawing.points[1]?.price;
+  // In TradingView style, first anchor is 100% (level 1) and second is 0% (level 0)
+  const startPrice = drawing.points[1]?.price;
+  const endPrice = drawing.points[0]?.price;
 
   if (startPrice == null || endPrice == null) {
     return null;
@@ -219,29 +220,41 @@ export const FibonacciRenderer: React.FC<FibonacciRendererProps> = ({
             {/* Label level */}
             {showLabels && labelText.length > 0 && (
               <g style={{ pointerEvents: 'none' }}>
-                {showBackground && (
-                  <rect
-                    x={rightX - labelWidth - 8}
-                    y={levelY - 9}
-                    width={labelWidth}
-                    height={18}
-                    rx={4}
-                    fill={isDarkMode ? '#0f172a' : '#ffffff'}
-                    stroke={levelColor}
-                    strokeWidth={1}
-                    opacity={0.94}
-                  />
-                )}
+                  {showBackground && (
+                    <rect
+                      x={
+                        level.labelPosition === 'left'
+                          ? leftX + 8
+                          : level.labelPosition === 'center'
+                          ? (leftX + rightX) / 2 - labelWidth / 2
+                          : rightX - labelWidth - 8
+                      }
+                      y={levelY - 9}
+                      width={labelWidth}
+                      height={18}
+                      rx={4}
+                      fill={isDarkMode ? '#0f172a' : '#ffffff'}
+                      stroke={levelColor}
+                      strokeWidth={1}
+                      opacity={0.94}
+                    />
+                  )}
 
-                <text
-                  x={rightX - labelWidth / 2 - 8}
-                  y={levelY + 3.5}
-                  textAnchor="middle"
-                  fill={levelColor}
-                  fontSize={10}
-                  fontWeight="bold"
-                  fontFamily="monospace"
-                >
+                  <text
+                    x={
+                      level.labelPosition === 'left'
+                        ? leftX + 8 + labelWidth / 2
+                        : level.labelPosition === 'center'
+                        ? (leftX + rightX) / 2
+                        : rightX - 8 - labelWidth / 2
+                    }
+                    y={levelY + 3.5}
+                    textAnchor="middle"
+                    fill={levelColor}
+                    fontSize={10}
+                    fontWeight="bold"
+                    fontFamily="monospace"
+                  >
                   {labelText}
                 </text>
               </g>

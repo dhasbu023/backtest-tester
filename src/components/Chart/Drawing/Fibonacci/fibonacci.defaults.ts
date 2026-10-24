@@ -40,6 +40,7 @@ export const getSystemDefaultFibonacciSettings = (
     color: level.color,
     enabled: level.enabled ?? true,
     label: level.label ?? String(level.ratio),
+    labelPosition: 'right',
   })),
   lineWidth: 1,
   lineStyle: 'dashed',
@@ -83,6 +84,7 @@ export function saveFibonacciDefaults(settings: FibonacciPropertiesSettings) {
         color: l.color,
         enabled: l.enabled,
         label: l.label !== undefined ? l.label : String(l.ratio),
+        labelPosition: l.labelPosition ?? 'right',
       })),
       lineWidth: settings.lineWidth,
       lineStyle: settings.lineStyle,
@@ -126,6 +128,7 @@ export function getActiveDefaultFibonacciSettings(
           color: l.color || system.color,
           enabled: l.enabled ?? true,
           label: l.label !== undefined ? l.label : String(l.ratio),
+          labelPosition: l.labelPosition ?? 'right',
         }))
       : system.levels,
     firstPoint: { price: firstPrice },
