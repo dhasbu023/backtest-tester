@@ -7,7 +7,7 @@ import type {
 export const DEFAULT_SHORT_TARGET_MULTIPLIER = 0.985;
 export const DEFAULT_SHORT_STOP_MULTIPLIER = 1.0075;
 
-export const DEFAULT_SHORT_POSITION_WIDTH_DAYS = 3;
+export const DEFAULT_SHORT_POSITION_WIDTH_DAYS = 1;
 
 interface CreateShortPositionDrawingParams {
   point: DrawingPoint;

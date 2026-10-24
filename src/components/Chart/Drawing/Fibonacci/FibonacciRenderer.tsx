@@ -223,9 +223,9 @@ export const FibonacciRenderer: React.FC<FibonacciRendererProps> = ({
                   {showBackground && (
                     <rect
                       x={
-                        level.labelPosition === 'left'
+                        (level as any).labelPosition === 'left'
                           ? 8
-                          : level.labelPosition === 'center'
+                          : (level as any).labelPosition === 'center'
                           ? containerWidth / 2 - labelWidth / 2
                           : containerWidth - labelWidth - 8
                       }
@@ -242,7 +242,7 @@ export const FibonacciRenderer: React.FC<FibonacciRendererProps> = ({
 
                   <text
                     x={
-                      level.labelPosition === 'left'
+                      (level as any).labelPosition === 'left'
                         ? leftX + 8 + labelWidth / 2
                         : rightX - 8 - labelWidth / 2
                     }

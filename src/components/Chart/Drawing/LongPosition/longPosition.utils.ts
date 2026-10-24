@@ -7,6 +7,8 @@ import type {
 const DEFAULT_LONG_TARGET_MULTIPLIER = 1.015;
 const DEFAULT_LONG_STOP_MULTIPLIER = 0.9925;
 
+export const DEFAULT_LONG_POSITION_WIDTH_DAYS = 1;
+
 interface CreateLongPositionParams {
   point: DrawingPoint;
   id: string;
@@ -24,7 +26,7 @@ export const createLongPositionDrawing = ({
   id,
   now,
   sessionId = '',
-  widthDays = 3,
+  widthDays = DEFAULT_LONG_POSITION_WIDTH_DAYS,
 }: CreateLongPositionParams): DrawingObject => {
   const entryPrice = point.price;
 

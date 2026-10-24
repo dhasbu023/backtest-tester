@@ -70,7 +70,7 @@
       "datasetId": "a0607134-c715-42cb-8a50-b7becef4f410",
       "symbol": "XAUUSD",
       "sourceTimeframe": "M1",
-      "activeTimeframe": "M5",
+      "activeTimeframe": "M1",
       "startReplayTime": 1782864000,
       "currentReplayTime": 1788220800,
       "currentCandleIndex": 60381,
@@ -78,7 +78,7 @@
       "status": "ACTIVE",
       "notes": "",
       "createdAt": "2026-10-19T11:52:23.852Z",
-      "updatedAt": "2026-10-24T02:19:53.222Z"
+      "updatedAt": "2026-10-24T04:48:59.393Z"
     },
     {
       "id": "00e62d2b-6d6f-4e5e-8c57-51aab321aacc",
@@ -99,14 +99,14 @@
   ],
   "replayStates": [
     {
-      "id": "a22a1310-0c18-4b15-8d95-c206d8289803",
+      "id": "db52133b-239c-4464-873f-65120f5a81e0",
       "sessionId": "d0ab9058-7c8b-431a-8a69-f2f65e8f905a",
       "currentTime": 1788220800,
       "currentIndex": 60381,
       "speed": 20,
-      "activeTimeframe": "M5",
+      "activeTimeframe": "M1",
       "isPlaying": false,
-      "lastSavedAt": "2026-10-24T02:19:53.222Z"
+      "lastSavedAt": "2026-10-24T04:48:59.393Z"
     },
     {
       "id": "041131d1-ca03-4d71-85c5-84dfaaf25455",
@@ -145,8 +145,8 @@
       "showVolume": true,
       "volumeType": "TICK",
       "indicators": [],
-      "id": "e98cba80-c5aa-4982-b12d-9f85e73bd76f",
-      "updatedAt": "2026-10-20T10:07:46.056Z"
+      "id": "c90f14ce-828f-4aa5-a6d7-283c4f7dfb4d",
+      "updatedAt": "2026-10-24T04:31:42.573Z"
     },
     {
       "sessionId": "00e62d2b-6d6f-4e5e-8c57-51aab321aacc",

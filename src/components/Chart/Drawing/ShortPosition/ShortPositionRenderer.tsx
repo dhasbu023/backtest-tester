@@ -1,4 +1,3 @@
-
 import React from 'react';
 import type { ISeriesApi } from 'lightweight-charts';
 
@@ -45,15 +44,15 @@ export const ShortPositionRenderer: React.FC<
   onOpenProperties,
   onContextMenu,
 }) => {
-  // Entry, target, dan stop-loss
+  // --- Ambil harga dari cached field atau fallback ke live points ---
   const entryPrice =
     drawing.entryPrice ?? drawing.points[0]?.price ?? 0;
 
   const targetPrice =
-    drawing.targetPrice ?? entryPrice * 0.985;
+    drawing.targetPrice ?? drawing.points[1]?.price ?? entryPrice * 0.985;
 
   const stopPrice =
-    drawing.stopPrice ?? entryPrice * 1.0075;
+    drawing.stopPrice ?? drawing.points[2]?.price ?? entryPrice * 1.0075;
 
   // Konversi harga menjadi koordinat chart
   const targetY =
@@ -64,28 +63,28 @@ export const ShortPositionRenderer: React.FC<
     series?.priceToCoordinate(stopPrice) ??
     entryPoint.y - 40;
 
-  // Rentang horizontal posisi
-  const startX = entryPoint.x;
+  // Rentang horizontal posisi berbasis koordinat aktual
+  const x1 = entryPoint.x;
+  const x2 = rightPoint ? rightPoint.x : x1 + 80;
+  const leftX = Math.min(x1, x2);
+  const rightX = Math.max(x1, x2);
+  const width = Math.max(6, rightX - leftX);
+  const centerX = leftX + width / 2;
 
-  const endX = rightPoint
-    ? Math.max(startX + 50, rightPoint.x)
-    : startX + 140;
+  // Tinggi area profit dan risiko (minimal 1px agar tidak hilang)
+  const profitHeight = Math.max(1, Math.abs(targetY - entryPoint.y));
+  const lossHeight = Math.max(1, Math.abs(stopY - entryPoint.y));
 
-  const width = Math.max(50, endX - startX);
-
-  // Tinggi area profit dan risiko
-  const profitHeight = Math.abs(targetY - entryPoint.y);
-  const lossHeight = Math.abs(stopY - entryPoint.y);
-
-  const topProfitY = Math.min(entryPoint.y, targetY);
+  // Untuk Short: stop di atas entry, target di bawah entry
   const topLossY = Math.min(entryPoint.y, stopY);
+  const topProfitY = Math.min(entryPoint.y, targetY);
+  const bottomProfitY = topProfitY + profitHeight;
 
-  // Perhitungan risk/reward untuk posisi SELL
-  const riskDistance = stopPrice - entryPrice;
-  const rewardDistance = entryPrice - targetPrice;
+  // Perhitungan risk/reward untuk posisi SELL (Short)
+  const riskDistance = Math.abs(stopPrice - entryPrice);
+  const rewardDistance = Math.abs(entryPrice - targetPrice);
 
-  const isRiskValid =
-    riskDistance > 0 && rewardDistance > 0;
+  const isRiskValid = riskDistance > 0.000001;
 
   const riskReward = isRiskValid
     ? rewardDistance / riskDistance
@@ -101,9 +100,7 @@ export const ShortPositionRenderer: React.FC<
       ? (riskDistance / entryPrice) * 100
       : 0;
 
-  // Perkiraan pips berdasarkan jenis instrumen.
-  // XAUUSD dengan konvensi 1 pip = 0.1:
-  // pengali 10. Forex 5 digit: pengali 10000.
+  // Perkiraan pips berdasarkan jenis instrumen
   const pipMultiplier = entryPrice > 500 ? 10 : 10000;
 
   const targetPips =
@@ -121,6 +118,16 @@ export const ShortPositionRenderer: React.FC<
   const showLabels = drawing.showLabels ?? true;
   const showPrice = drawing.showPrice ?? true;
   const showStats = drawing.showStats ?? true;
+
+  // Format helpers – aman terhadap NaN dan Infinity
+  const formatPips = (v: number) =>
+    Number.isFinite(v) ? v.toFixed(1) : '0.0';
+  const formatPct = (v: number) =>
+    Number.isFinite(v) ? v.toFixed(2) : '0.00';
+  const formatRR = (v: number) =>
+    Number.isFinite(v) && v >= 0 ? v.toFixed(2) : '0.00';
+  const formatPrice = (v: number) =>
+    Number.isFinite(v) ? v.toFixed(2) : '0.00';
 
   return (
     <g
@@ -142,9 +149,9 @@ export const ShortPositionRenderer: React.FC<
       className="group cursor-pointer"
       style={{ pointerEvents: 'auto' }}
     >
-      {/* Area risiko / stop-loss di atas entry */}
+      {/* Area risiko / stop-loss di atas entry untuk Short */}
       <rect
-        x={startX}
+        x={leftX}
         y={topLossY}
         width={width}
         height={lossHeight}
@@ -157,9 +164,9 @@ export const ShortPositionRenderer: React.FC<
         }
       />
 
-      {/* Area profit / take-profit di bawah entry */}
+      {/* Area profit / take-profit di bawah entry untuk Short */}
       <rect
-        x={startX}
+        x={leftX}
         y={topProfitY}
         width={width}
         height={profitHeight}
@@ -174,9 +181,9 @@ export const ShortPositionRenderer: React.FC<
 
       {/* Garis entry */}
       <line
-        x1={startX}
+        x1={leftX}
         y1={entryPoint.y}
-        x2={endX}
+        x2={rightX}
         y2={entryPoint.y}
         stroke={entryColor}
         strokeWidth={2}
@@ -186,7 +193,7 @@ export const ShortPositionRenderer: React.FC<
       {/* Label stop-loss */}
       {showLabels && (
         <text
-          x={startX + 6}
+          x={leftX + 6}
           y={topLossY + 14}
           fill={lossColor}
           fontSize={10}
@@ -195,16 +202,16 @@ export const ShortPositionRenderer: React.FC<
           style={{ pointerEvents: 'none' }}
         >
           {`Stop: ${
-            showPrice ? stopPrice.toFixed(2) : ''
-          } (-${stopPips.toFixed(1)} pips / -${stopPct.toFixed(2)}%)`}
+            showPrice ? formatPrice(stopPrice) : ''
+          } (-${formatPips(stopPips)} pips / -${formatPct(stopPct)}%)`}
         </text>
       )}
 
       {/* Label take-profit */}
       {showLabels && (
         <text
-          x={startX + 6}
-          y={topProfitY + profitHeight - 6}
+          x={leftX + 6}
+          y={bottomProfitY - 6}
           fill={profitColor}
           fontSize={10}
           fontWeight="bold"
@@ -212,35 +219,45 @@ export const ShortPositionRenderer: React.FC<
           style={{ pointerEvents: 'none' }}
         >
           {`Target: ${
-            showPrice ? targetPrice.toFixed(2) : ''
-          } (+${targetPips.toFixed(1)} pips / +${targetPct.toFixed(2)}%)`}
+            showPrice ? formatPrice(targetPrice) : ''
+          } (+${formatPips(targetPips)} pips / +${formatPct(targetPct)}%)`}
         </text>
       )}
 
-      {/* Label risk/reward */}
+      {/* Label/Badge informasi di tengah blok: nama posisi dan rasio RR */}
       {showStats && (
         <g style={{ pointerEvents: 'none' }}>
           <rect
-            x={startX + width / 2 - 45}
-            y={entryPoint.y - 11}
-            width={90}
-            height={22}
-            rx={4}
-            fill={isDarkMode ? '#0f172a' : '#ffffff'}
+            x={centerX - 56}
+            y={entryPoint.y - 18}
+            width={112}
+            height={36}
+            rx={6}
+            fill={isDarkMode ? 'rgba(15, 23, 42, 0.90)' : 'rgba(255, 255, 255, 0.94)'}
             stroke={entryColor}
             strokeWidth={1.5}
           />
-
           <text
-            x={startX + width / 2}
-            y={entryPoint.y + 4}
+            x={centerX}
+            y={entryPoint.y - 4}
             textAnchor="middle"
-            fill={isDarkMode ? '#93c5fd' : '#1d4ed8'}
+            fill={isDarkMode ? '#fb7185' : '#e11d48'}
             fontSize={10}
+            fontWeight="bold"
+            fontFamily="sans-serif"
+          >
+            Short Position
+          </text>
+          <text
+            x={centerX}
+            y={entryPoint.y + 11}
+            textAnchor="middle"
+            fill={isDarkMode ? '#f8fafc' : '#0f172a'}
+            fontSize={11}
             fontWeight="bold"
             fontFamily="monospace"
           >
-            {`R:R 1 : ${riskReward.toFixed(2)}`}
+            {`RR 1 : ${formatRR(riskReward)}`}
           </text>
         </g>
       )}
@@ -248,12 +265,78 @@ export const ShortPositionRenderer: React.FC<
       {/* Handle hanya muncul saat posisi dipilih */}
       {isSelected && (
         <>
-          {/* Handle target */}
+          {/* ================= 4 HANDLE SUDUT UTAMA ================= */}
+          {/* 1. Kiri Atas: Waktu Kiri & Level Atas (Stop Loss) */}
           <circle
-            cx={startX + width / 2}
-            cy={targetY}
-            r={6}
-            fill={profitColor}
+            cx={leftX}
+            cy={topLossY}
+            r={6.5}
+            fill="#ffffff"
+            stroke={lossColor}
+            strokeWidth={2.5}
+            className="cursor-nwse-resize"
+            onMouseDown={(event) =>
+              onStartDragging(event, 105, drawing)
+            }
+          >
+            <title>Kiri Atas: Waktu Kiri & Stop Loss</title>
+          </circle>
+
+          {/* 2. Kanan Atas: Waktu Kanan & Level Atas (Stop Loss) */}
+          <circle
+            cx={rightX}
+            cy={topLossY}
+            r={6.5}
+            fill="#ffffff"
+            stroke={lossColor}
+            strokeWidth={2.5}
+            className="cursor-nesw-resize"
+            onMouseDown={(event) =>
+              onStartDragging(event, 106, drawing)
+            }
+          >
+            <title>Kanan Atas: Waktu Kanan & Stop Loss</title>
+          </circle>
+
+          {/* 3. Kiri Bawah: Waktu Kiri & Level Bawah (Take Profit) */}
+          <circle
+            cx={leftX}
+            cy={bottomProfitY}
+            r={6.5}
+            fill="#ffffff"
+            stroke={profitColor}
+            strokeWidth={2.5}
+            className="cursor-nesw-resize"
+            onMouseDown={(event) =>
+              onStartDragging(event, 107, drawing)
+            }
+          >
+            <title>Kiri Bawah: Waktu Kiri & Take Profit</title>
+          </circle>
+
+          {/* 4. Kanan Bawah: Waktu Kanan & Level Bawah (Take Profit) */}
+          <circle
+            cx={rightX}
+            cy={bottomProfitY}
+            r={6.5}
+            fill="#ffffff"
+            stroke={profitColor}
+            strokeWidth={2.5}
+            className="cursor-nwse-resize"
+            onMouseDown={(event) =>
+              onStartDragging(event, 108, drawing)
+            }
+          >
+            <title>Kanan Bawah: Waktu Kanan & Take Profit</title>
+          </circle>
+
+          {/* ================= HANDLE SISI / EDGE HANDLES ================= */}
+          {/* Handle Stop Loss Atas Tengah */}
+          <circle
+            cx={centerX}
+            cy={topLossY}
+            r={5.5}
+            fill={lossColor}
             stroke="#ffffff"
             strokeWidth={2}
             className="cursor-ns-resize"
@@ -261,15 +344,15 @@ export const ShortPositionRenderer: React.FC<
               onStartDragging(event, 101, drawing)
             }
           >
-            <title>Ubah Target</title>
+            <title>Ubah Stop Loss Price</title>
           </circle>
 
-          {/* Handle stop-loss */}
+          {/* Handle Target Bawah Tengah */}
           <circle
-            cx={startX + width / 2}
-            cy={stopY}
-            r={6}
-            fill={lossColor}
+            cx={centerX}
+            cy={bottomProfitY}
+            r={5.5}
+            fill={profitColor}
             stroke="#ffffff"
             strokeWidth={2}
             className="cursor-ns-resize"
@@ -277,14 +360,14 @@ export const ShortPositionRenderer: React.FC<
               onStartDragging(event, 102, drawing)
             }
           >
-            <title>Ubah Stop Loss</title>
+            <title>Ubah Target Price</title>
           </circle>
 
-          {/* Handle entry */}
+          {/* Handle Entry Tengah */}
           <circle
-            cx={startX}
+            cx={centerX}
             cy={entryPoint.y}
-            r={6}
+            r={5.5}
             fill={entryColor}
             stroke="#ffffff"
             strokeWidth={2}
@@ -296,11 +379,11 @@ export const ShortPositionRenderer: React.FC<
             <title>Ubah Entry Price</title>
           </circle>
 
-          {/* Handle lebar posisi kanan */}
+          {/* Handle Batas Waktu Kanan Tengah */}
           <circle
-            cx={endX}
+            cx={rightX}
             cy={entryPoint.y}
-            r={6}
+            r={5.5}
             fill={entryColor}
             stroke="#ffffff"
             strokeWidth={2}
@@ -309,14 +392,14 @@ export const ShortPositionRenderer: React.FC<
               onStartDragging(event, 103, drawing)
             }
           >
-            <title>Ubah Rentang Waktu</title>
+            <title>Ubah Batas Waktu Kanan</title>
           </circle>
 
-          {/* Handle waktu kiri */}
+          {/* Handle Batas Waktu Kiri Tengah */}
           <circle
-            cx={startX}
-            cy={topLossY}
-            r={5}
+            cx={leftX}
+            cy={entryPoint.y}
+            r={5.5}
             fill="#ffffff"
             stroke={entryColor}
             strokeWidth={2}
@@ -325,7 +408,7 @@ export const ShortPositionRenderer: React.FC<
               onStartDragging(event, 104, drawing)
             }
           >
-            <title>Ubah Waktu Awal</title>
+            <title>Ubah Batas Waktu Kiri</title>
           </circle>
         </>
       )}
