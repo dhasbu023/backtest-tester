@@ -34,7 +34,7 @@ import type {
 import { ChartToolbar } from './ChartToolbar.js';
 import { DrawingToolbar } from './DrawingToolbar.js';
 import { DrawingLayer } from './Drawing/DrawingLayer.js';
-import { IndicatorModal } from '../IndicatorModal.js';
+import IndicatorManagerModal from '../Indicators/IndicatorManagerModal.js';
 import { SubIndicatorsPane } from '../SubIndicatorsPane.js';
 
 import {
@@ -273,7 +273,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
 
   const [historyIndex, setHistoryIndex] = useState(0);
 
-  const [isIndicatorModalOpen, setIsIndicatorModalOpen] =
+  const [isIndicatorManagerModalOpen, setIsIndicatorManagerModalOpen] =
     useState(false);
 
   // =========================================================
@@ -1239,7 +1239,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
           hasRealVolume={hasRealVolume}
           indicators={indicators}
           onOpenIndicatorsModal={() =>
-            setIsIndicatorModalOpen(true)
+            setIsIndicatorManagerModalOpen(true)
           }
           onFitContent={handleFitContent}
           showReplayControls={showReplayControls}
@@ -1414,9 +1414,9 @@ export const TradingChart: React.FC<TradingChartProps> = ({
         </div>
       )}
 
-      <IndicatorModal
-        isOpen={isIndicatorModalOpen}
-        onClose={() => setIsIndicatorModalOpen(false)}
+      <IndicatorManagerModal
+        isOpen={isIndicatorManagerModalOpen}
+        onClose={() => setIsIndicatorManagerModalOpen(false)}
         indicators={indicators}
         onUpdateIndicators={onUpdateIndicators}
       />

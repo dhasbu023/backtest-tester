@@ -120,20 +120,20 @@ export const FibonacciRenderer: React.FC<FibonacciRendererProps> = ({
       className={isSelected ? 'cursor-move' : 'cursor-pointer'}
       style={{ pointerEvents: 'auto' }}
     >
-      {/* Background bands */}
+      
+      {/* Background bands: area di antara dua level Fibonacci */}
       {showBackground &&
         sortedLevels.map((level, index) => {
           if (index === sortedLevels.length - 1) return null;
 
           const nextLevel = sortedLevels[index + 1];
+          if (!nextLevel) return null;
 
-          const y1 = series?.priceToCoordinate(
-            startPrice + diff * level.ratio,
-          );
+          const levelPrice = startPrice + diff * level.ratio;
+          const nextLevelPrice = startPrice + diff * nextLevel.ratio;
 
-          const y2 = series?.priceToCoordinate(
-            startPrice + diff * nextLevel.ratio,
-          );
+          const y1 = series?.priceToCoordinate(levelPrice);
+          const y2 = series?.priceToCoordinate(nextLevelPrice);
 
           if (
             y1 == null ||
@@ -145,17 +145,17 @@ export const FibonacciRenderer: React.FC<FibonacciRendererProps> = ({
           }
 
           return (
-           <rect
-            x={labelPosition === 'left' ? leftX - labelWidth - 8 : rightX + 8}
-            y={levelY - 9}
-            width={labelWidth}
-            height={18}
-            rx={4}
-            fill={isDarkMode ? '#0f172a' : '#ffffff'}
-            stroke={levelColor}
-            strokeWidth={1}
-            opacity={0.94}
-          />
+            <rect
+              key={`fibo-band-${level.id || level.ratio}`}
+              x={leftX}
+              y={Math.min(y1, y2)}
+              width={Math.max(0, rightX - leftX)}
+              height={Math.abs(y2 - y1)}
+              fill={level.color || drawing.color}
+              opacity={isDarkMode ? 0.10 : 0.07}
+              stroke="none"
+              style={{ pointerEvents: 'none' }}
+            />
           );
         })}
 
