@@ -176,10 +176,20 @@
           "pane": "main"
         },
         {
-          "id": "ind-b635266d-9bd4-431b-ba8c-728ea033c18c",
+          "id": "ind-fa67df10-34da-479a-8d2e-27ba235122ce",
+          "type": "ATR",
+          "name": "ATR 14",
+          "visible": false,
+          "period": 14,
+          "color": "#06b6d4",
+          "strokeWidth": 2,
+          "pane": "sub"
+        },
+        {
+          "id": "ind-9f8db8c2-73c8-472f-9232-c14eb965cdb0",
           "type": "RSI",
           "name": "RSI 14",
-          "visible": true,
+          "visible": false,
           "period": 14,
           "color": "#8b5cf6",
           "strokeWidth": 2,
@@ -191,8 +201,8 @@
           "pane": "sub"
         }
       ],
-      "id": "f9f2dece-c21d-4152-b4c7-7d2469eb0dd0",
-      "updatedAt": "2026-10-25T05:25:58.349Z"
+      "id": "7d2a0d09-e3bf-4efe-8f44-a8b10641d659",
+      "updatedAt": "2026-10-25T05:54:32.595Z"
     },
     {
       "sessionId": "00e62d2b-6d6f-4e5e-8c57-51aab321aacc",

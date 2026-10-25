@@ -1,6 +1,10 @@
 import React, { useRef, useEffect } from 'react';
 import { IndicatorConfig, Candle } from '../types/index.js';
-import { calculateRSI, calculateATR, IndicatorPoint } from '../utils/indicators.js';
+import {
+  calculateRSI,
+  calculateATR,
+  IndicatorPoint,
+} from '../utils/indicators.js';
 import { X } from 'lucide-react';
 
 interface SubIndicatorsPaneProps {

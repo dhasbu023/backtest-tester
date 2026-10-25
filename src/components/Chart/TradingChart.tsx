@@ -13,14 +13,12 @@ import {
   CrosshairMode,
   CandlestickSeries,
   LineSeries,
-  HistogramSeries,
   TickMarkType,
   type IChartApi,
   type ISeriesApi,
   type Time,
   type CandlestickData,
   type LineData,
-  type HistogramData,
 } from 'lightweight-charts';
 
 import type {
@@ -35,18 +33,16 @@ import { ChartToolbar } from './ChartToolbar.js';
 import { DrawingToolbar } from './DrawingToolbar.js';
 import { DrawingLayer } from './Drawing/DrawingLayer.js';
 import IndicatorManagerModal from '../Indicators/IndicatorManagerModal.js';
-import { SubIndicatorsPane } from '../SubIndicatorsPane.js';
 
 import {
   calculateEMA,
   calculateSMA,
   calculateBollingerBands,
+  calculateRSI,
+  calculateATR,
 } from '../../utils/indicators.js';
 
-import {
-  formatDateTimeWithTz,
-} from '../../utils/timezone.js';
-
+import { formatDateTimeWithTz } from '../../utils/timezone.js';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 
 interface TradingChartProps {
@@ -67,12 +63,6 @@ interface TradingChartProps {
   indicators: IndicatorConfig[];
   onUpdateIndicators: (indicators: IndicatorConfig[]) => void;
 
-  showVolume: boolean;
-  onToggleVolume: () => void;
-  volumeType: 'TICK' | 'REAL';
-  onChangeVolumeType: (type: 'TICK' | 'REAL') => void;
-  hasRealVolume: boolean;
-
   showReplayControls: boolean;
   onToggleReplay: () => void;
 }
@@ -87,10 +77,7 @@ function toUnixTimestamp(time: Time): number | null {
 
   if (typeof time === 'string') {
     const parsed = Date.parse(`${time}T00:00:00Z`);
-
-    return Number.isFinite(parsed)
-      ? Math.floor(parsed / 1000)
-      : null;
+    return Number.isFinite(parsed) ? Math.floor(parsed / 1000) : null;
   }
 
   if (
@@ -195,23 +182,9 @@ export const TradingChart: React.FC<TradingChartProps> = ({
   onUpdateDrawings,
   indicators,
   onUpdateIndicators,
-  showVolume,
-  onToggleVolume,
-  volumeType,
-  onChangeVolumeType,
-  hasRealVolume,
   showReplayControls,
   onToggleReplay,
 }) => {
-  // =========================================================
-  // TEMPORARY VOLUME VISIBILITY
-  // =========================================================
-  // Volume sengaja disembunyikan sementara tanpa menghapus
-  // kode series, pemrosesan data, atau pengaturan volume.
-  // Untuk mengaktifkannya kembali, ubah menjadi false.
-  const HIDE_VOLUME_FOR_NOW = true;
-  const showVolumeInChart = HIDE_VOLUME_FOR_NOW ? false : showVolume;
-
   // =========================================================
   // REFS
   // =========================================================
@@ -219,33 +192,33 @@ export const TradingChart: React.FC<TradingChartProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
 
   const chartRef = useRef<IChartApi | null>(null);
-  const [chartInstance, setChartInstance] = useState<IChartApi | null>(null);
+  const [chartInstance, setChartInstance] = useState<IChartApi | null>(
+    null,
+  );
 
   const candlestickSeriesRef =
     useRef<ISeriesApi<'Candlestick'> | null>(null);
+
   const [candlestickSeriesInstance, setCandlestickSeriesInstance] =
     useState<ISeriesApi<'Candlestick'> | null>(null);
-
-  const volumeSeriesRef =
-    useRef<ISeriesApi<'Histogram'> | null>(null);
 
   const lineSeriesMapRef =
     useRef<Map<string, ISeriesApi<'Line'>>>(new Map());
 
-  const candlesRef = useRef<Candle[]>(candles);
+  const subIndicatorSeriesMapRef =
+    useRef<Map<string, ISeriesApi<'Line'>>>(new Map());
 
+  const subIndicatorPanesRef = useRef<any[]>([]);
+
+  const candlesRef = useRef<Candle[]>(candles);
   const drawingsRef = useRef<DrawingObject[]>(drawings);
 
-  // Snapshot awal satu sesi drag. History hanya dicatat
-  // sekali saat drag selesai, bukan pada setiap gerakan mouse.
   const drawingDragStartRef =
     useRef<DrawingObject[] | null>(null);
 
   const isDarkModeRef = useRef(isDarkMode);
   const activeTimezoneRef = useRef(activeTimezone);
 
-  // Perbarui nilai ref langsung agar callback chart selalu
-  // menggunakan data/config terbaru tanpa membuat chart baru.
   candlesRef.current = candles;
   drawingsRef.current = drawings;
   isDarkModeRef.current = isDarkMode;
@@ -255,11 +228,10 @@ export const TradingChart: React.FC<TradingChartProps> = ({
   // STATE
   // =========================================================
 
-  const [containerDimensions, setContainerDimensions] =
-    useState({
-      width: 800,
-      height: 500,
-    });
+  const [containerDimensions, setContainerDimensions] = useState({
+    width: 800,
+    height: 500,
+  });
 
   const [hoveredCandle, setHoveredCandle] =
     useState<Candle | null>(null);
@@ -331,21 +303,14 @@ export const TradingChart: React.FC<TradingChartProps> = ({
       drawingsRef.current = newDrawings;
       onUpdateDrawings(newDrawings);
 
-      const nextHistory = drawingHistory.slice(
-        0,
-        historyIndex + 1,
-      );
-
-      nextHistory.push([...newDrawings]);
-
-      setDrawingHistory(nextHistory);
-      setHistoryIndex(nextHistory.length - 1);
+      setDrawingHistory((previousHistory) => {
+        const base = previousHistory.slice(0, historyIndex + 1);
+        base.push([...newDrawings]);
+        setHistoryIndex(base.length - 1);
+        return base;
+      });
     },
-    [
-      drawingHistory,
-      historyIndex,
-      onUpdateDrawings,
-    ],
+    [historyIndex, onUpdateDrawings],
   );
 
   const handleUndo = useCallback(() => {
@@ -409,14 +374,9 @@ export const TradingChart: React.FC<TradingChartProps> = ({
   const handleUpdateDrawing = useCallback(
     (drawing: DrawingObject) => {
       const current = drawingsRef.current;
-      const existing = current.find(
-        (item) => item.id === drawing.id,
-      );
+      const existing = current.find((item) => item.id === drawing.id);
 
-      if (!existing) return;
-
-      // Tidak membuat array baru bila nilai gambar sama.
-      if (existing === drawing) return;
+      if (!existing || existing === drawing) return;
 
       const updated = current.map((item) =>
         item.id === drawing.id ? drawing : item,
@@ -425,8 +385,6 @@ export const TradingChart: React.FC<TradingChartProps> = ({
       drawingsRef.current = updated;
 
       if (drawingDragStartRef.current !== null) {
-        // Selama drag, perbarui gambar saja.
-        // Jangan membuat snapshot Undo/Redo setiap frame.
         onUpdateDrawings(updated);
         return;
       }
@@ -437,11 +395,8 @@ export const TradingChart: React.FC<TradingChartProps> = ({
   );
 
   const handleDrawingDragStart = useCallback(() => {
-    // Simpan satu snapshot sebelum drawing mulai digeser.
     if (drawingDragStartRef.current === null) {
-      drawingDragStartRef.current = [
-        ...drawingsRef.current,
-      ];
+      drawingDragStartRef.current = [...drawingsRef.current];
     }
   }, []);
 
@@ -450,26 +405,19 @@ export const TradingChart: React.FC<TradingChartProps> = ({
 
     if (initialDrawings === null) return;
 
-    // Reset terlebih dahulu supaya pembaruan selanjutnya
-    // tidak dianggap bagian dari drag sebelumnya.
     drawingDragStartRef.current = null;
 
     const finalDrawings = drawingsRef.current;
 
-    if (isSameDrawings(initialDrawings, finalDrawings)) {
-      return;
-    }
+    if (isSameDrawings(initialDrawings, finalDrawings)) return;
 
-    const nextHistory = drawingHistory.slice(
-      0,
-      historyIndex + 1,
-    );
-
-    nextHistory.push([...finalDrawings]);
-
-    setDrawingHistory(nextHistory);
-    setHistoryIndex(nextHistory.length - 1);
-  }, [drawingHistory, historyIndex]);
+    setDrawingHistory((previousHistory) => {
+      const base = previousHistory.slice(0, historyIndex + 1);
+      base.push([...finalDrawings]);
+      setHistoryIndex(base.length - 1);
+      return base;
+    });
+  }, [historyIndex]);
 
   const handleDeleteDrawing = useCallback(
     (id: string) => {
@@ -521,16 +469,9 @@ export const TradingChart: React.FC<TradingChartProps> = ({
     [commitDrawingsWithHistory],
   );
 
-  // Sinkronisasi drawing dari parent.
-  // Selama drag, jangan membuat snapshot history tambahan.
   useEffect(() => {
-    if (drawingDragStartRef.current !== null) {
-      return;
-    }
-
-    if (isSameDrawings(drawingsRef.current, drawings)) {
-      return;
-    }
+    if (drawingDragStartRef.current !== null) return;
+    if (isSameDrawings(drawingsRef.current, drawings)) return;
 
     drawingsRef.current = drawings;
     setDrawingHistory([[...drawings]]);
@@ -539,13 +480,10 @@ export const TradingChart: React.FC<TradingChartProps> = ({
 
   // =========================================================
   // INITIALIZE CHART
-  // Chart dibuat satu kali selama komponen tetap terpasang.
-  // Perubahan tema/timezone ditangani oleh efek terpisah.
   // =========================================================
 
   useEffect(() => {
     const container = containerRef.current;
-
     if (!container) return;
 
     const initialWidth = Math.max(container.clientWidth, 1);
@@ -651,7 +589,6 @@ export const TradingChart: React.FC<TradingChartProps> = ({
           tickMarkType: TickMarkType,
         ) => {
           const timestamp = toUnixTimestamp(time);
-
           if (timestamp === null) return '';
 
           const date = new Date(timestamp * 1000);
@@ -693,7 +630,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
         autoScale: true,
         scaleMargins: {
           top: 0.08,
-          bottom: 0.22,
+          bottom: 0.08,
         },
       },
     });
@@ -701,37 +638,33 @@ export const TradingChart: React.FC<TradingChartProps> = ({
     chartRef.current = chart;
     setChartInstance(chart);
 
-    const candlestickSeries = chart.addSeries(
-      CandlestickSeries,
-      {
-        upColor: '#10b981',
-        downColor: '#ef4444',
-        borderVisible: false,
-        wickUpColor: '#10b981',
-        wickDownColor: '#ef4444',
-      },
-    );
+    // Pane internal chart: index 0 = candle, 1 = RSI, 2 = ATR.
+    try {
+      const rsiPane = chart.addPane();
+      const atrPane = chart.addPane();
+
+      rsiPane.setHeight(1);
+      atrPane.setHeight(1);
+
+      subIndicatorPanesRef.current = [rsiPane, atrPane];
+    } catch (error) {
+      console.error(
+        '[TradingChart] Gagal membuat pane RSI/ATR:',
+        error,
+      );
+      subIndicatorPanesRef.current = [];
+    }
+
+    const candlestickSeries = chart.addSeries(CandlestickSeries, {
+      upColor: '#10b981',
+      downColor: '#ef4444',
+      borderVisible: false,
+      wickUpColor: '#10b981',
+      wickDownColor: '#ef4444',
+    });
 
     candlestickSeriesRef.current = candlestickSeries;
     setCandlestickSeriesInstance(candlestickSeries);
-
-    const volumeSeries = chart.addSeries(HistogramSeries, {
-      color: '#26a69a',
-      priceFormat: {
-        type: 'volume',
-      },
-      priceScaleId: 'volume_scale',
-    });
-
-    volumeSeries.priceScale().applyOptions({
-      scaleMargins: {
-        top: 0.8,
-        bottom: 0,
-      },
-      visible: false,
-    });
-
-    volumeSeriesRef.current = volumeSeries;
 
     chart.subscribeCrosshairMove((param) => {
       if (
@@ -763,11 +696,8 @@ export const TradingChart: React.FC<TradingChartProps> = ({
       }
 
       const timestamp = toUnixTimestamp(param.time);
-
       if (timestamp === null) return;
 
-      // Cari hanya ketika pointer berada di atas candle.
-      // Nilai OHLC yang sama tidak memicu render tambahan.
       const matched = candlesRef.current.find(
         (candle) =>
           Math.floor(candle.timestamp) === timestamp,
@@ -805,7 +735,6 @@ export const TradingChart: React.FC<TradingChartProps> = ({
 
     const resizeObserver = new ResizeObserver((entries) => {
       const entry = entries[0];
-
       if (!entry) return;
 
       const width = Math.floor(entry.contentRect.width);
@@ -831,23 +760,22 @@ export const TradingChart: React.FC<TradingChartProps> = ({
       if (chartRef.current === chart) {
         chartRef.current = null;
         candlestickSeriesRef.current = null;
-        volumeSeriesRef.current = null;
         setChartInstance(null);
         setCandlestickSeriesInstance(null);
       }
 
       lineSeriesMapRef.current.clear();
+      subIndicatorSeriesMapRef.current.clear();
+      subIndicatorPanesRef.current = [];
     };
   }, []);
 
   // =========================================================
-  // UPDATE CHART OPTIONS: THEME
-  // Mengubah tema tidak membuat chart baru.
+  // UPDATE CHART THEME
   // =========================================================
 
   useEffect(() => {
     const chart = chartRef.current;
-
     if (!chart) return;
 
     chart.applyOptions({
@@ -899,15 +827,11 @@ export const TradingChart: React.FC<TradingChartProps> = ({
 
   // =========================================================
   // TIMEZONE
-  // Formatter membaca activeTimezoneRef agar tidak perlu
-  // menginisialisasi ulang chart ketika timezone berubah.
   // =========================================================
 
   useEffect(() => {
     activeTimezoneRef.current = activeTimezone;
 
-    // Paksa chart menghitung ulang label waktu tanpa
-    // memuat ulang data candle.
     chartRef.current?.applyOptions({
       localization: {
         timeFormatter: (timeValue: number) =>
@@ -917,17 +841,16 @@ export const TradingChart: React.FC<TradingChartProps> = ({
   }, [activeTimezone]);
 
   // =========================================================
-  // UPDATE CANDLE AND VOLUME DATA
+  // UPDATE CANDLE DATA ONLY
+  // Tidak ada series volume di file ini.
   // =========================================================
 
   useEffect(() => {
     const series = candlestickSeriesRef.current;
-
     if (!series) return;
 
     if (!candles || candles.length === 0) {
       series.setData([]);
-      volumeSeriesRef.current?.setData([]);
       setHoveredCandle(null);
       return;
     }
@@ -973,60 +896,13 @@ export const TradingChart: React.FC<TradingChartProps> = ({
       );
 
       series.setData(sortedCandles);
-
-      const volSeries = volumeSeriesRef.current;
-
-      if (!volSeries) return;
-
-      if (!showVolumeInChart) {
-        volSeries.applyOptions({ visible: false });
-        volSeries.setData([]);
-        return;
-      }
-
-      volSeries.applyOptions({ visible: true });
-
-      const volumeData: HistogramData<Time>[] = [];
-
-      for (const candle of candles) {
-        const timestamp = Math.floor(candle.timestamp);
-
-        if (!Number.isFinite(timestamp) || timestamp <= 0) {
-          continue;
-        }
-
-        const isUp = candle.close >= candle.open;
-
-        const volume =
-          volumeType === 'REAL'
-            ? candle.realVolume || candle.tickVolume || 0
-            : candle.tickVolume || candle.realVolume || 0;
-
-        volumeData.push({
-          time: timestamp as Time,
-          value: volume,
-          color: isUp
-            ? isDarkMode
-              ? 'rgba(16, 185, 129, 0.45)'
-              : 'rgba(16, 185, 129, 0.55)'
-            : isDarkMode
-              ? 'rgba(239, 68, 68, 0.45)'
-              : 'rgba(239, 68, 68, 0.55)',
-        });
-      }
-
-      volumeData.sort(
-        (a, b) => Number(a.time) - Number(b.time),
-      );
-
-      volSeries.setData(volumeData);
     } catch (error) {
       console.error(
-        '[TradingChart] Error updating candle/volume data:',
+        '[TradingChart] Error memperbarui candle:',
         error,
       );
     }
-  }, [candles, showVolumeInChart, volumeType, isDarkMode]);
+  }, [candles]);
 
   // =========================================================
   // MAIN INDICATORS: EMA, SMA, BOLLINGER
@@ -1034,7 +910,6 @@ export const TradingChart: React.FC<TradingChartProps> = ({
 
   useEffect(() => {
     const chart = chartRef.current;
-
     if (!chart || !candlestickSeriesRef.current) return;
 
     const activeIndicators = indicators.filter(
@@ -1185,7 +1060,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
       try {
         chart.removeSeries(series);
       } catch {
-        // Series mungkin sudah tidak terdaftar.
+        // Seri mungkin sudah dilepas.
       }
 
       lineSeriesMapRef.current.delete(id);
@@ -1193,14 +1068,16 @@ export const TradingChart: React.FC<TradingChartProps> = ({
   }, [candles, indicators]);
 
   // =========================================================
-  // SUB-INDICATORS
+  // SUB-INDICATORS: RSI / ATR
   // =========================================================
 
   const subIndicators = useMemo(
     () =>
       indicators.filter(
         (indicator) =>
-          indicator.pane === 'sub' && indicator.visible,
+          indicator.pane === 'sub' &&
+          indicator.visible &&
+          (indicator.type === 'RSI' || indicator.type === 'ATR'),
       ),
     [indicators],
   );
@@ -1218,12 +1095,160 @@ export const TradingChart: React.FC<TradingChartProps> = ({
     [indicators, onUpdateIndicators],
   );
 
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+
+    const active = indicators.filter(
+      (indicator) =>
+        indicator.pane === 'sub' &&
+        indicator.visible &&
+        (indicator.type === 'RSI' || indicator.type === 'ATR'),
+    );
+
+    const needed = new Set<string>();
+
+    const rsiActive = active.some(
+      (indicator) => indicator.type === 'RSI',
+    );
+
+    const atrActive = active.some(
+      (indicator) => indicator.type === 'ATR',
+    );
+
+    try {
+      subIndicatorPanesRef.current[0]?.setHeight(
+        rsiActive ? 120 : 1,
+      );
+
+      subIndicatorPanesRef.current[1]?.setHeight(
+        atrActive ? 120 : 1,
+      );
+    } catch (error) {
+      console.warn(
+        '[TradingChart] Tidak dapat mengatur tinggi pane RSI/ATR:',
+        error,
+      );
+    }
+
+    for (const indicator of active) {
+      needed.add(indicator.id);
+
+      let series = subIndicatorSeriesMapRef.current.get(
+        indicator.id,
+      );
+
+      const paneIndex = indicator.type === 'RSI' ? 1 : 2;
+
+      const lineColor =
+        indicator.color ||
+        (indicator.type === 'RSI' ? '#a855f7' : '#f59e0b');
+
+      if (!series) {
+        try {
+          series = chart.addSeries(
+            LineSeries,
+            {
+              color: lineColor,
+              lineWidth: Math.max(
+                1,
+                Math.min(4, indicator.strokeWidth || 2),
+              ) as 1 | 2 | 3 | 4,
+              title: indicator.name || indicator.type,
+              crosshairMarkerVisible: true,
+              priceLineVisible: false,
+              lastValueVisible: true,
+              ...(indicator.type === 'RSI'
+                ? {
+                    autoscaleInfoProvider: () => ({
+                      priceRange: {
+                        minValue: 0,
+                        maxValue: 100,
+                      },
+                      margins: {
+                        above: 0,
+                        below: 0,
+                      },
+                    }),
+                  }
+                : {}),
+            },
+            paneIndex,
+          );
+
+          subIndicatorSeriesMapRef.current.set(
+            indicator.id,
+            series,
+          );
+        } catch (error) {
+          console.error(
+            `[TradingChart] Gagal membuat seri ${indicator.type}:`,
+            error,
+          );
+          continue;
+        }
+      } else {
+        series.applyOptions({
+          color: lineColor,
+          lineWidth: Math.max(
+            1,
+            Math.min(4, indicator.strokeWidth || 2),
+          ) as 1 | 2 | 3 | 4,
+          title: indicator.name || indicator.type,
+          visible: true,
+        });
+      }
+
+      const points =
+        indicator.type === 'RSI'
+          ? calculateRSI(candles, indicator.period || 14)
+          : calculateATR(candles, indicator.period || 14);
+
+      const data: LineData<Time>[] = points
+        .filter(
+          (point) =>
+            Number.isFinite(point.time) &&
+            Number.isFinite(point.value),
+        )
+        .map((point) => ({
+          time: Math.floor(point.time) as Time,
+          value: point.value,
+        }));
+
+      try {
+        series.setData(data);
+      } catch (error) {
+        console.error(
+          `[TradingChart] Gagal memperbarui data ${indicator.type}:`,
+          error,
+        );
+      }
+    }
+
+    for (const [id, series] of subIndicatorSeriesMapRef.current) {
+      if (needed.has(id)) continue;
+
+      try {
+        chart.removeSeries(series);
+      } catch {
+        // Seri mungkin sudah dilepas.
+      }
+
+      subIndicatorSeriesMapRef.current.delete(id);
+    }
+  }, [candles, indicators]);
+
+  // =========================================================
+  // CHART ACTIONS
+  // =========================================================
+
   const handleFitContent = useCallback(() => {
-    if (!chartRef.current) return;
+    const chart = chartRef.current;
+    if (!chart) return;
 
-    chartRef.current.timeScale().fitContent();
+    chart.timeScale().fitContent();
 
-    chartRef.current.priceScale('right').applyOptions({
+    chart.priceScale('right').applyOptions({
       autoScale: true,
     });
   }, []);
@@ -1241,11 +1266,6 @@ export const TradingChart: React.FC<TradingChartProps> = ({
           onChangeTimeframe={onChangeTimeframe}
           activeTimezone={activeTimezone}
           onChangeTimezone={onChangeTimezone}
-          showVolume={showVolume}
-          onToggleVolume={onToggleVolume}
-          volumeType={volumeType}
-          onChangeVolumeType={onChangeVolumeType}
-          hasRealVolume={hasRealVolume}
           indicators={indicators}
           onOpenIndicatorsModal={() =>
             setIsIndicatorManagerModalOpen(true)
@@ -1356,6 +1376,61 @@ export const TradingChart: React.FC<TradingChartProps> = ({
             className="absolute inset-0 h-full w-full"
           />
 
+          {subIndicators.length > 0 && (
+            <div className="pointer-events-none absolute bottom-1 right-2 z-20 flex max-w-[75%] flex-col items-end gap-1">
+              {subIndicators.map((indicator) => {
+                const points =
+                  indicator.type === 'RSI'
+                    ? calculateRSI(candles, indicator.period || 14)
+                    : calculateATR(candles, indicator.period || 14);
+
+                const latest = points.length
+                  ? points[points.length - 1]?.value
+                  : undefined;
+
+                const color =
+                  indicator.color ||
+                  (indicator.type === 'RSI'
+                    ? '#a855f7'
+                    : '#f59e0b');
+
+                return (
+                  <div
+                    key={indicator.id}
+                    className="pointer-events-auto flex items-center gap-2 rounded border border-slate-300/80 bg-white/90 px-2 py-1 font-mono text-[10px] text-slate-700 shadow-sm backdrop-blur dark:border-slate-700/80 dark:bg-slate-950/90 dark:text-slate-200"
+                  >
+                    <span
+                      className="h-2 w-2 rounded-full"
+                      style={{ backgroundColor: color }}
+                    />
+
+                    <span className="font-semibold">
+                      {indicator.name || indicator.type}
+                    </span>
+
+                    <span>
+                      {latest !== undefined &&
+                      Number.isFinite(latest)
+                        ? latest.toFixed(2)
+                        : '—'}
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleRemoveSubIndicator(indicator.id)
+                      }
+                      title="Tutup indikator"
+                      className="rounded px-1 text-slate-500 hover:bg-slate-200 hover:text-rose-600 dark:hover:bg-slate-800"
+                    >
+                      ×
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           <DrawingLayer
             candles={candles}
             timeframe={timeframe}
@@ -1402,17 +1477,6 @@ export const TradingChart: React.FC<TradingChartProps> = ({
           )}
         </div>
       </div>
-
-      {subIndicators.length > 0 && (
-        <div className="relative z-10 shrink-0 border-t border-slate-200 bg-white dark:border-slate-800 dark:bg-[#0b0f19]">
-          <SubIndicatorsPane
-            candles={candles}
-            activeSubIndicators={subIndicators}
-            isDarkMode={isDarkMode}
-            onRemoveIndicator={handleRemoveSubIndicator}
-          />
-        </div>
-      )}
 
       <IndicatorManagerModal
         isOpen={isIndicatorManagerModalOpen}
