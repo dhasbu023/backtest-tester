@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Plus, Trash2, ArrowUpDown, RotateCcw } from 'lucide-react';
 
@@ -69,9 +70,9 @@ export const FibonacciPropertiesTabs: React.FC<
   };
 
   const addLevel = () => {
-    // Generate next logical ratio
-    const existingRatios = settings.levels.map((l) => l.ratio);
+    const existingRatios = settings.levels.map((level) => level.ratio);
     let nextRatio = 0.5;
+
     if (existingRatios.length > 0) {
       const maxRatio = Math.max(...existingRatios);
       nextRatio = Math.round((maxRatio + 0.236) * 1000) / 1000;
@@ -86,15 +87,15 @@ export const FibonacciPropertiesTabs: React.FC<
           label: String(nextRatio),
           color: settings.color || '#3b82f6',
           enabled: true,
-          labelPosition: 'right',
         },
       ],
     });
   };
 
   const sortLevels = () => {
-    const sorted = [...settings.levels].sort((a, b) => a.ratio - b.ratio);
-    update({ levels: sorted });
+    update({
+      levels: [...settings.levels].sort((a, b) => a.ratio - b.ratio),
+    });
   };
 
   const resetLevels = () => {
@@ -105,15 +106,13 @@ export const FibonacciPropertiesTabs: React.FC<
         label: level.label ?? String(level.ratio),
         color: level.color,
         enabled: level.enabled ?? true,
-        labelPosition: 'right',
       })),
     });
   };
 
   const removeLevel = (index: number) => {
-    if (settings.levels.length <= 1) {
-      return; // Keep at least one level
-    }
+    if (settings.levels.length <= 1) return;
+
     update({
       levels: settings.levels.filter((_, i) => i !== index),
     });
@@ -121,11 +120,10 @@ export const FibonacciPropertiesTabs: React.FC<
 
   return (
     <div className="flex flex-col">
-      {/* Tabs navigation */}
       <div
         role="tablist"
         aria-label="Fibonacci properties"
-        className="flex border-b border-slate-200 px-4 bg-slate-50/80 dark:border-slate-800 dark:bg-slate-900/80 select-none"
+        className="flex select-none border-b border-slate-200 bg-slate-50/80 px-4 dark:border-slate-800 dark:bg-slate-900/80"
       >
         {tabs.map((tab) => (
           <button
@@ -135,9 +133,9 @@ export const FibonacciPropertiesTabs: React.FC<
             aria-selected={activeTab === tab.id}
             onClick={() => onTabChange(tab.id)}
             className={[
-              'relative py-3 px-4 text-xs font-semibold transition-colors',
+              'relative px-4 py-3 text-xs font-semibold transition-colors',
               activeTab === tab.id
-                ? 'text-blue-600 dark:text-blue-400 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-blue-600 dark:after:bg-blue-400'
+                ? 'text-blue-600 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-blue-600 dark:text-blue-400 dark:after:bg-blue-400'
                 : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white',
             ].join(' ')}
           >
@@ -146,17 +144,15 @@ export const FibonacciPropertiesTabs: React.FC<
         ))}
       </div>
 
-      {/* Tabs content container */}
       <div className="max-h-[60vh] space-y-4 overflow-y-auto p-5">
         {activeTab === 'style' && (
           <>
-            {/* General Trend Line & Extension Settings */}
             <section className={sectionClass}>
               <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 Garis Tren &amp; Gaya Tampilan
               </h3>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <div>
                   <label className={labelClass}>Warna Tren</label>
                   <div className="flex items-center gap-2">
@@ -209,7 +205,7 @@ export const FibonacciPropertiesTabs: React.FC<
                 </div>
               </div>
 
-              <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="mt-4 grid grid-cols-1 gap-3 border-t border-slate-200 pt-3 dark:border-slate-800 sm:grid-cols-2">
                 <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-slate-700 dark:text-slate-300">
                   <input
                     type="checkbox"
@@ -230,13 +226,13 @@ export const FibonacciPropertiesTabs: React.FC<
                   Perpanjang garis ke kanan
                 </label>
               </div>
-              
+
               <div className="mt-4 grid grid-cols-1 gap-3 border-t border-slate-200 pt-3 dark:border-slate-800 sm:grid-cols-2">
                 <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-slate-700 dark:text-slate-300">
                   <input
                     type="checkbox"
-                    checked={settings.showLabel}
-                    onChange={(e) => update({ showLabel: e.target.checked })}
+                    checked={settings.showLabels ?? true}
+                    onChange={(e) => update({ showLabels: e.target.checked })}
                     className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900"
                   />
                   Tampilkan Label
@@ -245,13 +241,13 @@ export const FibonacciPropertiesTabs: React.FC<
                 <div>
                   <label className={labelClass}>Posisi Label</label>
                   <select
-                    value={settings.labelPosition}
+                    value={settings.labelPosition === 'left' ? 'left' : 'right'}
                     onChange={(e) =>
                       update({
                         labelPosition: e.target.value as 'left' | 'right',
                       })
                     }
-                    disabled={!settings.showLabel}
+                    disabled={!(settings.showLabels ?? true)}
                     className={`${inputClass} disabled:cursor-not-allowed disabled:opacity-50`}
                   >
                     <option value="right">Kanan</option>
@@ -259,27 +255,25 @@ export const FibonacciPropertiesTabs: React.FC<
                   </select>
                 </div>
               </div>
-
             </section>
 
-            {/* Fibonacci Levels Table */}
             <section className={sectionClass}>
-              <div className="mb-3 flex items-center justify-between">
+              <div className="mb-3 flex items-center justify-between gap-2">
                 <div>
                   <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                     Level Fibonacci
                   </h3>
                   <p className="text-[11px] text-slate-400 dark:text-slate-500">
-                    Atur nilai rasio, label kustom, warna, serta status aktif tiap level.
+                    Atur rasio, label kustom, warna, dan status aktif setiap level.
                   </p>
                 </div>
 
-                <div className="flex items-center gap-1.5">
+                <div className="flex flex-wrap items-center gap-1.5">
                   <button
                     type="button"
                     onClick={sortLevels}
                     title="Urutkan rasio terkecil ke terbesar"
-                    className="flex items-center gap-1 rounded-md border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors"
+                    className="flex items-center gap-1 rounded-md border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
                   >
                     <ArrowUpDown className="h-3 w-3" />
                     <span>Urutkan</span>
@@ -289,7 +283,7 @@ export const FibonacciPropertiesTabs: React.FC<
                     type="button"
                     onClick={resetLevels}
                     title="Kembalikan level ke konfigurasi awal"
-                    className="flex items-center gap-1 rounded-md border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors"
+                    className="flex items-center gap-1 rounded-md border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
                   >
                     <RotateCcw className="h-3 w-3" />
                     <span>Reset Level</span>
@@ -298,7 +292,7 @@ export const FibonacciPropertiesTabs: React.FC<
                   <button
                     type="button"
                     onClick={addLevel}
-                    className="flex items-center gap-1 rounded-md bg-blue-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-blue-700 shadow-sm transition-colors"
+                    className="flex items-center gap-1 rounded-md bg-blue-600 px-2.5 py-1 text-xs font-medium text-white shadow-sm transition-colors hover:bg-blue-700"
                   >
                     <Plus className="h-3 w-3" />
                     <span>Tambah Level</span>
@@ -306,33 +300,30 @@ export const FibonacciPropertiesTabs: React.FC<
                 </div>
               </div>
 
-              {/* Table header */}
-              <div className="grid grid-cols-[32px_minmax(70px,1fr)_minmax(80px,1.2fr)_44px_32px] items-center gap-2 pb-2 text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 border-b border-slate-200 dark:border-slate-800">
+              <div className="grid grid-cols-[32px_minmax(70px,1fr)_minmax(80px,1.2fr)_44px_32px] items-center gap-2 border-b border-slate-200 pb-2 text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:border-slate-800 dark:text-slate-500">
                 <span className="text-center">Aktif</span>
                 <span>Rasio</span>
                 <span>Label</span>
                 <span className="text-center">Warna</span>
+                <span />
               </div>
 
-              {/* Level rows */}
-              <div className="mt-2 space-y-1.5 max-h-64 overflow-y-auto pr-1">
+              <div className="mt-2 max-h-64 space-y-1.5 overflow-y-auto pr-1">
                 {settings.levels.map((level, index) => (
                   <div
                     key={level.id || `level-${index}`}
-                    className="grid grid-cols-[32px_minmax(70px,1fr)_minmax(80px,1.2fr)_44px_32px] items-center gap-2 rounded-lg p-1 hover:bg-slate-100/60 dark:hover:bg-slate-800/60 transition-colors"
+                    className="grid grid-cols-[32px_minmax(70px,1fr)_minmax(80px,1.2fr)_44px_32px] items-center gap-2 rounded-lg p-1 transition-colors hover:bg-slate-100/60 dark:hover:bg-slate-800/60"
                   >
-                    {/* Checkbox status aktif */}
                     <div className="flex justify-center">
                       <input
                         aria-label={`Aktifkan level rasio ${level.ratio}`}
                         type="checkbox"
-                        checked={level.enabled}
+                        checked={level.enabled ?? true}
                         onChange={(e) => updateLevel(index, { enabled: e.target.checked })}
                         className="h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900"
                       />
                     </div>
 
-                    {/* Nilai rasio */}
                     <div>
                       <input
                         aria-label={`Nilai rasio level ${index + 1}`}
@@ -345,7 +336,6 @@ export const FibonacciPropertiesTabs: React.FC<
                       />
                     </div>
 
-                    {/* Label kustom */}
                     <div>
                       <input
                         aria-label={`Label teks level ${index + 1}`}
@@ -357,7 +347,6 @@ export const FibonacciPropertiesTabs: React.FC<
                       />
                     </div>
 
-                    {/* Warna baris */}
                     <div className="flex justify-center">
                       <input
                         aria-label={`Warna garis level rasio ${level.ratio}`}
@@ -368,7 +357,6 @@ export const FibonacciPropertiesTabs: React.FC<
                       />
                     </div>
 
-                    {/* Tombol hapus */}
                     <div className="flex justify-center">
                       <button
                         type="button"
@@ -376,7 +364,7 @@ export const FibonacciPropertiesTabs: React.FC<
                         title="Hapus level ini"
                         onClick={() => removeLevel(index)}
                         disabled={settings.levels.length <= 1}
-                        className="flex h-7 w-7 items-center justify-center rounded text-slate-400 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-30 disabled:pointer-events-none dark:hover:bg-rose-950/50 dark:hover:text-rose-400 transition-colors"
+                        className="flex h-7 w-7 items-center justify-center rounded text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600 disabled:pointer-events-none disabled:opacity-30 dark:hover:bg-rose-950/50 dark:hover:text-rose-400"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -386,13 +374,12 @@ export const FibonacciPropertiesTabs: React.FC<
               </div>
             </section>
 
-            {/* Display options */}
             <section className={sectionClass}>
               <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 Pilihan Label &amp; Latar Belakang
               </h3>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-slate-700 dark:text-slate-300">
                   <input
                     type="checkbox"
@@ -434,20 +421,20 @@ export const FibonacciPropertiesTabs: React.FC<
             </h3>
 
             <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">
-              Ubah harga atau waktu dari kedua titik anchor utama Fibonacci Retracement secara presisi.
+              Ubah harga atau waktu kedua titik anchor Fibonacci secara presisi.
             </p>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {([
                 ['firstPoint', 'Titik Anchor Awal (0%)'],
                 ['secondPoint', 'Titik Anchor Akhir (100%)'],
-              ] as const).map(([point, title]) => (
+              ] as const).map(([point, pointTitle]) => (
                 <div
                   key={point}
                   className="rounded-lg border border-slate-200 bg-white p-3.5 dark:border-slate-800 dark:bg-slate-900"
                 >
                   <h4 className="mb-3 text-xs font-bold text-slate-800 dark:text-slate-200">
-                    {title}
+                    {pointTitle}
                   </h4>
 
                   <div className="space-y-3">
@@ -458,9 +445,7 @@ export const FibonacciPropertiesTabs: React.FC<
                         step="any"
                         value={settings[point].price}
                         onChange={(e) =>
-                          updatePoint(point, {
-                            price: Number(e.target.value),
-                          })
+                          updatePoint(point, { price: Number(e.target.value) })
                         }
                         className={inputClass}
                       />
@@ -499,10 +484,10 @@ export const FibonacciPropertiesTabs: React.FC<
             </h3>
 
             <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">
-              Tentukan pada timeframe apa saja objek Fibonacci ini akan ditampilkan pada chart.
+              Tentukan timeframe tempat objek Fibonacci ditampilkan.
             </p>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
               {FIBONACCI_TIMEFRAMES.map((timeframe) => {
                 const checked = settings.visibleTimeframes.includes(timeframe);
 
@@ -542,7 +527,9 @@ export const FibonacciPropertiesTabs: React.FC<
               >
                 Pilih Semua
               </button>
+
               <span className="text-slate-300 dark:text-slate-700">•</span>
+
               <button
                 type="button"
                 onClick={() => update({ visibleTimeframes: [] })}

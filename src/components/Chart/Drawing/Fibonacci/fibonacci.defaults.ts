@@ -1,3 +1,4 @@
+
 import type {
   FibonacciPropertiesSettings,
 } from './FibonacciProperties.types.js';
@@ -24,7 +25,8 @@ export const INITIAL_DEFAULT_FIBONACCI_LEVELS: FibonacciLevel[] = [
   { id: 'fibo-2.618', ratio: 2.618, color: '#9c27b0', enabled: false, label: '2.618' },
 ];
 
-export const DEFAULT_FIBONACCI_LEVELS: FibonacciLevel[] = INITIAL_DEFAULT_FIBONACCI_LEVELS;
+export const DEFAULT_FIBONACCI_LEVELS: FibonacciLevel[] =
+  INITIAL_DEFAULT_FIBONACCI_LEVELS;
 
 export const FIBONACCI_STORAGE_KEY = 'fibonacci_default_settings';
 
@@ -49,6 +51,8 @@ export const getSystemDefaultFibonacciSettings = (
   showPrice: true,
   showRatio: true,
   showBackground: true,
+  showLabels: true,
+  labelPosition: 'right',
   firstPoint: { price: firstPrice },
   secondPoint: { price: secondPrice },
   visibleTimeframes: [
@@ -62,29 +66,36 @@ export const getSystemDefaultFibonacciSettings = (
   ],
 });
 
-export const createDefaultFibonacciProperties = getSystemDefaultFibonacciSettings;
+export const createDefaultFibonacciProperties =
+  getSystemDefaultFibonacciSettings;
 
 export function loadSavedFibonacciDefaults(): Partial<FibonacciPropertiesSettings> | null {
   try {
     const raw = localStorage.getItem(FIBONACCI_STORAGE_KEY);
     if (!raw) return null;
-    return JSON.parse(raw);
+
+    return JSON.parse(raw) as Partial<FibonacciPropertiesSettings>;
   } catch {
     return null;
   }
 }
 
-export function saveFibonacciDefaults(settings: FibonacciPropertiesSettings) {
+export function saveFibonacciDefaults(
+  settings: FibonacciPropertiesSettings,
+): void {
   try {
-    const defaultsToSave = {
+    const defaultsToSave: Partial<FibonacciPropertiesSettings> = {
       color: settings.color,
-      levels: settings.levels.map((l) => ({
-        id: l.id,
-        ratio: l.ratio,
-        color: l.color,
-        enabled: l.enabled,
-        label: l.label !== undefined ? l.label : String(l.ratio),
-        labelPosition: l.labelPosition ?? 'right',
+      levels: settings.levels.map((level) => ({
+        id: level.id,
+        ratio: level.ratio,
+        color: level.color,
+        enabled: level.enabled,
+        label:
+          level.label !== undefined
+            ? level.label
+            : String(level.ratio),
+        labelPosition: level.labelPosition ?? 'right',
       })),
       lineWidth: settings.lineWidth,
       lineStyle: settings.lineStyle,
@@ -93,19 +104,25 @@ export function saveFibonacciDefaults(settings: FibonacciPropertiesSettings) {
       showPrice: settings.showPrice,
       showRatio: settings.showRatio,
       showBackground: settings.showBackground,
+      showLabels: settings.showLabels,
+      labelPosition: settings.labelPosition,
       visibleTimeframes: settings.visibleTimeframes,
     };
-    localStorage.setItem(FIBONACCI_STORAGE_KEY, JSON.stringify(defaultsToSave));
+
+    localStorage.setItem(
+      FIBONACCI_STORAGE_KEY,
+      JSON.stringify(defaultsToSave),
+    );
   } catch {
-    // ignore
+    // Abaikan jika localStorage tidak tersedia.
   }
 }
 
-export function resetFibonacciDefaults() {
+export function resetFibonacciDefaults(): void {
   try {
     localStorage.removeItem(FIBONACCI_STORAGE_KEY);
   } catch {
-    // ignore
+    // Abaikan jika localStorage tidak tersedia.
   }
 }
 
@@ -114,23 +131,40 @@ export function getActiveDefaultFibonacciSettings(
   firstPrice = 0,
   secondPrice = 0,
 ): FibonacciPropertiesSettings {
-  const system = getSystemDefaultFibonacciSettings(fallbackColor, firstPrice, secondPrice);
+  const system = getSystemDefaultFibonacciSettings(
+    fallbackColor,
+    firstPrice,
+    secondPrice,
+  );
+
   const saved = loadSavedFibonacciDefaults();
-  if (!saved) return system;
+
+  if (!saved) {
+    return system;
+  }
 
   return {
     ...system,
     ...saved,
-    levels: Array.isArray(saved.levels) && saved.levels.length > 0
-      ? saved.levels.map((l) => ({
-          id: l.id || `fibo-${l.ratio}`,
-          ratio: Number(l.ratio),
-          color: l.color || system.color,
-          enabled: l.enabled ?? true,
-          label: l.label !== undefined ? l.label : String(l.ratio),
-          labelPosition: l.labelPosition ?? 'right',
-        }))
-      : system.levels,
+
+    showLabels: saved.showLabels ?? system.showLabels,
+    labelPosition: saved.labelPosition ?? system.labelPosition,
+
+    levels:
+      Array.isArray(saved.levels) && saved.levels.length > 0
+        ? saved.levels.map((level) => ({
+            id: level.id || `fibo-${level.ratio}`,
+            ratio: Number(level.ratio),
+            color: level.color || system.color,
+            enabled: level.enabled ?? true,
+            label:
+              level.label !== undefined
+                ? level.label
+                : String(level.ratio),
+            labelPosition: level.labelPosition ?? 'right',
+          }))
+        : system.levels,
+
     firstPoint: { price: firstPrice },
     secondPoint: { price: secondPrice },
   };

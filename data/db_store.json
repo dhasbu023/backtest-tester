@@ -138,239 +138,17 @@
       "updatedAt": "2026-10-20T04:26:37.804Z"
     },
     {
-      "id": "draw-1792897412183",
+      "id": "draw-1792901073976",
       "sessionId": "d0ab9058-7c8b-431a-8a69-f2f65e8f905a",
       "type": "FIBO_RETRACEMENT",
       "points": [
         {
-          "timestamp": 1787047200,
-          "price": 4324.939126671626
+          "timestamp": 1787918400,
+          "price": 4634.627335557041
         },
         {
-          "timestamp": 1787252400,
-          "price": 4555.793259833414
-        }
-      ],
-      "color": "#3b82f6",
-      "strokeWidth": 1,
-      "lineStyle": "solid",
-      "extendLeft": false,
-      "extendRight": false,
-      "showLabels": true,
-      "showPrice": false,
-      "showRatio": true,
-      "showBackground": false,
-      "levels": [
-        {
-          "id": "fibo-1.272",
-          "ratio": -0.27,
-          "color": "#2962ff",
-          "enabled": true,
-          "label": "-0.27",
-          "labelPosition": "right"
-        },
-        {
-          "id": "fibo-0",
-          "ratio": 0,
-          "color": "#fafbff",
-          "enabled": true,
-          "label": "0",
-          "labelPosition": "right"
-        },
-        {
-          "id": "fibo-0.236",
-          "ratio": 0.236,
-          "color": "#f23645",
-          "enabled": true,
-          "label": "0.236",
-          "labelPosition": "right"
-        },
-        {
-          "id": "fibo-0.382",
-          "ratio": 0.382,
-          "color": "#ff9800",
-          "enabled": true,
-          "label": "0.382",
-          "labelPosition": "right"
-        },
-        {
-          "id": "fibo-0.5",
-          "ratio": 0.5,
-          "color": "#fbd309",
-          "enabled": true,
-          "label": "0.5",
-          "labelPosition": "right"
-        },
-        {
-          "id": "fibo-0.618",
-          "ratio": 0.618,
-          "color": "#d9e70d",
-          "enabled": true,
-          "label": "0.618",
-          "labelPosition": "right"
-        },
-        {
-          "id": "fibo-0.786",
-          "ratio": 0.786,
-          "color": "#e1f00a",
-          "enabled": true,
-          "label": "0.786",
-          "labelPosition": "left"
-        },
-        {
-          "id": "fibo-1",
-          "ratio": 1,
-          "color": "#ffffff",
-          "enabled": true,
-          "label": "1",
-          "labelPosition": "left"
-        },
-        {
-          "id": "fibo-2.618",
-          "ratio": 2.618,
-          "color": "#9c27b0",
-          "enabled": true,
-          "label": "2.618",
-          "labelPosition": "left"
-        }
-      ],
-      "visibleTimeframes": [
-        "M1",
-        "M5",
-        "M15",
-        "M30",
-        "H1",
-        "H4",
-        "D1"
-      ],
-      "locked": false,
-      "visible": true,
-      "createdAt": "2026-10-25T03:03:32.183Z",
-      "updatedAt": "2026-10-25T03:03:33.504Z"
-    },
-    {
-      "id": "draw-1792897473943",
-      "sessionId": "d0ab9058-7c8b-431a-8a69-f2f65e8f905a",
-      "type": "FIBO_RETRACEMENT",
-      "points": [
-        {
-          "timestamp": 1787565600,
-          "price": 4371.961019023489
-        },
-        {
-          "timestamp": 1787630400,
-          "price": 4501.816411968702
-        }
-      ],
-      "color": "#3b82f6",
-      "strokeWidth": 1,
-      "lineStyle": "solid",
-      "extendLeft": false,
-      "extendRight": false,
-      "showLabels": true,
-      "showPrice": false,
-      "showRatio": true,
-      "showBackground": false,
-      "levels": [
-        {
-          "id": "fibo-1.272",
-          "ratio": -0.27,
-          "color": "#2962ff",
-          "enabled": true,
-          "label": "-0.27",
-          "labelPosition": "right"
-        },
-        {
-          "id": "fibo-0",
-          "ratio": 0,
-          "color": "#fafbff",
-          "enabled": true,
-          "label": "0",
-          "labelPosition": "right"
-        },
-        {
-          "id": "fibo-0.236",
-          "ratio": 0.236,
-          "color": "#f23645",
-          "enabled": true,
-          "label": "0.236",
-          "labelPosition": "right"
-        },
-        {
-          "id": "fibo-0.382",
-          "ratio": 0.382,
-          "color": "#ff9800",
-          "enabled": true,
-          "label": "0.382",
-          "labelPosition": "right"
-        },
-        {
-          "id": "fibo-0.5",
-          "ratio": 0.5,
-          "color": "#fbd309",
-          "enabled": true,
-          "label": "0.5",
-          "labelPosition": "right"
-        },
-        {
-          "id": "fibo-0.618",
-          "ratio": 0.618,
-          "color": "#d9e70d",
-          "enabled": true,
-          "label": "0.618",
-          "labelPosition": "right"
-        },
-        {
-          "id": "fibo-0.786",
-          "ratio": 0.786,
-          "color": "#e1f00a",
-          "enabled": true,
-          "label": "0.786",
-          "labelPosition": "left"
-        },
-        {
-          "id": "fibo-1",
-          "ratio": 1,
-          "color": "#ffffff",
-          "enabled": true,
-          "label": "1",
-          "labelPosition": "left"
-        },
-        {
-          "id": "fibo-2.618",
-          "ratio": 2.618,
-          "color": "#9c27b0",
-          "enabled": true,
-          "label": "2.618",
-          "labelPosition": "left"
-        }
-      ],
-      "visibleTimeframes": [
-        "M1",
-        "M5",
-        "M15",
-        "M30",
-        "H1",
-        "H4",
-        "D1"
-      ],
-      "locked": false,
-      "visible": true,
-      "createdAt": "2026-10-25T03:04:33.943Z",
-      "updatedAt": "2026-10-25T03:04:34.547Z"
-    },
-    {
-      "id": "draw-1792897886614",
-      "sessionId": "d0ab9058-7c8b-431a-8a69-f2f65e8f905a",
-      "type": "FIBO_RETRACEMENT",
-      "points": [
-        {
-          "timestamp": 1787731200,
-          "price": 4540.773029852266
-        },
-        {
-          "timestamp": 1787907600,
-          "price": 4354.979929176807
+          "timestamp": 1787947200,
+          "price": 4458.928965234321
         }
       ],
       "color": "#3b82f6",
@@ -467,8 +245,8 @@
       ],
       "locked": false,
       "visible": true,
-      "createdAt": "2026-10-25T03:11:26.614Z",
-      "updatedAt": "2026-10-25T03:11:26.614Z"
+      "createdAt": "2026-10-25T04:04:33.976Z",
+      "updatedAt": "2026-10-25T04:04:33.976Z"
     }
   ],
   "preferences": [

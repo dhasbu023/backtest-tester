@@ -1,10 +1,9 @@
+
 import React from 'react';
 import type { ISeriesApi } from 'lightweight-charts';
 
 import type { DrawingObject } from '../../../../types/index.js';
-import {
-  DEFAULT_FIBONACCI_LEVELS,
-} from './fibonacci.defaults.js';
+import { DEFAULT_FIBONACCI_LEVELS } from './fibonacci.defaults.js';
 
 interface PixelPoint {
   x: number;
@@ -46,7 +45,8 @@ export const FibonacciRenderer: React.FC<FibonacciRendererProps> = ({
   onOpenProperties,
   onContextMenu,
 }) => {
-  // In TradingView style, first anchor is 100% (level 1) and second is 0% (level 0)
+  // Anchor kedua merupakan level 100%, anchor pertama level 0%
+  // mengikuti struktur perhitungan yang digunakan sebelumnya.
   const startPrice = drawing.points[1]?.price;
   const endPrice = drawing.points[0]?.price;
 
@@ -56,7 +56,6 @@ export const FibonacciRenderer: React.FC<FibonacciRendererProps> = ({
 
   const diff = endPrice - startPrice;
 
-  // Gunakan level tersimpan atau fallback ke default
   const rawLevels =
     drawing.levels && drawing.levels.length > 0
       ? drawing.levels
@@ -66,7 +65,9 @@ export const FibonacciRenderer: React.FC<FibonacciRendererProps> = ({
     (level) => level.enabled !== false && level.visible !== false,
   );
 
-  const sortedLevels = [...activeLevels].sort((a, b) => a.ratio - b.ratio);
+  const sortedLevels = [...activeLevels].sort(
+    (a, b) => a.ratio - b.ratio,
+  );
 
   const leftX = drawing.extendLeft
     ? 0
@@ -80,14 +81,18 @@ export const FibonacciRenderer: React.FC<FibonacciRendererProps> = ({
     drawing.lineStyle === 'dashed'
       ? '4 4'
       : drawing.lineStyle === 'dotted'
-      ? '2 2'
-      : undefined;
+        ? '2 2'
+        : undefined;
 
   const strokeWidth = drawing.strokeWidth || 1;
   const showRatio = drawing.showRatio ?? true;
   const showPrice = drawing.showPrice ?? true;
   const showBackground = drawing.showBackground ?? true;
   const showLabels = drawing.showLabels ?? true;
+
+  // Gunakan posisi label global dari properties Fibonacci.
+  const labelPosition: 'left' | 'right' =
+    drawing.labelPosition === 'left' ? 'left' : 'right';
 
   const pricePrecision = Math.abs(startPrice) > 500 ? 2 : 4;
 
@@ -109,37 +114,52 @@ export const FibonacciRenderer: React.FC<FibonacciRendererProps> = ({
         onContextMenu?.(event, drawing.id);
       }}
       onMouseDown={(event) => {
-        if (event.button !== 0) return; // Drag hanya untuk tombol klik kiri
+        if (event.button !== 0) return;
         onStartDragging(event, -1, drawing);
       }}
       className={isSelected ? 'cursor-move' : 'cursor-pointer'}
       style={{ pointerEvents: 'auto' }}
     >
-      {/* Background bands antara level-level berdekatan */}
+      {/* Background bands */}
       {showBackground &&
-        sortedLevels.map((lvl, i) => {
-          if (i === sortedLevels.length - 1) return null;
-          const nextLvl = sortedLevels[i + 1];
-          const y1 = series?.priceToCoordinate(startPrice + diff * lvl.ratio);
-          const y2 = series?.priceToCoordinate(startPrice + diff * nextLvl.ratio);
-          if (y1 == null || y2 == null || !Number.isFinite(y1) || !Number.isFinite(y2)) {
+        sortedLevels.map((level, index) => {
+          if (index === sortedLevels.length - 1) return null;
+
+          const nextLevel = sortedLevels[index + 1];
+
+          const y1 = series?.priceToCoordinate(
+            startPrice + diff * level.ratio,
+          );
+
+          const y2 = series?.priceToCoordinate(
+            startPrice + diff * nextLevel.ratio,
+          );
+
+          if (
+            y1 == null ||
+            y2 == null ||
+            !Number.isFinite(y1) ||
+            !Number.isFinite(y2)
+          ) {
             return null;
           }
+
           return (
-            <rect
-              key={`band-${lvl.ratio}-${nextLvl.ratio}`}
-              x={leftX}
-              y={Math.min(y1, y2)}
-              width={Math.max(1, rightX - leftX)}
-              height={Math.max(1, Math.abs(y2 - y1))}
-              fill={lvl.color || drawing.color}
-              fillOpacity={0.08}
-              style={{ pointerEvents: 'all' }}
-            />
+           <rect
+            x={labelPosition === 'left' ? leftX - labelWidth - 8 : rightX + 8}
+            y={levelY - 9}
+            width={labelWidth}
+            height={18}
+            rx={4}
+            fill={isDarkMode ? '#0f172a' : '#ffffff'}
+            stroke={levelColor}
+            strokeWidth={1}
+            opacity={0.94}
+          />
           );
         })}
 
-      {/* Hit test area transparan untuk garis diagonal penghubung kedua anchor */}
+      {/* Hit area garis diagonal */}
       <line
         x1={firstPoint.x}
         y1={firstPoint.y}
@@ -150,7 +170,7 @@ export const FibonacciRenderer: React.FC<FibonacciRendererProps> = ({
         style={{ pointerEvents: 'stroke' }}
       />
 
-      {/* Garis penghubung diagonal kedua anchor Fibonacci visual */}
+      {/* Garis diagonal penghubung anchor */}
       <line
         x1={firstPoint.x}
         y1={firstPoint.y}
@@ -163,8 +183,8 @@ export const FibonacciRenderer: React.FC<FibonacciRendererProps> = ({
         style={{ pointerEvents: 'none' }}
       />
 
-      {/* Level-level Fibonacci */}
-      {activeLevels.map((level, idx) => {
+      {/* Level Fibonacci */}
+      {activeLevels.map((level, index) => {
         const levelPrice = startPrice + diff * level.ratio;
         const levelY = series?.priceToCoordinate(levelPrice);
 
@@ -174,26 +194,35 @@ export const FibonacciRenderer: React.FC<FibonacciRendererProps> = ({
 
         const levelColor = level.color || drawing.color;
 
-        // Label teks: rasio kustom / persentase dan/atau harga
         const labelParts: string[] = [];
+
         if (showRatio) {
           const ratioDisplay =
             level.label !== undefined && level.label.trim() !== ''
               ? level.label.trim()
               : level.ratio >= 0 && level.ratio <= 1
-              ? `${(level.ratio * 100).toFixed(1)}%`
-              : `${level.ratio}`;
+                ? `${(level.ratio * 100).toFixed(1)}%`
+                : `${level.ratio}`;
+
           labelParts.push(ratioDisplay);
         }
+
         if (showPrice) {
           labelParts.push(`(${levelPrice.toFixed(pricePrecision)})`);
         }
+
         const labelText = labelParts.join(' ');
         const labelWidth = Math.max(50, labelText.length * 6.5 + 14);
 
+        // Kotak dan teks menggunakan posisi horizontal yang sama.
+      const labelX =
+        labelPosition === 'left'
+          ? leftX - labelWidth - 8
+          : rightX + 8;
+
         return (
-          <g key={level.id || `fibo-level-${idx}-${level.ratio}`}>
-            {/* Area hit testing transparan yang lebar agar mudah diklik */}
+          <g key={level.id || `fibo-level-${index}-${level.ratio}`}>
+            {/* Area klik garis level */}
             <line
               x1={leftX}
               y1={levelY}
@@ -204,7 +233,7 @@ export const FibonacciRenderer: React.FC<FibonacciRendererProps> = ({
               style={{ pointerEvents: 'stroke' }}
             />
 
-            {/* Garis level visual */}
+            {/* Garis level */}
             <line
               x1={leftX}
               y1={levelY}
@@ -217,53 +246,43 @@ export const FibonacciRenderer: React.FC<FibonacciRendererProps> = ({
               style={{ pointerEvents: 'none' }}
             />
 
-            {/* Label level */}
+            {/* Label */}
             {showLabels && labelText.length > 0 && (
               <g style={{ pointerEvents: 'none' }}>
-                  {showBackground && (
-                    <rect
-                      x={(() => {
-                        const pos = (level as any).labelPosition;
-                        if (pos === 'left') return leftX + 4;
-                        if (pos === 'center') return leftX + (rightX - leftX) / 2 - labelWidth / 2;
-                        return rightX - labelWidth - 4;
-                      })()}
-                      y={levelY - 9}
-                      width={labelWidth}
-                      height={18}
-                      rx={4}
-                      fill={isDarkMode ? '#0f172a' : '#ffffff'}
-                      stroke={levelColor}
-                      strokeWidth={1}
-                      opacity={0.94}
-                    />
-                  )}
+                {showBackground && (
+                  <rect
+                    x={labelX}
+                    y={levelY - 9}
+                    width={labelWidth}
+                    height={18}
+                    rx={4}
+                    fill={isDarkMode ? '#0f172a' : '#ffffff'}
+                    stroke={levelColor}
+                    strokeWidth={1}
+                    opacity={0.94}
+                  />
+                )}
 
-                  <text
-                    x={
-                      (level as any).labelPosition === 'left'
-                        ? leftX + 8 + labelWidth / 2
-                        : rightX - 8 - labelWidth / 2
-                    }
-                    y={levelY + 3.5}
-                    textAnchor="middle"
-                    fill={levelColor}
-                    fontSize={10}
-                    fontWeight="bold"
-                    fontFamily="monospace"
-                  >
-                  {labelText}
-                </text>
+            <text
+              x={labelPosition === 'left' ? labelX + labelWidth : labelX}
+              y={levelY + 3.5}
+              textAnchor={labelPosition === 'left' ? 'end' : 'start'}
+              fill={levelColor}
+              fontSize={10}
+              fontWeight="bold"
+              fontFamily="monospace"
+            >
+              {labelText}
+            </text>
               </g>
             )}
           </g>
         );
       })}
 
-      {/* Anchor handles untuk mengubah titik pertama dan kedua secara terpisah */}
+      {/* Anchor handles */}
       {isSelected && (
         <g>
-          {/* Titik Anchor Pertama */}
           <circle
             cx={firstPoint.x}
             cy={firstPoint.y}
@@ -277,6 +296,7 @@ export const FibonacciRenderer: React.FC<FibonacciRendererProps> = ({
               onStartDragging(event, 0, drawing);
             }}
           />
+
           <circle
             cx={firstPoint.x}
             cy={firstPoint.y}
@@ -284,10 +304,9 @@ export const FibonacciRenderer: React.FC<FibonacciRendererProps> = ({
             fill="#ffffff"
             stroke={drawing.color}
             strokeWidth={2}
-            className="cursor-crosshair pointer-events-none drop-shadow-sm"
+            className="pointer-events-none drop-shadow-sm"
           />
 
-          {/* Titik Anchor Kedua */}
           <circle
             cx={secondPoint.x}
             cy={secondPoint.y}
@@ -301,6 +320,7 @@ export const FibonacciRenderer: React.FC<FibonacciRendererProps> = ({
               onStartDragging(event, 1, drawing);
             }}
           />
+
           <circle
             cx={secondPoint.x}
             cy={secondPoint.y}
@@ -308,7 +328,7 @@ export const FibonacciRenderer: React.FC<FibonacciRendererProps> = ({
             fill="#ffffff"
             stroke={drawing.color}
             strokeWidth={2}
-            className="cursor-crosshair pointer-events-none drop-shadow-sm"
+            className="pointer-events-none drop-shadow-sm"
           />
         </g>
       )}

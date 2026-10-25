@@ -30,9 +30,17 @@ export interface FibonacciPropertiesSettings {
   extendLeft: boolean;
   extendRight: boolean;
 
+
   showPrice: boolean;
   showRatio: boolean;
   showBackground: boolean;
+
+  /** Menampilkan atau menyembunyikan semua label Fibonacci */
+  showLabels: boolean;
+
+  /** Posisi label Fibonacci secara keseluruhan */
+  labelPosition: 'left' | 'right';
+
 
   firstPoint: FibonacciAnchorCoordinates;
   secondPoint: FibonacciAnchorCoordinates;
