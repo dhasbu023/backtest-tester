@@ -144,9 +144,40 @@
       "timezone": "Asia/Jakarta",
       "showVolume": true,
       "volumeType": "TICK",
-      "indicators": [],
-      "id": "fc39f4a5-43b5-4960-ace0-f157640cb6ff",
-      "updatedAt": "2026-10-25T04:59:55.007Z"
+      "indicators": [
+        {
+          "id": "ind-e13a56ec-a55a-47ec-9db6-ec5f2af6d081",
+          "type": "EMA",
+          "name": "EMA 21",
+          "visible": true,
+          "period": 21,
+          "color": "#b3ff0f",
+          "strokeWidth": 2,
+          "pane": "main"
+        },
+        {
+          "id": "ind-cc30e24b-b9ee-4fe5-a667-08f6be2b7a9f",
+          "type": "EMA",
+          "name": "EMA 9",
+          "visible": true,
+          "period": 9,
+          "color": "#3b82f6",
+          "strokeWidth": 2,
+          "pane": "main"
+        },
+        {
+          "id": "ind-b46c4d42-8329-4b3f-80d9-71ccbafd3f79",
+          "type": "ATR",
+          "name": "ATR 14",
+          "visible": false,
+          "period": 14,
+          "color": "#06b6d4",
+          "strokeWidth": 2,
+          "pane": "sub"
+        }
+      ],
+      "id": "0858c446-0d58-4479-a60a-9a0a401a2f4a",
+      "updatedAt": "2026-10-25T05:21:41.530Z"
     },
     {
       "sessionId": "00e62d2b-6d6f-4e5e-8c57-51aab321aacc",

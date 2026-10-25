@@ -204,6 +204,15 @@ export const TradingChart: React.FC<TradingChartProps> = ({
   onToggleReplay,
 }) => {
   // =========================================================
+  // TEMPORARY VOLUME VISIBILITY
+  // =========================================================
+  // Volume sengaja disembunyikan sementara tanpa menghapus
+  // kode series, pemrosesan data, atau pengaturan volume.
+  // Untuk mengaktifkannya kembali, ubah menjadi false.
+  const HIDE_VOLUME_FOR_NOW = true;
+  const showVolumeInChart = HIDE_VOLUME_FOR_NOW ? false : showVolume;
+
+  // =========================================================
   // REFS
   // =========================================================
 
@@ -969,7 +978,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
 
       if (!volSeries) return;
 
-      if (!showVolume) {
+      if (!showVolumeInChart) {
         volSeries.applyOptions({ visible: false });
         volSeries.setData([]);
         return;
@@ -1017,7 +1026,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
         error,
       );
     }
-  }, [candles, showVolume, volumeType, isDarkMode]);
+  }, [candles, showVolumeInChart, volumeType, isDarkMode]);
 
   // =========================================================
   // MAIN INDICATORS: EMA, SMA, BOLLINGER
@@ -1369,15 +1378,6 @@ export const TradingChart: React.FC<TradingChartProps> = ({
             containerWidth={containerDimensions.width}
             containerHeight={containerDimensions.height}
           />
-
-          <button
-            type="button"
-            onClick={handleFitContent}
-            title="Paskan Layar (Auto Fit Content)"
-            className="absolute bottom-8 right-16 z-25 flex items-center gap-1 rounded border border-slate-300 bg-white/90 px-2 py-0.5 text-[10px] font-bold text-slate-700 shadow-sm backdrop-blur transition-all hover:border-blue-500 hover:bg-blue-600 hover:text-white dark:border-slate-700 dark:bg-slate-900/90 dark:text-slate-300 dark:hover:bg-blue-600 dark:hover:text-white"
-          >
-            auto
-          </button>
 
           {isLoading && (
             <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center bg-slate-900/20">
