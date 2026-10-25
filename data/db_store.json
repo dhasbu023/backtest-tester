@@ -255,9 +255,20 @@
       "timezone": "Asia/Jakarta",
       "showVolume": true,
       "volumeType": "TICK",
-      "indicators": [],
-      "id": "c90f14ce-828f-4aa5-a6d7-283c4f7dfb4d",
-      "updatedAt": "2026-10-24T04:31:42.573Z"
+      "indicators": [
+        {
+          "id": "ind-a10311ce-5328-4f5b-bf72-1e6ae62c0825",
+          "type": "EMA",
+          "name": "EMA 9",
+          "visible": true,
+          "period": 9,
+          "color": "#3b82f6",
+          "strokeWidth": 2,
+          "pane": "main"
+        }
+      ],
+      "id": "3da4a501-779a-46ff-9879-0e48a9fc2681",
+      "updatedAt": "2026-10-25T04:06:11.007Z"
     },
     {
       "sessionId": "00e62d2b-6d6f-4e5e-8c57-51aab321aacc",
