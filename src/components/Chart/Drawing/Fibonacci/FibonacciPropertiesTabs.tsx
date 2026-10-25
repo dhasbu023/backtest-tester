@@ -230,6 +230,36 @@ export const FibonacciPropertiesTabs: React.FC<
                   Perpanjang garis ke kanan
                 </label>
               </div>
+              
+              <div className="mt-4 grid grid-cols-1 gap-3 border-t border-slate-200 pt-3 dark:border-slate-800 sm:grid-cols-2">
+                <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-slate-700 dark:text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={settings.showLabel}
+                    onChange={(e) => update({ showLabel: e.target.checked })}
+                    className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900"
+                  />
+                  Tampilkan Label
+                </label>
+
+                <div>
+                  <label className={labelClass}>Posisi Label</label>
+                  <select
+                    value={settings.labelPosition}
+                    onChange={(e) =>
+                      update({
+                        labelPosition: e.target.value as 'left' | 'right',
+                      })
+                    }
+                    disabled={!settings.showLabel}
+                    className={`${inputClass} disabled:cursor-not-allowed disabled:opacity-50`}
+                  >
+                    <option value="right">Kanan</option>
+                    <option value="left">Kiri</option>
+                  </select>
+                </div>
+              </div>
+
             </section>
 
             {/* Fibonacci Levels Table */}
@@ -282,7 +312,6 @@ export const FibonacciPropertiesTabs: React.FC<
                 <span>Rasio</span>
                 <span>Label</span>
                 <span className="text-center">Warna</span>
-                <span className="text-center">Aksi</span>
               </div>
 
               {/* Level rows */}
@@ -326,19 +355,6 @@ export const FibonacciPropertiesTabs: React.FC<
                         placeholder={String(level.ratio)}
                         className={inputClass}
                       />
-                    </div>
-                    {/* Posisi label */}
-                    <div>
-                      <select
-                        aria-label={`Posisi label level ${index + 1}`}
-                        value={level.labelPosition || 'right'}
-                        onChange={(e) => updateLevel(index, { labelPosition: e.target.value as any })}
-                        className={inputClass}
-                      >
-                        <option value="left">Kiri</option>
-                        <option value="center">Tengah</option>
-                        <option value="right">Kanan</option>
-                      </select>
                     </div>
 
                     {/* Warna baris */}
