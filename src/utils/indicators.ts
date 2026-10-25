@@ -1,26 +1,50 @@
-
 /**
  * ============================================================
  * INDICATOR COMPATIBILITY BRIDGE
  * ============================================================
  *
- * File ini mempertahankan kompatibilitas dengan komponen lama.
+ * File ini menghubungkan komponen lama dengan perhitungan
+ * indikator yang sudah dipisahkan ke folder src/Indikator/.
  *
- * Semua perhitungan indikator dipindahkan ke:
+ * Jangan menaruh rumus indikator di file ini.
  *
- * src/Indikator/SMA.ts
- * src/Indikator/EMA.ts
- * src/Indikator/BollingerBands.ts
- * src/Indikator/RSI.ts
- * src/Indikator/ATR.ts
+ * Indikator:
+ * - SMA.ts
+ * - EMA.ts
+ * - BollingerBands.ts
+ * - RSI.ts
+ * - ATR.ts
  *
- * Jangan menambahkan rumus perhitungan indikator baru di sini.
+ * Tanggung jawab file ini:
+ * 1. Mengadaptasi candle.timestamp menjadi time.
+ * 2. Menjaga format hasil agar cocok dengan komponen lama.
+ * 3. Mempertahankan nama fungsi yang digunakan chart.
  */
 
 import type { Candle } from '../types/index.js';
 
+import {
+  calculateSMA as calculateSMACore,
+} from '../Indikator/SMA.js';
+
+import {
+  calculateEMA as calculateEMACore,
+} from '../Indikator/EMA.js';
+
+import {
+  calculateBollingerBands as calculateBollingerBandsCore,
+} from '../Indikator/BollingerBands.js';
+
+import {
+  calculateRSI as calculateRSICore,
+} from '../Indikator/RSI.js';
+
+import {
+  calculateATR as calculateATRCore,
+} from '../Indikator/ATR.js';
+
 // ============================================================
-// EXPORT TYPES
+// PUBLIC TYPES
 // ============================================================
 
 export interface IndicatorPoint {
@@ -35,47 +59,246 @@ export interface BollingerBandsResult {
 }
 
 // ============================================================
-// RE-EXPORT INDICATOR FUNCTIONS
-// ============================================================
-
-export {
-  calculateSMA,
-  calculateEMA,
-  calculateBollingerBands,
-  calculateRSI,
-  calculateATR,
-} from '../Indikator/index.js';
-
-// ============================================================
-// RE-EXPORT INDICATOR TYPES
-// ============================================================
-
-export type {
-  SMAOptions,
-} from '../Indikator/SMA.js';
-
-export type {
-  EMAOptions,
-} from '../Indikator/EMA.js';
-
-export type {
-  BollingerBandsOptions,
-} from '../Indikator/BollingerBands.js';
-
-export type {
-  RSIOptions,
-} from '../Indikator/RSI.js';
-
-export type {
-  ATROptions,
-} from '../Indikator/ATR.js';
-
-// ============================================================
-// OPTIONAL: SHARED TYPE ALIAS
+// CANDLE ADAPTERS
 // ============================================================
 
 /**
- * Alias untuk tipe Candle yang digunakan aplikasi.
- * Dipertahankan untuk kebutuhan kompatibilitas.
+ * Mengubah format Candle aplikasi menjadi format yang
+ * digunakan indikator baru.
+ *
+ * Candle aplikasi:
+ * {
+ *   timestamp: number;
+ *   open: number;
+ *   high: number;
+ *   low: number;
+ *   close: number;
+ * }
+ *
+ * Indikator baru:
+ * {
+ *   time: number;
+ *   open: number;
+ *   high: number;
+ *   low: number;
+ *   close: number;
+ * }
  */
-export type IndicatorCandle = Candle;
+
+function toCloseCandles(candles: Candle[]) {
+  return candles.map((candle) => ({
+    time: candle.timestamp,
+    close: candle.close,
+  }));
+}
+
+function toOHLCCandles(candles: Candle[]) {
+  return candles.map((candle) => ({
+    time: candle.timestamp,
+    open: candle.open,
+    high: candle.high,
+    low: candle.low,
+    close: candle.close,
+  }));
+}
+
+// ============================================================
+// SMA
+// ============================================================
+
+/**
+ * Simple Moving Average.
+ *
+ * Menghasilkan titik:
+ * {
+ *   time: candle.timestamp,
+ *   value: SMA
+ * }
+ */
+export function calculateSMA(
+  candles: Candle[],
+  period: number,
+): IndicatorPoint[] {
+  if (
+    !Array.isArray(candles) ||
+    candles.length === 0 ||
+    !Number.isInteger(period) ||
+    period < 1
+  ) {
+    return [];
+  }
+
+  const result = calculateSMACore(
+    toCloseCandles(candles),
+    period,
+  );
+
+  return result.map((point) => ({
+    time: Number(point.time),
+    value: point.value,
+  }));
+}
+
+// ============================================================
+// EMA
+// ============================================================
+
+/**
+ * Exponential Moving Average.
+ *
+ * Menggunakan implementasi EMA dari src/Indikator/EMA.ts.
+ */
+export function calculateEMA(
+  candles: Candle[],
+  period: number,
+): IndicatorPoint[] {
+  if (
+    !Array.isArray(candles) ||
+    candles.length === 0 ||
+    !Number.isInteger(period) ||
+    period < 1
+  ) {
+    return [];
+  }
+
+  const result = calculateEMACore(
+    toCloseCandles(candles),
+    period,
+  );
+
+  return result.map((point) => ({
+    time: Number(point.time),
+    value: point.value,
+  }));
+}
+
+// ============================================================
+// BOLLINGER BANDS
+// ============================================================
+
+/**
+ * Bollinger Bands.
+ *
+ * Format hasil sengaja dipertahankan agar kompatibel
+ * dengan TradingChart.tsx.
+ *
+ * Format yang dibutuhkan chart:
+ *
+ * {
+ *   upper:  [{ time, value }],
+ *   middle: [{ time, value }],
+ *   lower:  [{ time, value }]
+ * }
+ */
+export function calculateBollingerBands(
+  candles: Candle[],
+  period = 20,
+  stdDevMultiplier = 2,
+): BollingerBandsResult {
+  const emptyResult: BollingerBandsResult = {
+    upper: [],
+    middle: [],
+    lower: [],
+  };
+
+  if (
+    !Array.isArray(candles) ||
+    candles.length === 0 ||
+    !Number.isInteger(period) ||
+    period < 1 ||
+    !Number.isFinite(stdDevMultiplier) ||
+    stdDevMultiplier < 0
+  ) {
+    return emptyResult;
+  }
+
+  const bands = calculateBollingerBandsCore(
+    toCloseCandles(candles),
+    period,
+    stdDevMultiplier,
+  );
+
+  return {
+    upper: bands.map((point) => ({
+      time: Number(point.time),
+      value: point.upper,
+    })),
+
+    middle: bands.map((point) => ({
+      time: Number(point.time),
+      value: point.middle,
+    })),
+
+    lower: bands.map((point) => ({
+      time: Number(point.time),
+      value: point.lower,
+    })),
+  };
+}
+
+// ============================================================
+// RSI
+// ============================================================
+
+/**
+ * Relative Strength Index.
+ *
+ * Fungsi ini tetap dapat digunakan oleh SubIndicatorsPane.tsx.
+ */
+export function calculateRSI(
+  candles: Candle[],
+  period = 14,
+): IndicatorPoint[] {
+  if (
+    !Array.isArray(candles) ||
+    candles.length === 0 ||
+    !Number.isInteger(period) ||
+    period < 1
+  ) {
+    return [];
+  }
+
+  const result = calculateRSICore(
+    toCloseCandles(candles),
+    period,
+  );
+
+  return result.map((point) => ({
+    time: Number(point.time),
+    value: point.value,
+  }));
+}
+
+// ============================================================
+// ATR
+// ============================================================
+
+/**
+ * Average True Range.
+ *
+ * Menggunakan high, low, close dan previous close.
+ * Tetap kompatibel dengan SubIndicatorsPane.tsx.
+ */
+export function calculateATR(
+  candles: Candle[],
+  period = 14,
+): IndicatorPoint[] {
+  if (
+    !Array.isArray(candles) ||
+    candles.length === 0 ||
+    !Number.isInteger(period) ||
+    period < 1
+  ) {
+    return [];
+  }
+
+  const result = calculateATRCore(
+    toOHLCCandles(candles),
+    period,
+  );
+
+  return result.map((point) => ({
+    time: Number(point.time),
+    value: point.value,
+  }));
+}

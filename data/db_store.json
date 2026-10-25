@@ -166,18 +166,33 @@
           "pane": "main"
         },
         {
-          "id": "ind-b46c4d42-8329-4b3f-80d9-71ccbafd3f79",
-          "type": "ATR",
-          "name": "ATR 14",
-          "visible": false,
-          "period": 14,
-          "color": "#06b6d4",
+          "id": "ind-2a5cb238-7435-4308-b8f2-575a9dd0df8d",
+          "type": "EMA",
+          "name": "EMA 200",
+          "visible": true,
+          "period": 200,
+          "color": "#ef4444",
           "strokeWidth": 2,
+          "pane": "main"
+        },
+        {
+          "id": "ind-b635266d-9bd4-431b-ba8c-728ea033c18c",
+          "type": "RSI",
+          "name": "RSI 14",
+          "visible": true,
+          "period": 14,
+          "color": "#8b5cf6",
+          "strokeWidth": 2,
+          "levels": [
+            30,
+            50,
+            70
+          ],
           "pane": "sub"
         }
       ],
-      "id": "0858c446-0d58-4479-a60a-9a0a401a2f4a",
-      "updatedAt": "2026-10-25T05:21:41.530Z"
+      "id": "f9f2dece-c21d-4152-b4c7-7d2469eb0dd0",
+      "updatedAt": "2026-10-25T05:25:58.349Z"
     },
     {
       "sessionId": "00e62d2b-6d6f-4e5e-8c57-51aab321aacc",
