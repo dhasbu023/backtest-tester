@@ -1,3 +1,14 @@
+// ============================================================
+// TRADING CHART
+// Komponen utama untuk menampilkan chart, indikator, drawing,
+// volume, informasi candle, dan kontrol chart.
+// ============================================================
+
+
+// ============================================================
+// 1. REACT IMPORTS
+// ============================================================
+
 import React, {
   useCallback,
   useEffect,
@@ -5,140 +16,211 @@ import React, {
   useRef,
   useState,
 } from 'react';
+
 import { createPortal } from 'react-dom';
+
+
+// ============================================================
+// 2. THIRD-PARTY IMPORTS
+// ============================================================
+
 import {
-  useChartPanes,  
-} from '../../hooks/useChartPanes.js';
-import { useDrawingHistory } from '../../hooks/useDrawingHistory.js';
-import { useDrawingActions } from '../../hooks/useDrawingActions.js';
-import { useSubIndicatorData } from '../../hooks/useSubIndicatorData.js';
-import { useMainIndicatorSeries } from '../../hooks/useMainIndicatorSeries.js';
-import { useVolumeSeries } from '../../hooks/useVolumeSeries.js';
-import {
-  useSubIndicatorSeries,
-  type SubPaneType,
-} from '../../hooks/useSubIndicatorSeries.js';
-import {
-  getVolumeValue,
-} from '../../Indikator/volume.js';
-import {
-  createChart,
   ColorType,
-  CrosshairMode,
-  CandlestickSeries,
-  TickMarkType,
+  type CandlestickData,
   type IChartApi,
   type IPaneApi,
   type ISeriesApi,
   type Time,
-  type CandlestickData,
 } from 'lightweight-charts';
+
+import { Sliders, X } from 'lucide-react';
+
+
+// ============================================================
+// 3. CUSTOM HOOKS
+// ============================================================
+
+import { useChartInitialization } from '../../hooks/useChartInitialization.js';
+import { useChartPanes } from '../../hooks/useChartPanes.js';
+import { useCandleInformation } from '../../hooks/useCandleInformation.js';
+import { useDrawingActions } from '../../hooks/useDrawingActions.js';
+import { useDrawingHistory } from '../../hooks/useDrawingHistory.js';
+import { useMainIndicatorSeries } from '../../hooks/useMainIndicatorSeries.js';
+import { useSubIndicatorData } from '../../hooks/useSubIndicatorData.js';
+
+import {
+  useSubIndicatorSeries,
+  type SubPaneType,
+} from '../../hooks/useSubIndicatorSeries.js';
+
+import { useVolumeSeries } from '../../hooks/useVolumeSeries.js';
+
+
+// ============================================================
+// 4. INDICATOR UTILITIES
+// ============================================================
+
+import { getVolumeValue } from '../../Indikator/volume.js';
+
+
+// ============================================================
+// 5. TYPE IMPORTS
+// ============================================================
 
 import type {
   Candle,
-  Timeframe,
   DrawingObject,
   DrawingToolType,
   IndicatorConfig,
+  Timeframe,
 } from '../../types/index.js';
+
+
+// ============================================================
+// 6. CHART COMPONENTS
+// ============================================================
 
 import { ChartToolbar } from './ChartToolbar.js';
 import { DrawingToolbar } from './DrawingToolbar.js';
 import { DrawingLayer } from './Drawing/DrawingLayer.js';
-import IndicatorManagerModal from '../Indicators/IndicatorManagerModal.js';
 import { CandleInfoBar } from './ChartHeader/CandleInfoBar.js';
-import { useCandleInformation } from '../../hooks/useCandleInformation.js';
+
+
+// ============================================================
+// 7. INDICATOR COMPONENTS
+// ============================================================
+
+import IndicatorManagerModal from '../Indicators/IndicatorManagerModal.js';
+
 import IndicatorPropertiesModal, {
   type IndicatorProperties,
 } from '../Indicators/IndicatorPropertiesModal.js';
 
+
+// ============================================================
+// 8. UTILITIES
+// ============================================================
+
 import { formatDateTimeWithTz } from '../../utils/timezone.js';
+
 import {
   DEFAULT_DRAWING_COLOR,
   DEFAULT_STROKE_WIDTH,
-  SUB_PANE_HEIGHT,
   VOLUME_PROPERTIES_ID,
 } from './utils/chartConstants.js';
 
-import {
-  formatPrice,
-  formatVolumeValue,
-} from './utils/chartFormatters.js';
+import { formatVolumeValue } from './utils/chartFormatters.js';
 
-import {
-  isSameDrawings,
-} from './utils/chartComparators.js';
 
-import {
-  toUnixTimestamp,
-} from './utils/chartTimeUtils.js';
-import {
-  Sliders,
-  X,
-} from 'lucide-react';
+// ============================================================
+// 9. COMPONENT PROPS
+// ============================================================
 
 interface TradingChartProps {
+  // Chart data
   candles: Candle[];
   symbol: string;
   timeframe: Timeframe;
   sourceTimeframe: Timeframe;
+
+  // Timeframe controls
   onChangeTimeframe: (tf: Timeframe) => void;
+
+  // Theme
   isDarkMode: boolean;
   isLoading?: boolean;
+
+  // Session
   sessionId: string;
+
+  // Timezone
   activeTimezone: string;
   onChangeTimezone: (tz: string) => void;
 
+  // Drawing objects
   drawings: DrawingObject[];
   onUpdateDrawings: (drawings: DrawingObject[]) => void;
 
+  // Indicators
   indicators: IndicatorConfig[];
   onUpdateIndicators: (indicators: IndicatorConfig[]) => void;
 
+  // Volume
   showVolume: boolean;
   onToggleVolume: () => void;
   volumeType: 'TICK' | 'REAL';
   onChangeVolumeType: (type: 'TICK' | 'REAL') => void;
   hasRealVolume: boolean;
 
+  // Replay controls
   showReplayControls: boolean;
   onToggleReplay: () => void;
 }
 
 
+// ============================================================
+// 10. TRADING CHART COMPONENT
+// ============================================================
+
 export const TradingChart: React.FC<TradingChartProps> = ({
+  // Chart data
   candles,
   symbol,
   timeframe,
   sourceTimeframe,
+
+  // Timeframe
   onChangeTimeframe,
+
+  // Theme
   isDarkMode,
   isLoading = false,
+
+  // Session
   sessionId,
+
+  // Timezone
   activeTimezone,
   onChangeTimezone,
+
+  // Drawing objects
   drawings,
   onUpdateDrawings,
+
+  // Indicators
   indicators,
   onUpdateIndicators,
-  showVolume,
+
+  // Volume
   onToggleVolume,
   volumeType,
-  onChangeVolumeType,
   hasRealVolume,
+
+  // Replay
   showReplayControls,
   onToggleReplay,
 }) => {
-  // =========================================================
-  // REFS
-  // =========================================================
+
+  // ==========================================================
+  // 1. REFS
+  // Menyimpan referensi chart, series, dan data terbaru.
+  // ==========================================================
+
+  // ----------------------------------------------------------
+  // Chart container dan instance
+  // ----------------------------------------------------------
 
   const containerRef = useRef<HTMLDivElement>(null);
 
   const chartRef = useRef<IChartApi | null>(null);
-  const [chartInstance, setChartInstance] = useState<IChartApi | null>(
-    null,
-  );
+
+  const [chartInstance, setChartInstance] =
+    useState<IChartApi | null>(null);
+
+
+  // ----------------------------------------------------------
+  // Candlestick series
+  // ----------------------------------------------------------
 
   const candlestickSeriesRef =
     useRef<ISeriesApi<'Candlestick'> | null>(null);
@@ -146,8 +228,18 @@ export const TradingChart: React.FC<TradingChartProps> = ({
   const [candlestickSeriesInstance, setCandlestickSeriesInstance] =
     useState<ISeriesApi<'Candlestick'> | null>(null);
 
+
+  // ----------------------------------------------------------
+  // Main indicator series
+  // ----------------------------------------------------------
+
   const lineSeriesMapRef =
     useRef<Map<string, ISeriesApi<'Line'>>>(new Map());
+
+
+  // ----------------------------------------------------------
+  // Sub-indicator series dan panes
+  // ----------------------------------------------------------
 
   const subIndicatorSeriesMapRef =
     useRef<Map<string, ISeriesApi<'Line'>>>(new Map());
@@ -155,56 +247,159 @@ export const TradingChart: React.FC<TradingChartProps> = ({
   const subIndicatorPanesRef =
     useRef<Map<SubPaneType, IPaneApi<Time>>>(new Map());
 
+
+  // ----------------------------------------------------------
+  // Volume series dan pane
+  // ----------------------------------------------------------
+
   const volumeSeriesRef =
     useRef<ISeriesApi<'Histogram'> | null>(null);
 
-  const volumePaneRef = useRef<IPaneApi<Time> | null>(null);
+  const volumePaneRef =
+    useRef<IPaneApi<Time> | null>(null);
+
+
+  // ----------------------------------------------------------
+  // Data references
+  // ----------------------------------------------------------
 
   const candlesRef = useRef<Candle[]>(candles);
+
   const drawingsRef = useRef<DrawingObject[]>(drawings);
+
+
+  // ----------------------------------------------------------
+  // Drawing drag history
+  // ----------------------------------------------------------
 
   const drawingDragStartRef =
     useRef<DrawingObject[] | null>(null);
 
+
+  // ----------------------------------------------------------
+  // Theme dan timezone references
+  // ----------------------------------------------------------
+
   const isDarkModeRef = useRef(isDarkMode);
+
   const activeTimezoneRef = useRef(activeTimezone);
+
+
+  // ----------------------------------------------------------
+  // Sinkronisasi nilai terbaru ke refs
+  // ----------------------------------------------------------
 
   candlesRef.current = candles;
   drawingsRef.current = drawings;
   isDarkModeRef.current = isDarkMode;
   activeTimezoneRef.current = activeTimezone;
 
-  // =========================================================
-  // STATE
-  // =========================================================
+
+  // ==========================================================
+  // 2. STATE
+  // Menyimpan kondisi UI dan interaksi chart.
+  // ==========================================================
+
+  // ----------------------------------------------------------
+  // Ukuran chart container
+  // ----------------------------------------------------------
 
   const [containerDimensions, setContainerDimensions] = useState({
     width: 800,
     height: 500,
   });
 
+
+  // ----------------------------------------------------------
+  // Candle yang sedang diarahkan oleh crosshair
+  // ----------------------------------------------------------
+
   const [hoveredCandle, setHoveredCandle] =
     useState<Candle | null>(null);
+
+
+  // ----------------------------------------------------------
+  // Drawing tool
+  // ----------------------------------------------------------
 
   const [activeTool, setActiveTool] =
     useState<DrawingToolType>('CURSOR');
 
-  const [currentColor, setCurrentColor] = useState(
-    DEFAULT_DRAWING_COLOR,
-  );
+  const [currentColor, setCurrentColor] =
+    useState(DEFAULT_DRAWING_COLOR);
 
   const [currentStrokeWidth, setCurrentStrokeWidth] =
     useState(DEFAULT_STROKE_WIDTH);
 
+
+  // ----------------------------------------------------------
+  // Drawing selection
+  // ----------------------------------------------------------
+
   const [selectedDrawingId, setSelectedDrawingId] =
     useState<string | null>(null);
-  // =========================================================
-  // DRAWING HISTORY: UNDO / REDO
-  // =========================================================
+
+
+  // ----------------------------------------------------------
+  // Indicator modals
+  // ----------------------------------------------------------
+
+  const [isIndicatorManagerModalOpen, setIsIndicatorManagerModalOpen] =
+    useState(false);
+
+  const [subPropertiesTargetId, setSubPropertiesTargetId] =
+    useState<string | null>(null);
+
+
+  // ----------------------------------------------------------
+  // Volume appearance
+  // ----------------------------------------------------------
+
+  const [volumeColorOverride, setVolumeColorOverride] =
+    useState<string | null>(null);
+
+
+  // ==========================================================
+  // 3. CHART INITIALIZATION
+  // Membuat chart dan candlestick melalui custom hook.
+  // ==========================================================
+
+  useChartInitialization({
+    containerRef,
+    chartRef,
+    candlestickSeriesRef,
+
+    // Data references
+    candlesRef,
+    isDarkModeRef,
+    activeTimezoneRef,
+
+    // Indicator references
+    lineSeriesMapRef,
+    subIndicatorSeriesMapRef,
+    subIndicatorPanesRef,
+
+    // Volume references
+    volumeSeriesRef,
+    volumePaneRef,
+
+    // State setters
+    setChartInstance,
+    setCandlestickSeriesInstance,
+    setContainerDimensions,
+
+    // Interaction state
+    setHoveredCandle,
+    setSelectedDrawingId,
+  });
+
+
+  // ==========================================================
+  // 4. DRAWING HISTORY
+  // Mengatur undo, redo, dan riwayat perubahan drawing.
+  // ==========================================================
 
   const {
-    drawingHistory,
-    historyIndex,
     canUndo,
     canRedo,
     commitDrawingsWithHistory,
@@ -218,376 +413,125 @@ export const TradingChart: React.FC<TradingChartProps> = ({
     onUpdateDrawings,
     setSelectedDrawingId,
   });
+
+
+  // ==========================================================
+  // 5. DRAWING ACTIONS
+  // Mengatur penambahan, perubahan, penghapusan, dan visibilitas
+  // objek drawing.
+  // ==========================================================
+
   const {
-  handleAddDrawing,
-  handleUpdateDrawing,
-  handleDrawingDragStart,
-  handleDrawingDragEnd,
-  handleDeleteDrawing,
-  handleClearAllDrawings,
-  handleToggleDrawingVisible,
-  handleToggleDrawingLock,
-} = useDrawingActions({
-  sessionId,
-  drawingsRef,
-  drawingDragStartRef,
-  commitDrawingsWithHistory,
-  commitDragHistory,
-  onUpdateDrawings,
-  setSelectedDrawingId,
-});
-
-const {
-  subIndicators,
-  subIndicatorReadouts,
-  subIndicatorGroups,
-  handleRemoveSubIndicator,
-} = useSubIndicatorData({
-  candles,
-  indicators,
-  onUpdateIndicators,
-});
+    handleAddDrawing,
+    handleUpdateDrawing,
+    handleDrawingDragStart,
+    handleDrawingDragEnd,
+    handleDeleteDrawing,
+    handleClearAllDrawings,
+    handleToggleDrawingVisible,
+    handleToggleDrawingLock,
+  } = useDrawingActions({
+    sessionId,
+    drawingsRef,
+    drawingDragStartRef,
+    commitDrawingsWithHistory,
+    commitDragHistory,
+    onUpdateDrawings,
+    setSelectedDrawingId,
+  });
 
 
-  const [isIndicatorManagerModalOpen, setIsIndicatorManagerModalOpen] =
-    useState(false);
+  // ==========================================================
+  // 6. SUB-INDICATOR DATA
+  // Menghitung data RSI, ATR, dan readout indikator.
+  // ==========================================================
 
-  const [subPropertiesTargetId, setSubPropertiesTargetId] =
-    useState<string | null>(null);
+  const {
+    subIndicatorReadouts,
+    subIndicatorGroups,
+    handleRemoveSubIndicator,
+  } = useSubIndicatorData({
+    candles,
+    indicators,
+    onUpdateIndicators,
+  });
 
-  const [volumeColorOverride, setVolumeColorOverride] =
-    useState<string | null>(null);
+
+  // ==========================================================
+  // 7. CHART PANES
+  // Mengatur pane utama dan pane indikator tambahan.
+  // ==========================================================
+
+  const {
+    subPaneElements,
+    schedulePaneElementsSync,
+  } = useChartPanes(
+    chartRef,
+    volumePaneRef,
+    subIndicatorPanesRef,
+  );
 
 
-// =========================================================
-// CHART PANES
-// =========================================================
+  // ==========================================================
+  // 8. SUB-INDICATOR SERIES
+  // Mengatur series RSI, ATR, dan indikator di pane terpisah.
+  // ==========================================================
 
-const {
-  subPaneElements,
-  syncPaneElements,
-  normalizePaneHeights,
-  schedulePaneElementsSync,
-} = useChartPanes(
-  chartRef,
-  volumePaneRef,
-  subIndicatorPanesRef,
-);
-useSubIndicatorSeries({
-  chartRef,
-  candles,
-  indicators,
-  subIndicatorPanesRef,
-  subIndicatorSeriesMapRef,
-  volumePaneRef,
-  schedulePaneElementsSync,
-});
-useMainIndicatorSeries({
-  chartRef,
-  candlestickSeriesRef,
-  lineSeriesMapRef,
-  candles,
-  indicators,
-});
+  useSubIndicatorSeries({
+    chartRef,
+    candles,
+    indicators,
+    subIndicatorPanesRef,
+    subIndicatorSeriesMapRef,
+    volumePaneRef,
+    schedulePaneElementsSync,
+  });
+
+
+  // ==========================================================
+  // 9. MAIN INDICATOR SERIES
+  // Mengatur indikator yang ditampilkan di chart utama.
+  // ==========================================================
+
+  useMainIndicatorSeries({
+    chartRef,
+    candlestickSeriesRef,
+    lineSeriesMapRef,
+    candles,
+    indicators,
+  });
+
+
+  // ==========================================================
+  // 10. RESET INDICATOR PROPERTIES
+  // Menutup modal properties ketika session berubah.
+  // ==========================================================
+
   useEffect(() => {
     setSubPropertiesTargetId(null);
   }, [sessionId]);
 
-// =========================================================
-// CANDLE INFORMATION
-// =========================================================
 
-const {
-  displayedCandle,
-  candleChange,
-  candleChangePercent,
-} = useCandleInformation(candles, hoveredCandle);
- 
+  // ==========================================================
+  // 11. CANDLE INFORMATION
+  // Mengambil candle aktif dan menghitung perubahan harga.
+  // ==========================================================
 
-  // =========================================================
-  // INITIALIZE CHART
-  // =========================================================
-
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const initialWidth = Math.max(container.clientWidth, 1);
-    const initialHeight = Math.max(container.clientHeight, 1);
-
-    const initialDarkMode = isDarkModeRef.current;
-    const initialTimezone = activeTimezoneRef.current;
-
-    setContainerDimensions({
-      width: initialWidth,
-      height: initialHeight,
-    });
-
-    const chart = createChart(container, {
-      width: initialWidth,
-      height: initialHeight,
-
-      layout: {
-        background: {
-          type: ColorType.Solid,
-          color: initialDarkMode ? '#0b0f19' : '#ffffff',
-        },
-        textColor: initialDarkMode ? '#94a3b8' : '#475569',
-        fontSize: 11,
-        fontFamily:
-          "'JetBrains Mono', monospace, -apple-system, sans-serif",
-      },
-
-      grid: {
-        vertLines: {
-          color: initialDarkMode
-            ? 'rgba(30, 41, 59, 0.6)'
-            : '#f1f5f9',
-        },
-        horzLines: {
-          color: initialDarkMode
-            ? 'rgba(30, 41, 59, 0.6)'
-            : '#f1f5f9',
-        },
-      },
-
-      crosshair: {
-        mode: CrosshairMode.Normal,
-        vertLine: {
-          color: initialDarkMode ? '#3b82f6' : '#2563eb',
-          width: 1,
-          style: 3,
-          labelBackgroundColor: initialDarkMode
-            ? '#1e293b'
-            : '#2563eb',
-        },
-        horzLine: {
-          color: initialDarkMode ? '#3b82f6' : '#2563eb',
-          width: 1,
-          style: 3,
-          labelBackgroundColor: initialDarkMode
-            ? '#1e293b'
-            : '#2563eb',
-        },
-      },
-
-      localization: {
-        timeFormatter: (timeValue: number) =>
-          formatDateTimeWithTz(
-            timeValue,
-            activeTimezoneRef.current,
-          ),
-      },
-
-      handleScroll: {
-        mouseWheel: false,
-        pressedMouseMove: true,
-        horzTouchDrag: true,
-        vertTouchDrag: true,
-      },
-
-      handleScale: {
-        axisPressedMouseMove: {
-          time: true,
-          price: true,
-        },
-        axisDoubleClickReset: {
-          time: true,
-          price: true,
-        },
-        mouseWheel: true,
-        pinch: true,
-      },
-
-      timeScale: {
-        borderColor: initialDarkMode ? '#1e293b' : '#e2e8f0',
-        timeVisible: true,
-        secondsVisible: false,
-        rightOffset: 8,
-        barSpacing: 8,
-        minBarSpacing: 2,
-        fixLeftEdge: false,
-        fixRightEdge: false,
-        lockVisibleTimeRangeOnResize: true,
-
-        tickMarkFormatter: (
-          time: Time,
-          tickMarkType: TickMarkType,
-        ) => {
-          const timestamp = toUnixTimestamp(time);
-          if (timestamp === null) return '';
-
-          const date = new Date(timestamp * 1000);
-          const timezone = activeTimezoneRef.current;
-
-          if (tickMarkType === TickMarkType.Year) {
-            return date.toLocaleDateString('en-GB', {
-              year: 'numeric',
-              timeZone: timezone,
-            });
-          }
-
-          if (tickMarkType === TickMarkType.Month) {
-            return date.toLocaleDateString('en-GB', {
-              month: 'short',
-              timeZone: timezone,
-            });
-          }
-
-          if (tickMarkType === TickMarkType.DayOfMonth) {
-            return date.toLocaleDateString('en-GB', {
-              day: '2-digit',
-              month: 'short',
-              timeZone: timezone,
-            });
-          }
-
-          return date.toLocaleTimeString('en-GB', {
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: false,
-            timeZone: timezone,
-          });
-        },
-      },
-
-      rightPriceScale: {
-        borderColor: initialDarkMode ? '#1e293b' : '#e2e8f0',
-        autoScale: true,
-        scaleMargins: {
-          top: 0.08,
-          bottom: 0.08,
-        },
-      },
-    });
-
-    chartRef.current = chart;
-    setChartInstance(chart);
+  const {
+    displayedCandle,
+    candleChange,
+    candleChangePercent,
+  } = useCandleInformation(candles, hoveredCandle);
 
 
-    const candlestickSeries = chart.addSeries(CandlestickSeries, {
-      upColor: '#10b981',
-      downColor: '#ef4444',
-      borderVisible: false,
-      wickUpColor: '#10b981',
-      wickDownColor: '#ef4444',
-    });
-
-    candlestickSeriesRef.current = candlestickSeries;
-    setCandlestickSeriesInstance(candlestickSeries);
-
-    chart.subscribeCrosshairMove((param) => {
-      if (
-        !param.time ||
-        !param.seriesData ||
-        param.point === undefined
-      ) {
-        setHoveredCandle((previous) =>
-          previous === null ? previous : null,
-        );
-        return;
-      }
-
-      const barData = param.seriesData.get(
-        candlestickSeries,
-      ) as CandlestickData<Time> | undefined;
-
-      if (
-        !barData ||
-        typeof barData.open !== 'number' ||
-        typeof barData.high !== 'number' ||
-        typeof barData.low !== 'number' ||
-        typeof barData.close !== 'number'
-      ) {
-        setHoveredCandle((previous) =>
-          previous === null ? previous : null,
-        );
-        return;
-      }
-
-      const timestamp = toUnixTimestamp(param.time);
-      if (timestamp === null) return;
-
-      const matched = candlesRef.current.find(
-        (candle) =>
-          Math.floor(candle.timestamp) === timestamp,
-      );
-
-      setHoveredCandle((previous) => {
-        if (
-          previous &&
-          previous.timestamp === timestamp &&
-          previous.open === barData.open &&
-          previous.high === barData.high &&
-          previous.low === barData.low &&
-          previous.close === barData.close &&
-          previous.tickVolume === (matched?.tickVolume ?? 0) &&
-          previous.realVolume === (matched?.realVolume ?? 0)
-        ) {
-          return previous;
-        }
-
-        return {
-          timestamp,
-          open: barData.open,
-          high: barData.high,
-          low: barData.low,
-          close: barData.close,
-          tickVolume: matched?.tickVolume ?? 0,
-          realVolume: matched?.realVolume ?? 0,
-        };
-      });
-    });
-
-    chart.subscribeClick(() => {
-      setSelectedDrawingId(null);
-    });
-
-    const resizeObserver = new ResizeObserver((entries) => {
-      const entry = entries[0];
-      if (!entry) return;
-
-      const width = Math.floor(entry.contentRect.width);
-      const height = Math.floor(entry.contentRect.height);
-
-      if (width <= 0 || height <= 0) return;
-
-      chart.applyOptions({ width, height });
-
-      setContainerDimensions((previous) =>
-        previous.width === width && previous.height === height
-          ? previous
-          : { width, height },
-      );
-    });
-
-    resizeObserver.observe(container);
-
-    return () => {
-      resizeObserver.disconnect();
-      chart.remove();
-
-      if (chartRef.current === chart) {
-        chartRef.current = null;
-        candlestickSeriesRef.current = null;
-        setChartInstance(null);
-        setCandlestickSeriesInstance(null);
-      }
-
-      lineSeriesMapRef.current.clear();
-      subIndicatorSeriesMapRef.current.clear();
-      subIndicatorPanesRef.current.clear();
-      volumeSeriesRef.current = null;
-      volumePaneRef.current = null;
-    };
-  }, []);
-
-  // =========================================================
-  // UPDATE CHART THEME
-  // =========================================================
+  // ==========================================================
+  // 12. UPDATE CHART THEME
+  // Mengubah warna chart ketika dark mode berubah.
+  // ==========================================================
 
   useEffect(() => {
     const chart = chartRef.current;
+
     if (!chart) return;
 
     chart.applyOptions({
@@ -637,9 +581,11 @@ const {
     });
   }, [isDarkMode]);
 
-  // =========================================================
-  // TIMEZONE
-  // =========================================================
+
+  // ==========================================================
+  // 13. TIMEZONE
+  // Memperbarui formatter waktu sesuai timezone aktif.
+  // ==========================================================
 
   useEffect(() => {
     activeTimezoneRef.current = activeTimezone;
@@ -652,14 +598,18 @@ const {
     });
   }, [activeTimezone]);
 
-  // =========================================================
-  // UPDATE CANDLE DATA
-  // =========================================================
+
+  // ==========================================================
+  // 14. UPDATE CANDLE DATA
+  // Memperbarui candlestick ketika data candle berubah.
+  // ==========================================================
 
   useEffect(() => {
     const series = candlestickSeriesRef.current;
+
     if (!series) return;
 
+    // Kosongkan chart jika tidak ada candle.
     if (!candles || candles.length === 0) {
       series.setData([]);
       setHoveredCandle(null);
@@ -667,6 +617,7 @@ const {
     }
 
     try {
+      // Validasi dan normalisasi data candle.
       const candleMap = new Map<number, CandlestickData<Time>>();
 
       for (const candle of candles) {
@@ -688,25 +639,31 @@ const {
         candleMap.set(timestamp, {
           time: timestamp as Time,
           open: candle.open,
+
           high: Math.max(
             candle.high,
             candle.open,
             candle.close,
           ),
+
           low: Math.min(
             candle.low,
             candle.open,
             candle.close,
           ),
+
           close: candle.close,
         });
       }
 
+      // Urutkan candle berdasarkan timestamp.
       const sortedCandles = Array.from(candleMap.values()).sort(
         (a, b) => Number(a.time) - Number(b.time),
       );
 
+      // Terapkan data ke candlestick series.
       series.setData(sortedCandles);
+
     } catch (error) {
       console.error(
         '[TradingChart] Error memperbarui candle:',
@@ -716,18 +673,15 @@ const {
   }, [candles]);
 
 
-
-
-  
-  // =========================================================
-  // VOLUME CONFIGURATION
-  // =========================================================
+  // ==========================================================
+  // 15. VOLUME CONFIGURATION
+  // Mengatur indikator volume yang aktif dan warnanya.
+  // ==========================================================
 
   const volumeIndicators = useMemo(
-    () =>
-      indicators.filter(
-        (indicator) => indicator.type === 'VOLUME',
-      ),
+    () => indicators.filter(
+      (indicator) => indicator.type === 'VOLUME',
+    ),
     [indicators],
   );
 
@@ -741,6 +695,11 @@ const {
     visibleVolumeIndicator?.color ||
     volumeColorOverride ||
     '#26a69a';
+
+
+  // ----------------------------------------------------------
+  // Nilai volume candle terakhir
+  // ----------------------------------------------------------
 
   const latestVolumeValue = useMemo(() => {
     const lastCandle = candles[candles.length - 1];
@@ -760,9 +719,10 @@ const {
   }, [candles, volumeType]);
 
 
-  // =========================================================
-  // VOLUME SERIES
-  // =========================================================
+  // ==========================================================
+  // 16. VOLUME SERIES
+  // Mengelola tampilan volume pada pane chart.
+  // ==========================================================
 
   useVolumeSeries({
     chartRef,
@@ -776,55 +736,66 @@ const {
     schedulePaneElementsSync,
   });
 
- 
 
-  // =========================================================
-  // SUB-INDICATOR CONTROLS / PROPERTIES
-  // =========================================================
+  // ==========================================================
+  // 17. INDICATOR PROPERTIES
+  // Mengatur target dan nilai awal properties indikator.
+  // ==========================================================
 
-  
-
+  // Target indikator yang sedang diedit.
   const subPropertiesTarget = indicators.find(
     (indicator) => indicator.id === subPropertiesTargetId,
   );
 
+  // Periksa apakah yang sedang diedit adalah Volume.
   const isVolumeProperties =
     subPropertiesTargetId === VOLUME_PROPERTIES_ID;
 
-  const subPropertiesInitialValues = useMemo<IndicatorProperties | null>(() => {
-    if (isVolumeProperties) {
+
+  // ----------------------------------------------------------
+  // Nilai awal properties indikator
+  // ----------------------------------------------------------
+
+  const subPropertiesInitialValues =
+    useMemo<IndicatorProperties | null>(() => {
+      if (isVolumeProperties) {
+        return {
+          period: 1,
+          color: volumeColor,
+          strokeWidth: 1,
+          stdDev: 2,
+        };
+      }
+
+      if (!subPropertiesTarget) {
+        return null;
+      }
+
       return {
-        period: 1,
-        color: volumeColor,
-        strokeWidth: 1,
-        stdDev: 2,
+        period: subPropertiesTarget.period || 14,
+        color: subPropertiesTarget.color || '#3b82f6',
+        strokeWidth: subPropertiesTarget.strokeWidth || 2,
+        stdDev: subPropertiesTarget.stdDev || 2,
       };
-    }
+    }, [isVolumeProperties, subPropertiesTarget, volumeColor]);
 
-    if (!subPropertiesTarget) {
-      return null;
-    }
 
-    return {
-      period: subPropertiesTarget.period || 14,
-      color: subPropertiesTarget.color || '#3b82f6',
-      strokeWidth: subPropertiesTarget.strokeWidth || 2,
-      stdDev: subPropertiesTarget.stdDev || 2,
-    };
-  }, [isVolumeProperties, subPropertiesTarget, volumeColor]);
+  // ----------------------------------------------------------
+  // Simpan perubahan properties indikator
+  // ----------------------------------------------------------
 
   const handleSaveSubIndicatorProperties = useCallback(
     (values: IndicatorProperties) => {
-      if (!subPropertiesTargetId) {
-        return;
-      }
+      if (!subPropertiesTargetId) return;
 
+      // Simpan warna volume.
       if (subPropertiesTargetId === VOLUME_PROPERTIES_ID) {
         setVolumeColorOverride(values.color);
         setSubPropertiesTargetId(null);
         return;
       }
 
+      // Simpan konfigurasi indikator lainnya.
       onUpdateIndicators(
         indicators.map((indicator) => {
           if (indicator.id !== subPropertiesTargetId) {
@@ -840,19 +811,24 @@ const {
 
           return {
             ...indicator,
+
             period:
               indicator.type === 'VOLUME'
                 ? indicator.period
                 : values.period,
+
             color: values.color,
+
             strokeWidth:
               indicator.type === 'VOLUME'
                 ? indicator.strokeWidth
                 : values.strokeWidth,
+
             stdDev:
               indicator.type === 'BOLLINGER'
                 ? values.stdDev
                 : indicator.stdDev,
+
             name: nextName,
           };
         }),
@@ -863,12 +839,15 @@ const {
     [indicators, onUpdateIndicators, subPropertiesTargetId],
   );
 
-  // =========================================================
-  // CHART ACTIONS
-  // =========================================================
+
+  // ==========================================================
+  // 18. CHART ACTIONS
+  // Fungsi aksi chart seperti fit content.
+  // ==========================================================
 
   const handleFitContent = useCallback(() => {
     const chart = chartRef.current;
+
     if (!chart) return;
 
     chart.timeScale().fitContent();
@@ -878,30 +857,42 @@ const {
     });
   }, []);
 
-  // =========================================================
-  // RENDER
-  // =========================================================
+
+  // ==========================================================
+  // 19. RENDER
+  // Menampilkan toolbar, chart, drawing, indikator, dan modal.
+  // ==========================================================
 
   return (
     <div className="relative flex h-full min-h-0 w-full flex-col overflow-hidden bg-white text-slate-900 dark:bg-[#0b0f19] dark:text-slate-100">
+
+      {/* =====================================================
+          CHART TOOLBAR
+          ===================================================== */}
+
       <div className="relative z-20 shrink-0 border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-[#0b0f19]">
-        
-      <ChartToolbar
-        sourceTimeframe={sourceTimeframe}
-        activeTimeframe={timeframe}
-        onChangeTimeframe={onChangeTimeframe}
-        activeTimezone={activeTimezone}
-        onChangeTimezone={onChangeTimezone}
-        indicators={indicators}
-        onOpenIndicatorsModal={() =>
-          setIsIndicatorManagerModalOpen(true)
-        }
-        onFitContent={handleFitContent}
-        showReplayControls={showReplayControls}
-        onToggleReplay={onToggleReplay}
-      />
+
+        <ChartToolbar
+          sourceTimeframe={sourceTimeframe}
+          activeTimeframe={timeframe}
+          onChangeTimeframe={onChangeTimeframe}
+          activeTimezone={activeTimezone}
+          onChangeTimezone={onChangeTimezone}
+          indicators={indicators}
+          onOpenIndicatorsModal={() =>
+            setIsIndicatorManagerModalOpen(true)
+          }
+          onFitContent={handleFitContent}
+          showReplayControls={showReplayControls}
+          onToggleReplay={onToggleReplay}
+        />
 
       </div>
+
+
+      {/* =====================================================
+          CANDLE INFORMATION BAR
+          ===================================================== */}
 
       <CandleInfoBar
         symbol={symbol}
@@ -912,8 +903,20 @@ const {
         activeTimezone={activeTimezone}
       />
 
+
+      {/* =====================================================
+          MAIN CHART AREA
+          ===================================================== */}
+
       <div className="relative flex min-h-0 flex-1 overflow-hidden bg-white dark:bg-[#0b0f19]">
+
+
+        {/* ===================================================
+            DRAWING TOOLBAR
+            =================================================== */}
+
         <div className="relative z-30 w-12 shrink-0 overflow-visible border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-[#0b0f19]">
+
           <DrawingToolbar
             activeTool={activeTool}
             onSelectTool={setActiveTool}
@@ -931,13 +934,27 @@ const {
             onToggleDrawingLock={handleToggleDrawingLock}
             onDeleteDrawing={handleDeleteDrawing}
           />
+
         </div>
 
+
+        {/* ===================================================
+            CHART CONTAINER
+            =================================================== */}
+
         <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
+
+          {/* Lightweight Charts container */}
           <div
             ref={containerRef}
             className="absolute inset-0 h-full w-full"
           />
+
+
+          {/* =================================================
+              SUB-INDICATOR READOUTS
+              Menampilkan nilai RSI dan ATR pada pane masing-masing.
+              ================================================= */}
 
           {(['RSI', 'ATR'] as const).map((type) => {
             const paneElement = subPaneElements[type];
@@ -971,15 +988,19 @@ const {
                       key={indicator.id}
                       className="pointer-events-auto flex items-center gap-1.5 rounded border border-slate-300/80 bg-white/90 px-1.5 py-0.5 font-mono text-[10px] text-slate-700 shadow-sm backdrop-blur dark:border-slate-700/80 dark:bg-slate-950/90 dark:text-slate-200"
                     >
+
+                      {/* Indicator color */}
                       <span
                         className="h-2 w-2 shrink-0 rounded-full"
                         style={{ backgroundColor: color }}
                       />
 
+                      {/* Indicator name */}
                       <span className="font-semibold">
                         {indicator.name || indicator.type}
                       </span>
 
+                      {/* Indicator value */}
                       <span>
                         {readout !== null &&
                         readout !== undefined
@@ -987,6 +1008,7 @@ const {
                           : '—'}
                       </span>
 
+                      {/* Indicator properties */}
                       <button
                         type="button"
                         onClick={() =>
@@ -999,6 +1021,7 @@ const {
                         <Sliders size={11} />
                       </button>
 
+                      {/* Remove indicator */}
                       <button
                         type="button"
                         onClick={() =>
@@ -1010,6 +1033,7 @@ const {
                       >
                         <X size={11} />
                       </button>
+
                     </div>
                   );
                 })}
@@ -1019,24 +1043,41 @@ const {
             );
           })}
 
+
+          {/* =================================================
+              VOLUME READOUT
+              Menampilkan nilai volume pada pane volume.
+              ================================================= */}
+
           {volumeVisible &&
             subPaneElements.VOLUME &&
             createPortal(
               <div className="pointer-events-none absolute left-2 top-1 z-20 flex max-w-[calc(100%-12px)] flex-col items-start gap-1">
+
                 <div className="pointer-events-auto flex items-center gap-1.5 rounded border border-slate-300/80 bg-white/90 px-1.5 py-0.5 font-mono text-[10px] text-slate-700 shadow-sm backdrop-blur dark:border-slate-700/80 dark:bg-slate-950/90 dark:text-slate-200">
+
+                  {/* Volume color */}
                   <span
                     className="h-2 w-2 shrink-0 rounded-full"
                     style={{ backgroundColor: volumeColor }}
                   />
 
-                  <span className="font-semibold">Volume</span>
+                  {/* Volume name */}
+                  <span className="font-semibold">
+                    Volume
+                  </span>
 
+                  {/* Volume type */}
                   <span className="text-[9px] uppercase text-slate-400">
                     {volumeType}
                   </span>
 
-                  <span>{formatVolumeValue(latestVolumeValue)}</span>
+                  {/* Latest volume value */}
+                  <span>
+                    {formatVolumeValue(latestVolumeValue)}
+                  </span>
 
+                  {/* Volume properties */}
                   <button
                     type="button"
                     onClick={() =>
@@ -1051,6 +1092,7 @@ const {
                     <Sliders size={11} />
                   </button>
 
+                  {/* Hide volume */}
                   <button
                     type="button"
                     onClick={onToggleVolume}
@@ -1060,11 +1102,18 @@ const {
                   >
                     <X size={11} />
                   </button>
+
                 </div>
               </div>,
               subPaneElements.VOLUME,
               'pane-VOLUME',
             )}
+
+
+          {/* =================================================
+              DRAWING LAYER
+              Menampilkan dan mengatur objek drawing di atas chart.
+              ================================================= */}
 
           <DrawingLayer
             candles={candles}
@@ -1089,17 +1138,37 @@ const {
             containerHeight={containerDimensions.height}
           />
 
+
+          {/* =================================================
+              LOADING OVERLAY
+              Ditampilkan ketika chart sedang memperbarui data.
+              ================================================= */}
+
           {isLoading && (
             <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center bg-slate-900/20">
+
               <div className="flex items-center gap-2 rounded-full bg-slate-900/90 px-4 py-2.5 text-xs text-white shadow-xl">
+
                 <span className="h-2 w-2 animate-ping rounded-full bg-blue-500" />
-                <span>Memperbarui chart...</span>
+
+                <span>
+                  Memperbarui chart...
+                </span>
+
               </div>
+
             </div>
           )}
 
+
+          {/* =================================================
+              EMPTY CHART STATE
+              Ditampilkan ketika belum ada data candle.
+              ================================================= */}
+
           {!isLoading && candles.length === 0 && (
             <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 p-4 text-center text-xs text-slate-400">
+
               <p className="font-semibold text-slate-600 dark:text-slate-300">
                 Belum ada candle untuk ditampilkan.
               </p>
@@ -1108,10 +1177,19 @@ const {
                 Periksa data CSV atau posisi replay yang sedang
                 dipilih.
               </p>
+
             </div>
           )}
+
         </div>
+
       </div>
+
+
+      {/* =====================================================
+          INDICATOR MANAGER MODAL
+          Mengelola daftar indikator chart.
+          ===================================================== */}
 
       <IndicatorManagerModal
         isOpen={isIndicatorManagerModalOpen}
@@ -1119,6 +1197,12 @@ const {
         indicators={indicators}
         onUpdateIndicators={onUpdateIndicators}
       />
+
+
+      {/* =====================================================
+          INDICATOR PROPERTIES MODAL
+          Mengubah pengaturan indikator yang dipilih.
+          ===================================================== */}
 
       {subPropertiesTargetId && subPropertiesInitialValues && (
         <IndicatorPropertiesModal
@@ -1140,8 +1224,14 @@ const {
           onSave={handleSaveSubIndicatorProperties}
         />
       )}
+
     </div>
   );
 };
+
+
+// ============================================================
+// 11. DEFAULT EXPORT
+// ============================================================
 
 export default TradingChart;
