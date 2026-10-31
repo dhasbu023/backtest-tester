@@ -12,25 +12,26 @@ import {
 import { useDrawingHistory } from '../../hooks/useDrawingHistory.js';
 import { useDrawingActions } from '../../hooks/useDrawingActions.js';
 import { useSubIndicatorData } from '../../hooks/useSubIndicatorData.js';
+import { useMainIndicatorSeries } from '../../hooks/useMainIndicatorSeries.js';
+import { useVolumeSeries } from '../../hooks/useVolumeSeries.js';
 import {
   useSubIndicatorSeries,
   type SubPaneType,
 } from '../../hooks/useSubIndicatorSeries.js';
-
+import {
+  getVolumeValue,
+} from '../../Indikator/volume.js';
 import {
   createChart,
   ColorType,
   CrosshairMode,
   CandlestickSeries,
-  LineSeries,
-  HistogramSeries,
   TickMarkType,
   type IChartApi,
   type IPaneApi,
   type ISeriesApi,
   type Time,
   type CandlestickData,
-  type LineData,
 } from 'lightweight-charts';
 
 import type {
@@ -51,18 +52,6 @@ import IndicatorPropertiesModal, {
   type IndicatorProperties,
 } from '../Indicators/IndicatorPropertiesModal.js';
 
-import {
-  calculateEMA,
-  calculateSMA,
-  calculateBollingerBands,
-  calculateRSI,
-  calculateATR,
-} from '../../utils/indicators.js';
-
-import {
-  buildVolumeDataFromCandles,
-  getVolumeValue,
-} from '../../Indikator/volume.js';
 import { formatDateTimeWithTz } from '../../utils/timezone.js';
 import {
   DEFAULT_DRAWING_COLOR,
@@ -293,12 +282,14 @@ useSubIndicatorSeries({
   volumePaneRef,
   schedulePaneElementsSync,
 });
-
-
+useMainIndicatorSeries({
+  chartRef,
+  candlestickSeriesRef,
+  lineSeriesMapRef,
+  candles,
+  indicators,
+});
   useEffect(() => {
-    // Warna volume dari panel properties tidak boleh terbawa
-    // ketika pengguna berpindah sesi.
-    setVolumeColorOverride(null);
     setSubPropertiesTargetId(null);
   }, [sessionId]);
 
@@ -724,8 +715,12 @@ const {
     }
   }, [candles]);
 
+
+
+
+  
   // =========================================================
-  // VOLUME
+  // VOLUME CONFIGURATION
   // =========================================================
 
   const volumeIndicators = useMemo(
@@ -740,9 +735,6 @@ const {
     (indicator) => indicator.visible,
   );
 
-  // Toolbar volume adalah kontrol utama. Jika pengguna menambahkan
-  // indikator Volume lewat modal, visibilitas indikator tersebut juga
-  // dihormati agar tombol show/hide pada modal tetap berfungsi.
   const volumeVisible = Boolean(visibleVolumeIndicator);
 
   const volumeColor =
@@ -767,300 +759,24 @@ const {
     );
   }, [candles, volumeType]);
 
-  useEffect(() => {
-    const chart = chartRef.current;
-    if (!chart) return;
 
-    const realVolumeUnavailable =
-      volumeType === 'REAL' && !hasRealVolume;
+  // =========================================================
+  // VOLUME SERIES
+  // =========================================================
 
-    const shouldShowVolume =
-      volumeVisible &&
-      candles.length > 0 &&
-      !realVolumeUnavailable;
-
-    if (!shouldShowVolume) {
-      const series = volumeSeriesRef.current;
-      const pane = volumePaneRef.current;
-
-      if (!series && !pane) return;
-
-      volumeSeriesRef.current = null;
-      volumePaneRef.current = null;
-
-      if (series) {
-        try {
-          chart.removeSeries(series);
-        } catch {
-          // Seri mungkin sudah dilepas.
-        }
-      }
-
-      if (pane) {
-        try {
-          chart.removePane(pane.paneIndex());
-        } catch {
-          // Pane mungkin sudah dilepas.
-        }
-      }
-
-      schedulePaneElementsSync();
-
-      return;
-    }
-    let pane = volumePaneRef.current;
-    let paneCreated = false;
-
-    if (!pane) {
-      try {
-        pane = chart.addPane(true);
-        pane.setHeight(SUB_PANE_HEIGHT);
-        volumePaneRef.current = pane;
-        paneCreated = true;
-      } catch (error) {
-        console.error(
-          '[TradingChart] Gagal membuat pane volume:',
-          error,
-        );
-        return;
-      }
-    }
-
-    if (paneCreated) {
-      schedulePaneElementsSync();
-    }
-
-    let series = volumeSeriesRef.current;
-
-    if (!series) {
-      try {
-        series = pane.addSeries(HistogramSeries, {
-          priceFormat: {
-            type: 'volume',
-          },
-          priceLineVisible: false,
-          lastValueVisible: false,
-        });
-
-        series.priceScale().applyOptions({
-          scaleMargins: {
-            top: 0.1,
-            bottom: 0,
-          },
-        });
-
-        volumeSeriesRef.current = series;
-      } catch (error) {
-        console.error(
-          '[TradingChart] Gagal membuat seri volume:',
-          error,
-        );
-        return;
-      }
-    }
-
-    try {
-      const data = buildVolumeDataFromCandles(candles, {
-        source:
-          volumeType === 'REAL'
-            ? 'realVolume'
-            : 'tickVolume',
-        bullishColor: volumeColor,
-        bearishColor: '#ef5350',
-        neutralColor: '#94a3b8',
-      });
-
-      series.applyOptions({
-        visible: true,
-        color: volumeColor,
-      });
-
-      series.setData(data);
-    } catch (error) {
-      console.error(
-        '[TradingChart] Gagal memperbarui volume:',
-        error,
-      );
-
-      try {
-        series.setData([]);
-      } catch {
-        // Chart mungkin sudah dilepas.
-      }
-    }
-  }, [
+  useVolumeSeries({
+    chartRef,
+    volumeSeriesRef,
+    volumePaneRef,
     candles,
     volumeVisible,
     volumeType,
     hasRealVolume,
     volumeColor,
     schedulePaneElementsSync,
-  ]);
+  });
 
-  // =========================================================
-  // MAIN INDICATORS: EMA, SMA, BOLLINGER
-  // =========================================================
-
-  useEffect(() => {
-    const chart = chartRef.current;
-    if (!chart || !candlestickSeriesRef.current) return;
-
-    const activeIndicators = indicators.filter(
-      (indicator) =>
-        indicator.pane === 'main' && indicator.visible,
-    );
-
-    const neededSeriesIds = new Set<string>();
-
-    for (const indicator of activeIndicators) {
-      if (
-        indicator.type === 'EMA' ||
-        indicator.type === 'SMA'
-      ) {
-        neededSeriesIds.add(indicator.id);
-
-        let series = lineSeriesMapRef.current.get(indicator.id);
-
-        if (!series) {
-          series = chart.addSeries(LineSeries, {
-            color: indicator.color,
-            lineWidth: indicator.strokeWidth as 1 | 2 | 3 | 4,
-            title: indicator.name,
-            crosshairMarkerVisible: true,
-          });
-
-          lineSeriesMapRef.current.set(indicator.id, series);
-        } else {
-          series.applyOptions({
-            color: indicator.color,
-            lineWidth: indicator.strokeWidth as 1 | 2 | 3 | 4,
-            title: indicator.name,
-          });
-        }
-
-        const points =
-          indicator.type === 'EMA'
-            ? calculateEMA(candles, indicator.period)
-            : calculateSMA(candles, indicator.period);
-
-        const data: LineData<Time>[] = points
-          .filter(
-            (point) =>
-              Number.isFinite(point.time) &&
-              Number.isFinite(point.value),
-          )
-          .map((point) => ({
-            time: Math.floor(point.time) as Time,
-            value: point.value,
-          }));
-
-        series.setData(data);
-      }
-
-      if (indicator.type === 'BOLLINGER') {
-        const upperId = `${indicator.id}-upper`;
-        const middleId = `${indicator.id}-middle`;
-        const lowerId = `${indicator.id}-lower`;
-
-        neededSeriesIds.add(upperId);
-        neededSeriesIds.add(middleId);
-        neededSeriesIds.add(lowerId);
-
-        let upperSeries = lineSeriesMapRef.current.get(upperId);
-        let middleSeries = lineSeriesMapRef.current.get(middleId);
-        let lowerSeries = lineSeriesMapRef.current.get(lowerId);
-
-        if (!upperSeries) {
-          upperSeries = chart.addSeries(LineSeries, {
-            color: indicator.upperColor || indicator.color,
-            lineWidth: 1,
-            title: 'BB Upper',
-          });
-
-          lineSeriesMapRef.current.set(upperId, upperSeries);
-        } else {
-          upperSeries.applyOptions({
-            color: indicator.upperColor || indicator.color,
-            lineWidth: 1,
-            title: 'BB Upper',
-          });
-        }
-
-        if (!middleSeries) {
-          middleSeries = chart.addSeries(LineSeries, {
-            color: indicator.color,
-            lineWidth: 2,
-            title: 'BB Mid',
-          });
-
-          lineSeriesMapRef.current.set(middleId, middleSeries);
-        } else {
-          middleSeries.applyOptions({
-            color: indicator.color,
-            lineWidth: 2,
-            title: 'BB Mid',
-          });
-        }
-
-        if (!lowerSeries) {
-          lowerSeries = chart.addSeries(LineSeries, {
-            color: indicator.lowerColor || indicator.color,
-            lineWidth: 1,
-            title: 'BB Lower',
-          });
-
-          lineSeriesMapRef.current.set(lowerId, lowerSeries);
-        } else {
-          lowerSeries.applyOptions({
-            color: indicator.lowerColor || indicator.color,
-            lineWidth: 1,
-            title: 'BB Lower',
-          });
-        }
-
-        const bands = calculateBollingerBands(
-          candles,
-          indicator.period,
-          indicator.stdDev || 2,
-        );
-
-        upperSeries.setData(
-          bands.upper.map((point) => ({
-            time: Math.floor(point.time) as Time,
-            value: point.value,
-          })),
-        );
-
-        middleSeries.setData(
-          bands.middle.map((point) => ({
-            time: Math.floor(point.time) as Time,
-            value: point.value,
-          })),
-        );
-
-        lowerSeries.setData(
-          bands.lower.map((point) => ({
-            time: Math.floor(point.time) as Time,
-            value: point.value,
-          })),
-        );
-      }
-    }
-
-    for (const [id, series] of lineSeriesMapRef.current) {
-      if (neededSeriesIds.has(id)) continue;
-
-      try {
-        chart.removeSeries(series);
-      } catch {
-        // Seri mungkin sudah dilepas.
-      }
-
-      lineSeriesMapRef.current.delete(id);
-    }
-  }, [candles, indicators]);
-
-  
+ 
 
   // =========================================================
   // SUB-INDICATOR CONTROLS / PROPERTIES
