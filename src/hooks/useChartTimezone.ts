@@ -12,39 +12,42 @@ import { formatDateTimeWithTz } from '../utils/timezone.js';
 // ============================================================
 
 interface UseChartTimezoneProps {
-  chart: IChartApi | null;
+  chartRef: RefObject<IChartApi | null>;
   activeTimezone: string;
   activeTimezoneRef: RefObject<string>;
 }
 
 // ============================================================
 // HOOK: UPDATE CHART TIMEZONE
-// Memperbarui formatter waktu ketika timezone berubah.
+// Memperbarui format waktu chart ketika timezone berubah.
 // ============================================================
 
 export function useChartTimezone({
-  chart,
+  chartRef,
   activeTimezone,
   activeTimezoneRef,
 }: UseChartTimezoneProps): void {
   useEffect(() => {
     // --------------------------------------------------------
-    // 1. SIMPAN TIMEZONE TERBARU KE REF
+    // 1. UPDATE TIMEZONE REF
     // --------------------------------------------------------
-    // useChartInitialization menggunakan ref ini agar formatter
-    // selalu membaca timezone terbaru tanpa membuat ulang chart.
 
     activeTimezoneRef.current = activeTimezone;
 
     // --------------------------------------------------------
-    // 2. PERBARUI FORMATTER WAKTU CHART
+    // 2. UPDATE FORMATTER CHART
     // --------------------------------------------------------
 
-    chart?.applyOptions({
+    const chart = chartRef.current;
+
+    if (!chart) return;
+
+    chart.applyOptions({
       localization: {
         timeFormatter: (timeValue: number) =>
           formatDateTimeWithTz(timeValue, activeTimezone),
       },
     });
-  }, [chart, activeTimezone, activeTimezoneRef]);
+
+  }, [chartRef, activeTimezone, activeTimezoneRef]);
 }

@@ -10,7 +10,6 @@
 // ============================================================
 
 import React, {
-  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -48,6 +47,9 @@ import { useMainIndicatorSeries } from '../../hooks/useMainIndicatorSeries.js';
 import { useSubIndicatorData } from '../../hooks/useSubIndicatorData.js';
 import { useChartTheme } from '../../hooks/useChartTheme.js';
 import { useChartTimezone } from '../../hooks/useChartTimezone.js';
+import { useChartCandleUpdate } from '../../hooks/useChartCandleUpdate.js';
+import { useIndicatorProperties } from '../../hooks/useIndicatorProperties.js';
+import { useChartControls } from '../../hooks/useChartControls.js';
 
 import {
   useSubIndicatorSeries,
@@ -211,6 +213,12 @@ export const TradingChart: React.FC<TradingChartProps> = ({
 
   const chartRef = useRef<IChartApi | null>(null);
 
+  const {
+    fitContent,
+  } = useChartControls({
+    chartRef,
+  });
+
   const [chartInstance, setChartInstance] =
     useState<IChartApi | null>(null);
 
@@ -342,11 +350,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
   // ----------------------------------------------------------
 
   const [isIndicatorManagerModalOpen, setIsIndicatorManagerModalOpen] =
-    useState(false);
-
-  const [subPropertiesTargetId, setSubPropertiesTargetId] =
-    useState<string | null>(null);
-
+    useState(false)
 
   // ----------------------------------------------------------
   // Volume appearance
@@ -390,13 +394,43 @@ export const TradingChart: React.FC<TradingChartProps> = ({
     setSelectedDrawingId,
   });
 
+  // ============================================================
+  // CHART CANDLE UPDATE
+  // Memperbarui data candle tanpa membuat ulang chart.
+  // ============================================================
+
+    useChartCandleUpdate({
+      candles,
+      candlestickSeriesRef,
+      candlesRef,
+      setHoveredCandle,
+  });
+
+  // ============================================================
+  // INDICATOR PROPERTIES
+  // Mengelola properti dan konfigurasi indikator.
+  // ============================================================
+
+  const {
+    subPropertiesTargetId,
+    setSubPropertiesTargetId,
+    subPropertiesTarget,
+    isVolumeProperties,
+    subPropertiesInitialValues,
+    handleSaveSubIndicatorProperties,
+  } = useIndicatorProperties({
+    indicators,
+    onUpdateIndicators,
+    volumeColorOverride,
+    setVolumeColorOverride,
+  });
 
 
-  useChartTimezone({
-  chartRef,
-  activeTimezone,
-  activeTimezoneRef,
-});
+    useChartTimezone({
+    chartRef,
+    activeTimezone,
+    activeTimezoneRef,
+  });
 
   // ==========================================================
   // 4. DRAWING HISTORY
@@ -538,82 +572,6 @@ export const TradingChart: React.FC<TradingChartProps> = ({
   isDarkMode,
 });
 
-
-
-  // ==========================================================
-  // 14. UPDATE CANDLE DATA
-  // Memperbarui candlestick ketika data candle berubah.
-  // ==========================================================
-
-  useEffect(() => {
-    const series = candlestickSeriesRef.current;
-
-    if (!series) return;
-
-    // Kosongkan chart jika tidak ada candle.
-    if (!candles || candles.length === 0) {
-      series.setData([]);
-      setHoveredCandle(null);
-      return;
-    }
-
-    try {
-      // Validasi dan normalisasi data candle.
-      const candleMap = new Map<number, CandlestickData<Time>>();
-
-      for (const candle of candles) {
-        if (!candle) continue;
-
-        const timestamp = Math.floor(candle.timestamp);
-
-        if (
-          !Number.isFinite(timestamp) ||
-          timestamp <= 0 ||
-          !Number.isFinite(candle.open) ||
-          !Number.isFinite(candle.high) ||
-          !Number.isFinite(candle.low) ||
-          !Number.isFinite(candle.close)
-        ) {
-          continue;
-        }
-
-        candleMap.set(timestamp, {
-          time: timestamp as Time,
-          open: candle.open,
-
-          high: Math.max(
-            candle.high,
-            candle.open,
-            candle.close,
-          ),
-
-          low: Math.min(
-            candle.low,
-            candle.open,
-            candle.close,
-          ),
-
-          close: candle.close,
-        });
-      }
-
-      // Urutkan candle berdasarkan timestamp.
-      const sortedCandles = Array.from(candleMap.values()).sort(
-        (a, b) => Number(a.time) - Number(b.time),
-      );
-
-      // Terapkan data ke candlestick series.
-      series.setData(sortedCandles);
-
-    } catch (error) {
-      console.error(
-        '[TradingChart] Error memperbarui candle:',
-        error,
-      );
-    }
-  }, [candles]);
-
-
   // ==========================================================
   // 15. VOLUME CONFIGURATION
   // Mengatur indikator volume yang aktif dan warnanya.
@@ -676,128 +634,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
     volumeColor,
     schedulePaneElementsSync,
   });
-
-
-  // ==========================================================
-  // 17. INDICATOR PROPERTIES
-  // Mengatur target dan nilai awal properties indikator.
-  // ==========================================================
-
-  // Target indikator yang sedang diedit.
-  const subPropertiesTarget = indicators.find(
-    (indicator) => indicator.id === subPropertiesTargetId,
-  );
-
-  // Periksa apakah yang sedang diedit adalah Volume.
-  const isVolumeProperties =
-    subPropertiesTargetId === VOLUME_PROPERTIES_ID;
-
-
-  // ----------------------------------------------------------
-  // Nilai awal properties indikator
-  // ----------------------------------------------------------
-
-  const subPropertiesInitialValues =
-    useMemo<IndicatorProperties | null>(() => {
-      if (isVolumeProperties) {
-        return {
-          period: 1,
-          color: volumeColor,
-          strokeWidth: 1,
-          stdDev: 2,
-        };
-      }
-
-      if (!subPropertiesTarget) {
-        return null;
-      }
-
-      return {
-        period: subPropertiesTarget.period || 14,
-        color: subPropertiesTarget.color || '#3b82f6',
-        strokeWidth: subPropertiesTarget.strokeWidth || 2,
-        stdDev: subPropertiesTarget.stdDev || 2,
-      };
-    }, [isVolumeProperties, subPropertiesTarget, volumeColor]);
-
-
-  // ----------------------------------------------------------
-  // Simpan perubahan properties indikator
-  // ----------------------------------------------------------
-
-  const handleSaveSubIndicatorProperties = useCallback(
-    (values: IndicatorProperties) => {
-      if (!subPropertiesTargetId) return;
-
-      // Simpan warna volume.
-      if (subPropertiesTargetId === VOLUME_PROPERTIES_ID) {
-        setVolumeColorOverride(values.color);
-        setSubPropertiesTargetId(null);
-        return;
-      }
-
-      // Simpan konfigurasi indikator lainnya.
-      onUpdateIndicators(
-        indicators.map((indicator) => {
-          if (indicator.id !== subPropertiesTargetId) {
-            return indicator;
-          }
-
-          const nextName =
-            indicator.type === 'BOLLINGER'
-              ? `BB (${values.period}, ${values.stdDev})`
-              : indicator.type === 'VOLUME'
-                ? 'Volume'
-                : `${indicator.type} ${values.period}`;
-
-          return {
-            ...indicator,
-
-            period:
-              indicator.type === 'VOLUME'
-                ? indicator.period
-                : values.period,
-
-            color: values.color,
-
-            strokeWidth:
-              indicator.type === 'VOLUME'
-                ? indicator.strokeWidth
-                : values.strokeWidth,
-
-            stdDev:
-              indicator.type === 'BOLLINGER'
-                ? values.stdDev
-                : indicator.stdDev,
-
-            name: nextName,
-          };
-        }),
-      );
-
-      setSubPropertiesTargetId(null);
-    },
-    [indicators, onUpdateIndicators, subPropertiesTargetId],
-  );
-
-
-  // ==========================================================
-  // 18. CHART ACTIONS
-  // Fungsi aksi chart seperti fit content.
-  // ==========================================================
-
-  const handleFitContent = useCallback(() => {
-    const chart = chartRef.current;
-
-    if (!chart) return;
-
-    chart.timeScale().fitContent();
-
-    chart.priceScale('right').applyOptions({
-      autoScale: true,
-    });
-  }, []);
-
+  
 
   // ==========================================================
   // 19. RENDER
@@ -823,7 +660,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
           onOpenIndicatorsModal={() =>
             setIsIndicatorManagerModalOpen(true)
           }
-          onFitContent={handleFitContent}
+          onFitContent={fitContent}
           showReplayControls={showReplayControls}
           onToggleReplay={onToggleReplay}
         />
