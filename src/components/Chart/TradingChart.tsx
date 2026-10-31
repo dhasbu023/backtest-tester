@@ -6,6 +6,10 @@ import React, {
   useState,
 } from 'react';
 import { createPortal } from 'react-dom';
+import {
+  useChartPanes,
+  type SubPaneType,
+} from '../../hooks/useChartPanes.js';
 
 import {
   createChart,
@@ -35,6 +39,8 @@ import { ChartToolbar } from './ChartToolbar.js';
 import { DrawingToolbar } from './DrawingToolbar.js';
 import { DrawingLayer } from './Drawing/DrawingLayer.js';
 import IndicatorManagerModal from '../Indicators/IndicatorManagerModal.js';
+import { CandleInfoBar } from './ChartHeader/CandleInfoBar.js';
+import { useCandleInformation } from '../../hooks/useCandleInformation.js';
 import IndicatorPropertiesModal, {
   type IndicatorProperties,
 } from '../Indicators/IndicatorPropertiesModal.js';
@@ -73,8 +79,6 @@ import {
 } from './utils/chartTimeUtils.js';
 import {
   Sliders,
-  TrendingUp,
-  TrendingDown,
   X,
 } from 'lucide-react';
 
@@ -105,34 +109,6 @@ interface TradingChartProps {
   showReplayControls: boolean;
   onToggleReplay: () => void;
 }
-
-
-
-type SubPaneType = 'RSI' | 'ATR' | 'VOLUME';
-
-
-function getPaneOverlayHost(
-  pane: IPaneApi<Time>,
-): HTMLElement | null {
-  const row = pane.getHTMLElement();
-  if (!row) return null;
-
-  const paneCell = row.children[1];
-  const paneWrapper = paneCell?.firstElementChild;
-
-  if (paneWrapper instanceof HTMLElement) {
-    paneWrapper.style.position = 'relative';
-    return paneWrapper;
-  }
-
-  if (paneCell instanceof HTMLElement) {
-    paneCell.style.position = 'relative';
-    return paneCell;
-  }
-
-  return row;
-}
-
 
 
 export const TradingChart: React.FC<TradingChartProps> = ({
@@ -236,108 +212,27 @@ export const TradingChart: React.FC<TradingChartProps> = ({
   const [isIndicatorManagerModalOpen, setIsIndicatorManagerModalOpen] =
     useState(false);
 
-  const [subPaneElements, setSubPaneElements] = useState<
-    Partial<Record<SubPaneType, HTMLElement>>
-  >({});
-
   const [subPropertiesTargetId, setSubPropertiesTargetId] =
     useState<string | null>(null);
 
   const [volumeColorOverride, setVolumeColorOverride] =
     useState<string | null>(null);
 
-  const syncPaneElements = useCallback(() => {
-    const next: Partial<Record<SubPaneType, HTMLElement>> = {};
 
-    const volumePane = volumePaneRef.current;
-    if (volumePane) {
-      const host = getPaneOverlayHost(volumePane);
-      if (host) next.VOLUME = host;
-    }
+// =========================================================
+// CHART PANES
+// =========================================================
 
-    for (const [type, pane] of subIndicatorPanesRef.current) {
-      if (type === 'VOLUME') continue;
-
-      const host = getPaneOverlayHost(pane);
-      if (host) next[type] = host;
-    }
-
-    setSubPaneElements((previous) => {
-      const nextTypes = Object.keys(next) as SubPaneType[];
-      const previousTypes = Object.keys(previous) as SubPaneType[];
-
-      const isSame =
-        nextTypes.length === previousTypes.length &&
-        nextTypes.every((type) => previous[type] === next[type]);
-
-      return isSame ? previous : next;
-    });
-  }, []);
-
- 
-  const normalizePaneHeights = useCallback((chart: IChartApi) => {
-    const panes = chart.panes();
-    if (panes.length < 2) return;
-
-    const heights = panes.map((pane) => pane.getHeight());
-
-    if (heights.some((height) => !Number.isFinite(height) || height <= 0)) {
-      return;
-    }
-
-    const separators = panes.length - 1;
-    const total =
-      heights.reduce((sum, height) => sum + height, 0) + separators;
-    const subCount = panes.length - 1;
-    const minMainHeight = 120;
-    const maxSubHeight = (total - minMainHeight) / subCount;
-
-    const subHeight = Math.max(
-      30,
-      Math.min(SUB_PANE_HEIGHT, maxSubHeight),
-    );
-    const mainHeight = total - subHeight * subCount;
-
-    panes.forEach((pane, index) => {
-      try {
-        pane.setStretchFactor(
-          index === 0 ? mainHeight : subHeight,
-        );
-      } catch {
-        // Pane mungkin sudah dilepas.
-      }
-    });
-  }, []);
-
-  
-  const schedulePaneElementsSync = useCallback(() => {
-    const delays = [0, 60, 200, 500, 1000];
-    let attempt = 0;
-
-    const trySync = () => {
-      syncPaneElements();
-
-      const chart = chartRef.current;
-      if (chart) {
-        const panes = chart.panes();
-        const layoutReady =
-          panes.length > 0 &&
-          panes.every((pane) => pane.getHeight() > 0);
-
-        if (layoutReady) {
-          normalizePaneHeights(chart);
-        }
-      }
-
-      attempt += 1;
-
-      if (attempt < delays.length) {
-        window.setTimeout(trySync, delays[attempt]);
-      }
-    };
-
-    trySync();
-  }, [normalizePaneHeights, syncPaneElements]);
+const {
+  subPaneElements,
+  syncPaneElements,
+  normalizePaneHeights,
+  schedulePaneElementsSync,
+} = useChartPanes(
+  chartRef,
+  volumePaneRef,
+  subIndicatorPanesRef,
+);
 
   useEffect(() => {
     // Warna volume dari panel properties tidak boleh terbawa
@@ -346,29 +241,15 @@ export const TradingChart: React.FC<TradingChartProps> = ({
     setSubPropertiesTargetId(null);
   }, [sessionId]);
 
-  // =========================================================
-  // CANDLE INFORMATION
-  // =========================================================
+// =========================================================
+// CANDLE INFORMATION
+// =========================================================
 
-  const latestCandle =
-    candles.length > 0 ? candles[candles.length - 1] : null;
-
-  const displayedCandle = hoveredCandle || latestCandle;
-
- 
-
-  const candleChange =
-    displayedCandle &&
-    typeof displayedCandle.close === 'number' &&
-    typeof displayedCandle.open === 'number'
-      ? displayedCandle.close - displayedCandle.open
-      : 0;
-
-  const candleChangePercent =
-    displayedCandle && displayedCandle.open > 0
-      ? (candleChange / displayedCandle.open) * 100
-      : 0;
-
+const {
+  displayedCandle,
+  candleChange,
+  candleChangePercent,
+} = useCandleInformation(candles, hoveredCandle);
   // =========================================================
   // DRAWING HISTORY: UNDO / REDO
   // =========================================================
@@ -1670,78 +1551,14 @@ export const TradingChart: React.FC<TradingChartProps> = ({
 
       </div>
 
-      <div className="relative z-10 flex min-h-9 shrink-0 items-center gap-3 overflow-x-auto border-b border-slate-200 bg-white px-3 py-1.5 dark:border-slate-800 dark:bg-[#0b0f19]">
-        <div className="flex shrink-0 items-center gap-2 font-sans text-xs font-semibold">
-          <span className="text-slate-900 dark:text-white">
-            {symbol}
-          </span>
-
-          <span className="rounded border border-blue-200 bg-blue-50 px-1.5 py-0.5 font-mono text-[10px] text-blue-700 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-300">
-            {timeframe}
-          </span>
-        </div>
-
-        {displayedCandle ? (
-          <div className="flex min-w-0 items-center gap-2.5 whitespace-nowrap font-mono text-[11px] text-slate-600 dark:text-slate-300">
-            <span className="hidden text-slate-400 lg:inline">
-              {formatDateTimeWithTz(
-                displayedCandle.timestamp,
-                activeTimezone,
-              )}
-            </span>
-
-            <span>
-              O:{' '}
-              <b className="text-slate-900 dark:text-white">
-                {formatPrice(displayedCandle.open)}
-              </b>
-            </span>
-
-            <span>
-              H:{' '}
-              <b className="text-emerald-600 dark:text-emerald-400">
-                {formatPrice(displayedCandle.high)}
-              </b>
-            </span>
-
-            <span>
-              L:{' '}
-              <b className="text-rose-600 dark:text-rose-400">
-                {formatPrice(displayedCandle.low)}
-              </b>
-            </span>
-
-            <span>
-              C:{' '}
-              <b className="text-slate-900 dark:text-white">
-                {formatPrice(displayedCandle.close)}
-              </b>
-            </span>
-
-            <span
-              className={`flex items-center gap-1 font-semibold ${
-                candleChange >= 0
-                  ? 'text-emerald-500'
-                  : 'text-rose-500'
-              }`}
-            >
-              {candleChange >= 0 ? (
-                <TrendingUp className="h-3 w-3" />
-              ) : (
-                <TrendingDown className="h-3 w-3" />
-              )}
-
-              {candleChange >= 0 ? '+' : ''}
-              {candleChange.toFixed(2)} (
-              {candleChangePercent.toFixed(2)}%)
-            </span>
-          </div>
-        ) : (
-          <span className="text-xs text-slate-400">
-            Menunggu data candle...
-          </span>
-        )}
-      </div>
+      <CandleInfoBar
+        symbol={symbol}
+        timeframe={timeframe}
+        displayedCandle={displayedCandle}
+        candleChange={candleChange}
+        candleChangePercent={candleChangePercent}
+        activeTimezone={activeTimezone}
+      />
 
       <div className="relative flex min-h-0 flex-1 overflow-hidden bg-white dark:bg-[#0b0f19]">
         <div className="relative z-30 w-12 shrink-0 overflow-visible border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-[#0b0f19]">
