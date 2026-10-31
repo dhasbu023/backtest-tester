@@ -10,6 +10,9 @@ import {
   useChartPanes,
   type SubPaneType,
 } from '../../hooks/useChartPanes.js';
+import { useDrawingHistory } from '../../hooks/useDrawingHistory.js';
+import { useDrawingActions } from '../../hooks/useDrawingActions.js';
+import { useSubIndicatorData } from '../../hooks/useSubIndicatorData.js';
 
 import {
   createChart,
@@ -203,11 +206,55 @@ export const TradingChart: React.FC<TradingChartProps> = ({
 
   const [selectedDrawingId, setSelectedDrawingId] =
     useState<string | null>(null);
+  // =========================================================
+  // DRAWING HISTORY: UNDO / REDO
+  // =========================================================
 
-  const [drawingHistory, setDrawingHistory] =
-    useState<DrawingObject[][]>(() => [[...drawings]]);
+  const {
+    drawingHistory,
+    historyIndex,
+    canUndo,
+    canRedo,
+    commitDrawingsWithHistory,
+    handleUndo,
+    handleRedo,
+    commitDragHistory,
+  } = useDrawingHistory({
+    drawings,
+    drawingsRef,
+    drawingDragStartRef,
+    onUpdateDrawings,
+    setSelectedDrawingId,
+  });
+  const {
+  handleAddDrawing,
+  handleUpdateDrawing,
+  handleDrawingDragStart,
+  handleDrawingDragEnd,
+  handleDeleteDrawing,
+  handleClearAllDrawings,
+  handleToggleDrawingVisible,
+  handleToggleDrawingLock,
+} = useDrawingActions({
+  sessionId,
+  drawingsRef,
+  drawingDragStartRef,
+  commitDrawingsWithHistory,
+  commitDragHistory,
+  onUpdateDrawings,
+  setSelectedDrawingId,
+});
 
-  const [historyIndex, setHistoryIndex] = useState(0);
+const {
+  subIndicators,
+  subIndicatorReadouts,
+  subIndicatorGroups,
+  handleRemoveSubIndicator,
+} = useSubIndicatorData({
+  candles,
+  indicators,
+  onUpdateIndicators,
+});
 
   const [isIndicatorManagerModalOpen, setIsIndicatorManagerModalOpen] =
     useState(false);
@@ -250,193 +297,7 @@ const {
   candleChange,
   candleChangePercent,
 } = useCandleInformation(candles, hoveredCandle);
-  // =========================================================
-  // DRAWING HISTORY: UNDO / REDO
-  // =========================================================
-
-  const commitDrawingsWithHistory = useCallback(
-    (newDrawings: DrawingObject[]) => {
-      if (isSameDrawings(drawingsRef.current, newDrawings)) {
-        return;
-      }
-
-      drawingsRef.current = newDrawings;
-      onUpdateDrawings(newDrawings);
-
-      setDrawingHistory((previousHistory) => {
-        const base = previousHistory.slice(0, historyIndex + 1);
-        base.push([...newDrawings]);
-        setHistoryIndex(base.length - 1);
-        return base;
-      });
-    },
-    [historyIndex, onUpdateDrawings],
-  );
-
-  const handleUndo = useCallback(() => {
-    if (historyIndex <= 0) return;
-
-    const nextIndex = historyIndex - 1;
-    const previousDrawings = drawingHistory[nextIndex];
-
-    if (!previousDrawings) return;
-
-    drawingDragStartRef.current = null;
-
-    const restored = [...previousDrawings];
-
-    drawingsRef.current = restored;
-    setHistoryIndex(nextIndex);
-    onUpdateDrawings(restored);
-    setSelectedDrawingId(null);
-  }, [historyIndex, drawingHistory, onUpdateDrawings]);
-
-  const handleRedo = useCallback(() => {
-    if (historyIndex >= drawingHistory.length - 1) return;
-
-    const nextIndex = historyIndex + 1;
-    const nextDrawings = drawingHistory[nextIndex];
-
-    if (!nextDrawings) return;
-
-    drawingDragStartRef.current = null;
-
-    const restored = [...nextDrawings];
-
-    drawingsRef.current = restored;
-    setHistoryIndex(nextIndex);
-    onUpdateDrawings(restored);
-    setSelectedDrawingId(null);
-  }, [historyIndex, drawingHistory, onUpdateDrawings]);
-
-  // =========================================================
-  // DRAWING ACTIONS
-  // =========================================================
-
-  const handleAddDrawing = useCallback(
-    (drawing: DrawingObject) => {
-      const drawingWithSession: DrawingObject = {
-        ...drawing,
-        sessionId,
-      };
-
-      const updated = [
-        ...drawingsRef.current,
-        drawingWithSession,
-      ];
-
-      commitDrawingsWithHistory(updated);
-      setSelectedDrawingId(drawing.id);
-    },
-    [sessionId, commitDrawingsWithHistory],
-  );
-
-  const handleUpdateDrawing = useCallback(
-    (drawing: DrawingObject) => {
-      const current = drawingsRef.current;
-      const existing = current.find((item) => item.id === drawing.id);
-
-      if (!existing || existing === drawing) return;
-
-      const updated = current.map((item) =>
-        item.id === drawing.id ? drawing : item,
-      );
-
-      drawingsRef.current = updated;
-
-      if (drawingDragStartRef.current !== null) {
-        onUpdateDrawings(updated);
-        return;
-      }
-
-      commitDrawingsWithHistory(updated);
-    },
-    [commitDrawingsWithHistory, onUpdateDrawings],
-  );
-
-  const handleDrawingDragStart = useCallback(() => {
-    if (drawingDragStartRef.current === null) {
-      drawingDragStartRef.current = [...drawingsRef.current];
-    }
-  }, []);
-
-  const handleDrawingDragEnd = useCallback(() => {
-    const initialDrawings = drawingDragStartRef.current;
-
-    if (initialDrawings === null) return;
-
-    drawingDragStartRef.current = null;
-
-    const finalDrawings = drawingsRef.current;
-
-    if (isSameDrawings(initialDrawings, finalDrawings)) return;
-
-    setDrawingHistory((previousHistory) => {
-      const base = previousHistory.slice(0, historyIndex + 1);
-      base.push([...finalDrawings]);
-      setHistoryIndex(base.length - 1);
-      return base;
-    });
-  }, [historyIndex]);
-
-  const handleDeleteDrawing = useCallback(
-    (id: string) => {
-      const updated = drawingsRef.current.filter(
-        (drawing) => drawing.id !== id,
-      );
-
-      if (updated.length === drawingsRef.current.length) return;
-
-      commitDrawingsWithHistory(updated);
-
-      setSelectedDrawingId((previous) =>
-        previous === id ? null : previous,
-      );
-    },
-    [commitDrawingsWithHistory],
-  );
-
-  const handleClearAllDrawings = useCallback(() => {
-    if (drawingsRef.current.length === 0) return;
-
-    commitDrawingsWithHistory([]);
-    setSelectedDrawingId(null);
-  }, [commitDrawingsWithHistory]);
-
-  const handleToggleDrawingVisible = useCallback(
-    (id: string) => {
-      const updated = drawingsRef.current.map((drawing) =>
-        drawing.id === id
-          ? { ...drawing, visible: !drawing.visible }
-          : drawing,
-      );
-
-      commitDrawingsWithHistory(updated);
-    },
-    [commitDrawingsWithHistory],
-  );
-
-  const handleToggleDrawingLock = useCallback(
-    (id: string) => {
-      const updated = drawingsRef.current.map((drawing) =>
-        drawing.id === id
-          ? { ...drawing, locked: !drawing.locked }
-          : drawing,
-      );
-
-      commitDrawingsWithHistory(updated);
-    },
-    [commitDrawingsWithHistory],
-  );
-
-  useEffect(() => {
-    if (drawingDragStartRef.current !== null) return;
-    if (isSameDrawings(drawingsRef.current, drawings)) return;
-
-    drawingsRef.current = drawings;
-    setDrawingHistory([[...drawings]]);
-    setHistoryIndex(0);
-  }, [drawings]);
+ 
 
   // =========================================================
   // INITIALIZE CHART
@@ -1189,52 +1050,6 @@ const {
   // SUB-INDICATORS: RSI / ATR
   // =========================================================
 
-  const subIndicators = useMemo(
-    () =>
-      indicators.filter(
-        (indicator) =>
-          indicator.pane === 'sub' &&
-          indicator.visible &&
-          (indicator.type === 'RSI' || indicator.type === 'ATR'),
-      ),
-    [indicators],
-  );
-
-  const subIndicatorReadouts = useMemo(() => {
-    const readouts: Record<string, number | null> = {};
-
-    for (const indicator of subIndicators) {
-      const points =
-        indicator.type === 'RSI'
-          ? calculateRSI(candles, indicator.period || 14)
-          : calculateATR(candles, indicator.period || 14);
-
-      const latest = points.length
-        ? points[points.length - 1]?.value
-        : undefined;
-
-      readouts[indicator.id] =
-        typeof latest === 'number' && Number.isFinite(latest)
-          ? latest
-          : null;
-    }
-
-    return readouts;
-  }, [candles, subIndicators]);
-
-  const handleRemoveSubIndicator = useCallback(
-    (id: string) => {
-      onUpdateIndicators(
-        indicators.map((indicator) =>
-          indicator.id === id
-            ? { ...indicator, visible: false }
-            : indicator,
-        ),
-      );
-    },
-    [indicators, onUpdateIndicators],
-  );
-
   useEffect(() => {
     const chart = chartRef.current;
     if (!chart) return;
@@ -1411,26 +1226,7 @@ const {
   // SUB-INDICATOR CONTROLS / PROPERTIES
   // =========================================================
 
-  const subIndicatorGroups = useMemo(() => {
-    const groups: Partial<
-      Record<'RSI' | 'ATR', IndicatorConfig[]>
-    > = {};
-
-    for (const indicator of subIndicators) {
-      if (
-        indicator.type !== 'RSI' &&
-        indicator.type !== 'ATR'
-      ) {
-        continue;
-      }
-
-      const group = groups[indicator.type] || [];
-      group.push(indicator);
-      groups[indicator.type] = group;
-    }
-
-    return groups;
-  }, [subIndicators]);
+  
 
   const subPropertiesTarget = indicators.find(
     (indicator) => indicator.id === subPropertiesTargetId,
@@ -1569,8 +1365,8 @@ const {
             onChangeColor={setCurrentColor}
             currentStrokeWidth={currentStrokeWidth}
             onChangeStrokeWidth={setCurrentStrokeWidth}
-            canUndo={historyIndex > 0}
-            canRedo={historyIndex < drawingHistory.length - 1}
+            canUndo={canUndo}
+            canRedo={canRedo}
             onUndo={handleUndo}
             onRedo={handleRedo}
             onClearAll={handleClearAllDrawings}
