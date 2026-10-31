@@ -25,7 +25,6 @@ import { createPortal } from 'react-dom';
 // ============================================================
 
 import {
-  ColorType,
   type CandlestickData,
   type IChartApi,
   type IPaneApi,
@@ -47,6 +46,7 @@ import { useDrawingActions } from '../../hooks/useDrawingActions.js';
 import { useDrawingHistory } from '../../hooks/useDrawingHistory.js';
 import { useMainIndicatorSeries } from '../../hooks/useMainIndicatorSeries.js';
 import { useSubIndicatorData } from '../../hooks/useSubIndicatorData.js';
+import { useChartTheme } from '../../hooks/useChartTheme.js';
 
 import {
   useSubIndicatorSeries,
@@ -529,57 +529,10 @@ export const TradingChart: React.FC<TradingChartProps> = ({
   // Mengubah warna chart ketika dark mode berubah.
   // ==========================================================
 
-  useEffect(() => {
-    const chart = chartRef.current;
-
-    if (!chart) return;
-
-    chart.applyOptions({
-      layout: {
-        background: {
-          type: ColorType.Solid,
-          color: isDarkMode ? '#0b0f19' : '#ffffff',
-        },
-        textColor: isDarkMode ? '#94a3b8' : '#475569',
-      },
-
-      grid: {
-        vertLines: {
-          color: isDarkMode
-            ? 'rgba(30, 41, 59, 0.6)'
-            : '#f1f5f9',
-        },
-        horzLines: {
-          color: isDarkMode
-            ? 'rgba(30, 41, 59, 0.6)'
-            : '#f1f5f9',
-        },
-      },
-
-      crosshair: {
-        vertLine: {
-          color: isDarkMode ? '#3b82f6' : '#2563eb',
-          labelBackgroundColor: isDarkMode
-            ? '#1e293b'
-            : '#2563eb',
-        },
-        horzLine: {
-          color: isDarkMode ? '#3b82f6' : '#2563eb',
-          labelBackgroundColor: isDarkMode
-            ? '#1e293b'
-            : '#2563eb',
-        },
-      },
-
-      timeScale: {
-        borderColor: isDarkMode ? '#1e293b' : '#e2e8f0',
-      },
-
-      rightPriceScale: {
-        borderColor: isDarkMode ? '#1e293b' : '#e2e8f0',
-      },
-    });
-  }, [isDarkMode]);
+  useChartTheme({
+  chart: chartInstance,
+  isDarkMode,
+});
 
 
   // ==========================================================
