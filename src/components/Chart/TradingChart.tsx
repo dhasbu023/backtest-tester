@@ -7,12 +7,15 @@ import React, {
 } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  useChartPanes,
-  type SubPaneType,
+  useChartPanes,  
 } from '../../hooks/useChartPanes.js';
 import { useDrawingHistory } from '../../hooks/useDrawingHistory.js';
 import { useDrawingActions } from '../../hooks/useDrawingActions.js';
 import { useSubIndicatorData } from '../../hooks/useSubIndicatorData.js';
+import {
+  useSubIndicatorSeries,
+  type SubPaneType,
+} from '../../hooks/useSubIndicatorSeries.js';
 
 import {
   createChart,
@@ -256,6 +259,7 @@ const {
   onUpdateIndicators,
 });
 
+
   const [isIndicatorManagerModalOpen, setIsIndicatorManagerModalOpen] =
     useState(false);
 
@@ -280,6 +284,16 @@ const {
   volumePaneRef,
   subIndicatorPanesRef,
 );
+useSubIndicatorSeries({
+  chartRef,
+  candles,
+  indicators,
+  subIndicatorPanesRef,
+  subIndicatorSeriesMapRef,
+  volumePaneRef,
+  schedulePaneElementsSync,
+});
+
 
   useEffect(() => {
     // Warna volume dari panel properties tidak boleh terbawa
@@ -1046,181 +1060,7 @@ const {
     }
   }, [candles, indicators]);
 
-  // =========================================================
-  // SUB-INDICATORS: RSI / ATR
-  // =========================================================
-
-  useEffect(() => {
-    const chart = chartRef.current;
-    if (!chart) return;
-
-    const active = indicators.filter(
-      (indicator) =>
-        indicator.pane === 'sub' &&
-        indicator.visible &&
-        (indicator.type === 'RSI' || indicator.type === 'ATR'),
-    );
-
-    const needed = new Set<string>();
-    const activeTypes = new Set<SubPaneType>();
-    const paneByType = subIndicatorPanesRef.current;
-    let panesChanged = false;
-
-    for (const indicator of active) {
-      const type: SubPaneType =
-        indicator.type === 'RSI' ? 'RSI' : 'ATR';
-
-      needed.add(indicator.id);
-      activeTypes.add(type);
-
-      let pane = paneByType.get(type);
-
-      if (!pane) {
-        try {
-          pane = chart.addPane(true);
-          pane.setHeight(SUB_PANE_HEIGHT);
-
-          // Jaga volume tetap berada di pane paling bawah.
-          const volumePane = volumePaneRef.current;
-
-          if (volumePane) {
-            try {
-              pane.moveTo(volumePane.paneIndex());
-            } catch {
-              // Pane mungkin belum siap dipindahkan.
-            }
-          }
-
-          paneByType.set(type, pane);
-          panesChanged = true;
-        } catch (error) {
-          console.error(
-            `[TradingChart] Gagal membuat pane ${type}:`,
-            error,
-          );
-          continue;
-        }
-      }
-
-      let series = subIndicatorSeriesMapRef.current.get(
-        indicator.id,
-      );
-
-      const lineColor =
-        indicator.color ||
-        (indicator.type === 'RSI' ? '#a855f7' : '#f59e0b');
-
-      const lineWidth = Math.max(
-        1,
-        Math.min(4, indicator.strokeWidth || 2),
-      ) as 1 | 2 | 3 | 4;
-
-      if (!series) {
-        try {
-          series = pane.addSeries(LineSeries, {
-            color: lineColor,
-            lineWidth,
-            title: indicator.name || indicator.type,
-            crosshairMarkerVisible: true,
-            priceLineVisible: false,
-            lastValueVisible: true,
-            ...(indicator.type === 'RSI'
-              ? {
-                  autoscaleInfoProvider: () => ({
-                    priceRange: {
-                      minValue: 0,
-                      maxValue: 100,
-                    },
-                    margins: {
-                      above: 0,
-                      below: 0,
-                    },
-                  }),
-                }
-              : {}),
-          });
-
-          subIndicatorSeriesMapRef.current.set(
-            indicator.id,
-            series,
-          );
-        } catch (error) {
-          console.error(
-            `[TradingChart] Gagal membuat seri ${indicator.type}:`,
-            error,
-          );
-          continue;
-        }
-      } else {
-        series.applyOptions({
-          color: lineColor,
-          lineWidth,
-          title: indicator.name || indicator.type,
-          visible: true,
-        });
-      }
-
-      const points =
-        indicator.type === 'RSI'
-          ? calculateRSI(candles, indicator.period || 14)
-          : calculateATR(candles, indicator.period || 14);
-
-      const data: LineData<Time>[] = points
-        .filter(
-          (point) =>
-            Number.isFinite(point.time) &&
-            Number.isFinite(point.value),
-        )
-        .map((point) => ({
-          time: Math.floor(point.time) as Time,
-          value: point.value,
-        }));
-
-      try {
-        series.setData(data);
-      } catch (error) {
-        console.error(
-          `[TradingChart] Gagal memperbarui data ${indicator.type}:`,
-          error,
-        );
-      }
-    }
-
-    for (const [id, series] of subIndicatorSeriesMapRef.current) {
-      if (needed.has(id)) continue;
-
-      try {
-        chart.removeSeries(series);
-      } catch {
-        // Seri mungkin sudah dilepas.
-      }
-
-      subIndicatorSeriesMapRef.current.delete(id);
-    }
-
-    // Hapus pane yang tidak lagi memiliki indikator aktif. Dengan cara
-    // ini tidak ada panel kosong/garis sisa di bawah chart.
-    for (const [type, pane] of Array.from(paneByType.entries())) {
-      if (activeTypes.has(type)) continue;
-
-      paneByType.delete(type);
-      panesChanged = true;
-
-      try {
-        chart.removePane(pane.paneIndex());
-      } catch {
-        // Pane mungkin sudah dilepas.
-      }
-    }
-
-    if (panesChanged) {
-      schedulePaneElementsSync();
-    }
-  }, [
-    candles,
-    indicators,
-    schedulePaneElementsSync,
-  ]);
+  
 
   // =========================================================
   // SUB-INDICATOR CONTROLS / PROPERTIES
