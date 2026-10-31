@@ -47,6 +47,7 @@ import { useDrawingHistory } from '../../hooks/useDrawingHistory.js';
 import { useMainIndicatorSeries } from '../../hooks/useMainIndicatorSeries.js';
 import { useSubIndicatorData } from '../../hooks/useSubIndicatorData.js';
 import { useChartTheme } from '../../hooks/useChartTheme.js';
+import { useChartTimezone } from '../../hooks/useChartTimezone.js';
 
 import {
   useSubIndicatorSeries,
@@ -97,11 +98,7 @@ import IndicatorPropertiesModal, {
 } from '../Indicators/IndicatorPropertiesModal.js';
 
 
-// ============================================================
-// 8. UTILITIES
-// ============================================================
 
-import { formatDateTimeWithTz } from '../../utils/timezone.js';
 
 import {
   DEFAULT_DRAWING_COLOR,
@@ -394,6 +391,13 @@ export const TradingChart: React.FC<TradingChartProps> = ({
   });
 
 
+
+  useChartTimezone({
+  chartRef,
+  activeTimezone,
+  activeTimezoneRef,
+});
+
   // ==========================================================
   // 4. DRAWING HISTORY
   // Mengatur undo, redo, dan riwayat perubahan drawing.
@@ -534,22 +538,6 @@ export const TradingChart: React.FC<TradingChartProps> = ({
   isDarkMode,
 });
 
-
-  // ==========================================================
-  // 13. TIMEZONE
-  // Memperbarui formatter waktu sesuai timezone aktif.
-  // ==========================================================
-
-  useEffect(() => {
-    activeTimezoneRef.current = activeTimezone;
-
-    chartRef.current?.applyOptions({
-      localization: {
-        timeFormatter: (timeValue: number) =>
-          formatDateTimeWithTz(timeValue, activeTimezone),
-      },
-    });
-  }, [activeTimezone]);
 
 
   // ==========================================================
