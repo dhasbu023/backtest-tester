@@ -2173,6 +2173,8 @@ export const DrawingLayer: React.FC<DrawingLayerProps> = ({
             showPrice: fibonacciPropertiesDrawing.showPrice ?? true,
             showRatio: fibonacciPropertiesDrawing.showRatio ?? true,
             showBackground: fibonacciPropertiesDrawing.showBackground ?? true,
+            showLabels: fibonacciPropertiesDrawing.showLabels ?? true,
+            labelPosition: fibonacciPropertiesDrawing.labelPosition ?? 'right',
             levels: (fibonacciPropertiesDrawing.levels && fibonacciPropertiesDrawing.levels.length > 0
               ? fibonacciPropertiesDrawing.levels
               : getActiveDefaultFibonacciSettings(fibonacciPropertiesDrawing.color).levels

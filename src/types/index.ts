@@ -104,7 +104,7 @@ export interface ReplayState {
 }
 
 // Indicator Types & Definitions
-export type IndicatorType = 'EMA' | 'SMA' | 'BOLLINGER' | 'RSI' | 'ATR';
+export type IndicatorType = 'EMA' | 'SMA' | 'BOLLINGER' | 'RSI' | 'ATR' | 'VOLUME';
 
 export interface IndicatorConfig {
   id: string;
@@ -156,6 +156,7 @@ export interface DrawingObject {
   extendLeft?: boolean; // for Fibonacci extend left
   extendRight?: boolean; // for Fibonacci extend right
   showLabels?: boolean; // for Fibonacci show labels
+  labelPosition?: 'left' | 'right'; // for Fibonacci label alignment
   showPrice?: boolean; // for Fibonacci / Position show price
   showRatio?: boolean; // for Fibonacci show ratio
   showBackground?: boolean; // for Fibonacci show background

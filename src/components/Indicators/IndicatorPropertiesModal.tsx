@@ -13,7 +13,9 @@ interface IndicatorPropertiesModalProps {
   isOpen: boolean;
   indicatorName: string;
   initialValues: IndicatorProperties;
+  showPeriod?: boolean;
   showStdDev?: boolean;
+  showStrokeWidth?: boolean;
   onClose: () => void;
   onSave: (values: IndicatorProperties) => void;
 }
@@ -24,7 +26,9 @@ const IndicatorPropertiesModal: React.FC<
   isOpen,
   indicatorName,
   initialValues,
+  showPeriod = true,
   showStdDev = false,
+  showStrokeWidth = true,
   onClose,
   onSave,
 }) => {
@@ -42,7 +46,13 @@ const IndicatorPropertiesModal: React.FC<
     setColor(initialValues.color);
     setStrokeWidth(initialValues.strokeWidth);
     setStdDev(initialValues.stdDev);
-  }, [isOpen, initialValues]);
+  }, [
+    isOpen,
+    initialValues.period,
+    initialValues.color,
+    initialValues.strokeWidth,
+    initialValues.stdDev,
+  ]);
 
   if (!isOpen) return null;
 
@@ -78,20 +88,22 @@ const IndicatorPropertiesModal: React.FC<
           </button>
         </div>
 
-        <div>
-          <label className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-300">
-            Periode
-          </label>
-          <input
-            type="number"
-            min={1}
-            max={500}
-            required
-            value={period}
-            onChange={(event) => setPeriod(Number(event.target.value))}
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-          />
-        </div>
+        {showPeriod && (
+          <div>
+            <label className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-300">
+              Periode
+            </label>
+            <input
+              type="number"
+              min={1}
+              max={500}
+              required
+              value={period}
+              onChange={(event) => setPeriod(Number(event.target.value))}
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+            />
+          </div>
+        )}
 
         {showStdDev && (
           <div>
@@ -112,7 +124,7 @@ const IndicatorPropertiesModal: React.FC<
 
         <div>
           <label className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-300">
-            Warna garis
+            Warna
           </label>
           <div className="flex items-center gap-3">
             <input
@@ -126,20 +138,22 @@ const IndicatorPropertiesModal: React.FC<
           </div>
         </div>
 
-        <div>
-          <label className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-300">
-            Ketebalan garis
-          </label>
-          <select
-            value={strokeWidth}
-            onChange={(event) => setStrokeWidth(Number(event.target.value))}
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-          >
-            <option value={1}>1 px — Halus</option>
-            <option value={2}>2 px — Standar</option>
-            <option value={3}>3 px — Tebal</option>
-          </select>
-        </div>
+        {showStrokeWidth && (
+          <div>
+            <label className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-300">
+              Ketebalan garis
+            </label>
+            <select
+              value={strokeWidth}
+              onChange={(event) => setStrokeWidth(Number(event.target.value))}
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+            >
+              <option value={1}>1 px — Halus</option>
+              <option value={2}>2 px — Standar</option>
+              <option value={3}>3 px — Tebal</option>
+            </select>
+          </div>
+        )}
 
         <div className="flex justify-end gap-2 border-t border-slate-200 pt-3 dark:border-slate-800">
           <button

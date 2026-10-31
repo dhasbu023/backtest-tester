@@ -70,7 +70,7 @@
       "datasetId": "a0607134-c715-42cb-8a50-b7becef4f410",
       "symbol": "XAUUSD",
       "sourceTimeframe": "M1",
-      "activeTimeframe": "H1",
+      "activeTimeframe": "M1",
       "startReplayTime": 1782864000,
       "currentReplayTime": 1788220800,
       "currentCandleIndex": 60381,
@@ -78,7 +78,7 @@
       "status": "ACTIVE",
       "notes": "",
       "createdAt": "2026-10-19T11:52:23.852Z",
-      "updatedAt": "2026-10-24T05:24:57.588Z"
+      "updatedAt": "2026-10-26T04:06:52.501Z"
     },
     {
       "id": "00e62d2b-6d6f-4e5e-8c57-51aab321aacc",
@@ -99,14 +99,14 @@
   ],
   "replayStates": [
     {
-      "id": "3f4081d8-def5-4b21-b805-fb0442917bd6",
+      "id": "a0d503d4-6789-40ee-bcb1-d602607778d8",
       "sessionId": "d0ab9058-7c8b-431a-8a69-f2f65e8f905a",
       "currentTime": 1788220800,
       "currentIndex": 60381,
       "speed": 20,
-      "activeTimeframe": "H1",
+      "activeTimeframe": "M1",
       "isPlaying": false,
-      "lastSavedAt": "2026-10-24T05:24:57.588Z"
+      "lastSavedAt": "2026-10-26T04:06:52.501Z"
     },
     {
       "id": "041131d1-ca03-4d71-85c5-84dfaaf25455",
@@ -142,67 +142,11 @@
     {
       "sessionId": "d0ab9058-7c8b-431a-8a69-f2f65e8f905a",
       "timezone": "Asia/Jakarta",
-      "showVolume": true,
+      "showVolume": false,
       "volumeType": "TICK",
-      "indicators": [
-        {
-          "id": "ind-e13a56ec-a55a-47ec-9db6-ec5f2af6d081",
-          "type": "EMA",
-          "name": "EMA 21",
-          "visible": true,
-          "period": 21,
-          "color": "#b3ff0f",
-          "strokeWidth": 2,
-          "pane": "main"
-        },
-        {
-          "id": "ind-cc30e24b-b9ee-4fe5-a667-08f6be2b7a9f",
-          "type": "EMA",
-          "name": "EMA 9",
-          "visible": true,
-          "period": 9,
-          "color": "#3b82f6",
-          "strokeWidth": 2,
-          "pane": "main"
-        },
-        {
-          "id": "ind-2a5cb238-7435-4308-b8f2-575a9dd0df8d",
-          "type": "EMA",
-          "name": "EMA 200",
-          "visible": true,
-          "period": 200,
-          "color": "#ef4444",
-          "strokeWidth": 2,
-          "pane": "main"
-        },
-        {
-          "id": "ind-fa67df10-34da-479a-8d2e-27ba235122ce",
-          "type": "ATR",
-          "name": "ATR 14",
-          "visible": false,
-          "period": 14,
-          "color": "#06b6d4",
-          "strokeWidth": 2,
-          "pane": "sub"
-        },
-        {
-          "id": "ind-9f8db8c2-73c8-472f-9232-c14eb965cdb0",
-          "type": "RSI",
-          "name": "RSI 14",
-          "visible": false,
-          "period": 14,
-          "color": "#8b5cf6",
-          "strokeWidth": 2,
-          "levels": [
-            30,
-            50,
-            70
-          ],
-          "pane": "sub"
-        }
-      ],
-      "id": "7d2a0d09-e3bf-4efe-8f44-a8b10641d659",
-      "updatedAt": "2026-10-25T05:54:32.595Z"
+      "indicators": [],
+      "id": "b7defd8d-62a8-4912-879c-1fc3cc32a022",
+      "updatedAt": "2026-10-30T12:45:48.240Z"
     },
     {
       "sessionId": "00e62d2b-6d6f-4e5e-8c57-51aab321aacc",

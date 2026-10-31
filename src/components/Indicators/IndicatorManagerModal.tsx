@@ -1,11 +1,6 @@
 
 import React, { useMemo, useState } from 'react';
-import {
-  Activity,
-  Check,
-  Sliders,
-  X,
-} from 'lucide-react';
+import { Activity, Sliders, X } from 'lucide-react';
 
 import type {
   IndicatorConfig,
@@ -17,9 +12,8 @@ import IndicatorTabs, {
   type IndicatorTab,
 } from './IndicatorTabs';
 
-import IndicatorList, {
-  type IndicatorCatalogItem,
-} from './IndicatorList';
+import IndicatorList from './IndicatorList';
+import type { IndicatorCatalogItem } from './IndicatorCard';
 
 import IndicatorPropertiesModal, {
   type IndicatorProperties,
@@ -68,6 +62,13 @@ const CATALOG: IndicatorCatalogItem[] = [
     category: 'Volatilitas',
     favorite: false,
   },
+  {
+    id: 'VOLUME',
+    name: 'Volume',
+    description: 'Menampilkan volume transaksi pada setiap candle',
+    category: 'Volume',
+    favorite: false,
+  },
 ];
 
 const PRESET_COLORS = [
@@ -79,6 +80,7 @@ const PRESET_COLORS = [
   '#ec4899',
   '#06b6d4',
   '#e2e8f0',
+  '#26a69a',
 ];
 
 function createIndicatorId(): string {
@@ -105,6 +107,8 @@ function getDefaultPeriod(type: IndicatorType): number {
     case 'RSI':
     case 'ATR':
       return 14;
+    case 'VOLUME':
+      return 14;
     default:
       return 14;
   }
@@ -122,9 +126,27 @@ function getDefaultColor(type: IndicatorType): string {
       return '#8b5cf6';
     case 'ATR':
       return '#06b6d4';
+    case 'VOLUME':
+      return '#26a69a';
     default:
       return '#3b82f6';
   }
+}
+
+function getIndicatorName(
+  type: IndicatorType,
+  period: number,
+  stdDev?: number,
+): string {
+  if (type === 'VOLUME') {
+    return 'Volume';
+  }
+
+  if (type === 'BOLLINGER') {
+    return `BB (${period}, ${stdDev ?? 2})`;
+  }
+
+  return `${type} ${period}`;
 }
 
 const IndicatorManagerModal: React.FC<
@@ -162,61 +184,91 @@ const IndicatorManagerModal: React.FC<
         ...item,
         favorite: favorites.includes(item.id),
       })),
-    [favorites]
+    [favorites],
   );
 
-  const catalogWithAddStatus = catalog;
-
   const favoriteCount = catalog.filter(
-    (item) => item.favorite
+    (item) => item.favorite,
   ).length;
 
   const propertiesTarget = currentIndicators.find(
-    (item) => item.id === propertiesTargetId
+    (item) => item.id === propertiesTargetId,
   );
 
-  if (!isOpen) return null;
+  if (!isOpen) {
+    return null;
+  }
 
   const handleToggleFavorite = (id: string) => {
     setFavorites((previous) =>
       previous.includes(id)
         ? previous.filter((item) => item !== id)
-        : [...previous, id]
+        : [...previous, id],
     );
   };
 
   const handleAddIndicator = (id: string) => {
-    const type = id as IndicatorType;
+  const type = id as IndicatorType;
 
-    setSelectedType(type);
-    setPeriod(getDefaultPeriod(type));
-    setColor(getDefaultColor(type));
-    setStrokeWidth(2);
-    setStdDev(2);
-  };
+  // Volume cukup satu instance.
+  if (type === 'VOLUME') {
+    const existingVolume = currentIndicators.find(
+      (indicator) => indicator.type === 'VOLUME',
+    );
+
+    // Jika sudah ada tetapi disembunyikan, tampilkan kembali.
+    if (existingVolume) {
+      if (!existingVolume.visible) {
+        onUpdateIndicators(
+          currentIndicators.map((indicator) =>
+            indicator.type === 'VOLUME'
+              ? { ...indicator, visible: true }
+              : indicator,
+          ),
+        );
+      }
+
+      return;
+    }
+  }
+
+  setSelectedType(type);
+  setPeriod(getDefaultPeriod(type));
+  setColor(getDefaultColor(type));
+  setStrokeWidth(2);
+  setStdDev(2);
+};
 
   const handleConfirmAdd = () => {
-    if (!selectedType) return;
+    if (!selectedType) {
+      return;
+    }
 
     const validPeriod = Math.max(
       1,
-      Math.min(500, Number(period) || 1)
+      Math.min(500, Number(period) || 1),
+    );
+
+    const validStdDev = Math.max(
+      0.5,
+      Math.min(5, Number(stdDev) || 2),
     );
 
     const newIndicator: IndicatorConfig = {
       id: createIndicatorId(),
       type: selectedType,
-      name:
-        selectedType === 'BOLLINGER'
-          ? `BB (${validPeriod}, ${stdDev})`
-          : `${selectedType} ${validPeriod}`,
+      name: getIndicatorName(
+        selectedType,
+        validPeriod,
+        validStdDev,
+      ),
       visible: true,
       period: validPeriod,
       color,
       strokeWidth,
       stdDev:
         selectedType === 'BOLLINGER'
-          ? stdDev
+          ? validStdDev
           : undefined,
       upperColor:
         selectedType === 'BOLLINGER'
@@ -235,7 +287,9 @@ const IndicatorManagerModal: React.FC<
           ? [30, 50, 70]
           : undefined,
       pane:
-        selectedType === 'RSI' || selectedType === 'ATR'
+        selectedType === 'RSI' ||
+        selectedType === 'ATR' ||
+        selectedType === 'VOLUME'
           ? 'sub'
           : 'main',
     };
@@ -252,24 +306,33 @@ const IndicatorManagerModal: React.FC<
     onUpdateIndicators(
       currentIndicators.map((indicator) =>
         indicator.id === id
-          ? { ...indicator, visible: !indicator.visible }
-          : indicator
-      )
+          ? {
+              ...indicator,
+              visible: !indicator.visible,
+            }
+          : indicator,
+      ),
     );
   };
 
   const handleDelete = (id: string) => {
     onUpdateIndicators(
       currentIndicators.filter(
-        (indicator) => indicator.id !== id
-      )
+        (indicator) => indicator.id !== id,
+      ),
     );
+
+    if (propertiesTargetId === id) {
+      setPropertiesTargetId(null);
+    }
   };
 
   const handleSaveProperties = (
-    values: IndicatorProperties
+    values: IndicatorProperties,
   ) => {
-    if (!propertiesTarget) return;
+    if (!propertiesTarget) {
+      return;
+    }
 
     onUpdateIndicators(
       currentIndicators.map((indicator) => {
@@ -286,12 +349,13 @@ const IndicatorManagerModal: React.FC<
             indicator.type === 'BOLLINGER'
               ? values.stdDev
               : indicator.stdDev,
-          name:
-            indicator.type === 'BOLLINGER'
-              ? `BB (${values.period}, ${values.stdDev})`
-              : `${indicator.type} ${values.period}`,
+          name: getIndicatorName(
+            indicator.type,
+            values.period,
+            values.stdDev,
+          ),
         };
-      })
+      }),
     );
 
     setPropertiesTargetId(null);
@@ -312,6 +376,7 @@ const IndicatorManagerModal: React.FC<
                 <h2 className="text-sm font-bold text-slate-900 dark:text-white">
                   Indikator Teknikal
                 </h2>
+
                 <p className="mt-0.5 text-xs text-slate-500">
                   Cari, tambahkan, dan kelola indikator chart.
                 </p>
@@ -348,14 +413,14 @@ const IndicatorManagerModal: React.FC<
                 KATALOG INDIKATOR
               </h3>
 
-           <IndicatorList
-            indicators={catalogWithAddStatus}
-            searchQuery={searchQuery}
-            activeTab={activeTab}
-            onToggleFavorite={handleToggleFavorite}
-            onAdd={handleAddIndicator}
-            addedIndicatorIds={[]}
-          />
+              <IndicatorList
+                indicators={catalog}
+                searchQuery={searchQuery}
+                activeTab={activeTab}
+                onToggleFavorite={handleToggleFavorite}
+                onAdd={handleAddIndicator}
+                addedIndicatorIds={[]}
+              />
             </section>
 
             <section>
@@ -385,12 +450,15 @@ const IndicatorManagerModal: React.FC<
                         <p className="break-words text-sm font-semibold text-slate-900 dark:text-white">
                           {indicator.name}
                         </p>
+
                         <p className="text-xs text-slate-500">
                           {indicator.pane === 'sub'
                             ? 'Panel bawah'
                             : 'Pada chart utama'}
                           {' · '}
-                          {indicator.strokeWidth}px
+                          {indicator.type === 'VOLUME'
+                            ? 'Histogram'
+                            : `${indicator.strokeWidth}px`}
                         </p>
                       </div>
 
@@ -404,13 +472,16 @@ const IndicatorManagerModal: React.FC<
                             ? 'Sembunyikan'
                             : 'Tampilkan'
                         }
+                        aria-label={
+                          indicator.visible
+                            ? `Sembunyikan ${indicator.name}`
+                            : `Tampilkan ${indicator.name}`
+                        }
                         className="rounded-md p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
                       >
-                        {indicator.visible ? (
-                          <EyeIconFallback visible />
-                        ) : (
-                          <EyeIconFallback visible={false} />
-                        )}
+                        <EyeIconFallback
+                          visible={indicator.visible}
+                        />
                       </button>
 
                       <button
@@ -419,6 +490,7 @@ const IndicatorManagerModal: React.FC<
                           setPropertiesTargetId(indicator.id)
                         }
                         title="Pengaturan"
+                        aria-label={`Pengaturan ${indicator.name}`}
                         className="rounded-md p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
                       >
                         <Sliders size={16} />
@@ -430,6 +502,7 @@ const IndicatorManagerModal: React.FC<
                           handleDelete(indicator.id)
                         }
                         title="Hapus indikator"
+                        aria-label={`Hapus ${indicator.name}`}
                         className="rounded-md p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30"
                       >
                         <X size={16} />
@@ -464,7 +537,10 @@ const IndicatorManagerModal: React.FC<
           >
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                Tambahkan {selectedType}
+                Tambahkan{' '}
+                {selectedType === 'VOLUME'
+                  ? 'Volume'
+                  : selectedType}
               </h3>
 
               <button
@@ -477,27 +553,38 @@ const IndicatorManagerModal: React.FC<
               </button>
             </div>
 
-            <div>
-              <label className="mb-1 block text-xs font-medium">
-                Periode candle
-              </label>
-              <input
-                type="number"
-                min={1}
-                max={500}
-                value={period}
-                onChange={(event) =>
-                  setPeriod(Number(event.target.value))
-                }
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-              />
-            </div>
+            {selectedType !== 'VOLUME' && (
+              <div>
+                <label className="mb-1 block text-xs font-medium">
+                  Periode candle
+                </label>
+
+                <input
+                  type="number"
+                  min={1}
+                  max={500}
+                  value={period}
+                  onChange={(event) =>
+                    setPeriod(Number(event.target.value))
+                  }
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                />
+              </div>
+            )}
+
+            {selectedType === 'VOLUME' && (
+              <p className="text-xs leading-5 text-slate-500">
+                Histogram Volume akan ditampilkan pada panel
+                terpisah di bawah chart utama.
+              </p>
+            )}
 
             {selectedType === 'BOLLINGER' && (
               <div>
                 <label className="mb-1 block text-xs font-medium">
                   StdDev Multiplier
                 </label>
+
                 <input
                   type="number"
                   min={0.5}
@@ -512,27 +599,33 @@ const IndicatorManagerModal: React.FC<
               </div>
             )}
 
-            <div>
-              <label className="mb-1 block text-xs font-medium">
-                Ketebalan garis
-              </label>
-              <select
-                value={strokeWidth}
-                onChange={(event) =>
-                  setStrokeWidth(Number(event.target.value))
-                }
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-              >
-                <option value={1}>1 px</option>
-                <option value={2}>2 px</option>
-                <option value={3}>3 px</option>
-              </select>
-            </div>
+            {selectedType !== 'VOLUME' && (
+              <div>
+                <label className="mb-1 block text-xs font-medium">
+                  Ketebalan garis
+                </label>
+
+                <select
+                  value={strokeWidth}
+                  onChange={(event) =>
+                    setStrokeWidth(Number(event.target.value))
+                  }
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                >
+                  <option value={1}>1 px</option>
+                  <option value={2}>2 px</option>
+                  <option value={3}>3 px</option>
+                </select>
+              </div>
+            )}
 
             <div>
               <label className="mb-2 block text-xs font-medium">
-                Warna indikator
+                {selectedType === 'VOLUME'
+                  ? 'Warna default histogram'
+                  : 'Warna indikator'}
               </label>
+
               <div className="flex flex-wrap items-center gap-2">
                 {PRESET_COLORS.map((preset) => (
                   <button
@@ -552,7 +645,9 @@ const IndicatorManagerModal: React.FC<
                 <input
                   type="color"
                   value={color}
-                  onChange={(event) => setColor(event.target.value)}
+                  onChange={(event) =>
+                    setColor(event.target.value)
+                  }
                   aria-label="Warna kustom"
                   className="h-7 w-8 cursor-pointer"
                 />
