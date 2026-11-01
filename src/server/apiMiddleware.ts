@@ -5,6 +5,43 @@ import { parseMT5CSV } from './csvParser.js';
 import { aggregateCandles, getAllowedTimeframes, isTimeframeAllowed } from './timeframeAggregator.js';
 import { Candle, Timeframe } from '../types/index.js';
 
+
+// Generate structured and unique Backtest Session ID
+function generateSessionId(): string {
+  const date = new Date();
+
+  const datePart =
+    date.getFullYear().toString() +
+    String(date.getMonth() + 1).padStart(2, '0') +
+    String(date.getDate()).padStart(2, '0');
+
+  const uniquePart = randomUUID()
+    .replace(/-/g, '')
+    .slice(0, 12)
+    .toUpperCase();
+
+  return `BTS-${datePart}-${uniquePart}`;
+}
+
+
+
+// Generate structured and unique Dataset ID
+function generateDatasetId(): string {
+  const date = new Date();
+
+  const datePart =
+    date.getFullYear().toString() +
+    String(date.getMonth() + 1).padStart(2, '0') +
+    String(date.getDate()).padStart(2, '0');
+
+  const uniquePart = randomUUID()
+    .replace(/-/g, '')
+    .slice(0, 12)
+    .toUpperCase();
+
+  return `DS-${datePart}-${uniquePart}`;
+}
+
 const apiApp = express();
 
 // Initialize DB on boot
@@ -156,7 +193,7 @@ apiApp.post('/datasets/import', async (req: Request, res: Response) => {
       return res.status(400).json({ error: parsed.error || 'CSV tidak berisi candle valid.' });
     }
 
-    const datasetId = randomUUID();
+    const datasetId = generateDatasetId();
     const firstCandle = parsed.candles[0];
     const lastCandle = parsed.candles[parsed.candles.length - 1];
 
@@ -368,7 +405,7 @@ apiApp.post('/backtest-sessions', async (req: Request, res: Response) => {
           : Math.floor(Date.now() / 1000);
     }
 
-    const sessionId = randomUUID();
+    const sessionId = generateSessionId();
     const speed = replaySpeed || 1.0;
     const now = new Date().toISOString();
 
