@@ -1,0 +1,20 @@
+model Dataset {
+  id           String             @id @default(uuid())
+  name         String
+  symbol       String             @default("XAUUSD")
+  timeframe    String             @default("M1")
+  startDate    DateTime
+  endDate      DateTime
+  candleCount  Int                @default(0)
+  fileSize     BigInt             @default(0)
+  sourceFormat String             @default("MT5_CSV")
+  status       String             @default("READY")
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  sessions     BacktestSession[]
+  candles      Candle[]
+  importJobs   DatasetImportJob[]
+
+  @@index([symbol, timeframe])
+}

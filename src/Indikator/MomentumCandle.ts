@@ -1,288 +1,209 @@
 
-export type MomentumCandleMode = 'Agresif' | 'Konservatif';
+import type { Candle, IndicatorConfig } from '../types';
 
-export type MomentumCandleTimeframe = 'M5' | 'M15' | 'M30';
+export type MomentumSignalType = 'BULLISH' | 'BEARISH';
 
-export interface MomentumCandle {
-  timestamp: number | string;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-}
-
-interface PairTimeframeSettings {
-  enabled: boolean;
-  minBody: number;
+export interface MomentumSignal {
+  time: number;
+  type: MomentumSignalType;
+  price: number;
+  candleIndex: number;
 }
 
 export interface MomentumCandleOptions {
-  modeCandle: MomentumCandleMode;
-  modeAlert: MomentumCandleMode;
-  wickPct: number;
-
-  useKons: boolean;
-  konsCount: number;
-
-  useEMA: boolean;
-  emaTimeframe: 'M5' | 'M15' | 'M30' | 'H1';
-  emaPeriod: number;
-
-  pairs: {
-    XAUUSD: {
-      enabled: boolean;
-      M5: PairTimeframeSettings;
-      M15: PairTimeframeSettings;
-      M30: PairTimeframeSettings;
-    };
-    USDJPY: {
-      enabled: boolean;
-      M5: PairTimeframeSettings;
-      M15: PairTimeframeSettings;
-      M30: PairTimeframeSettings;
-    };
-    GBPUSD: {
-      enabled: boolean;
-      M5: PairTimeframeSettings;
-      M15: PairTimeframeSettings;
-      M30: PairTimeframeSettings;
-    };
-    AUDUSD: {
-      enabled: boolean;
-      M5: PairTimeframeSettings;
-      M15: PairTimeframeSettings;
-      M30: PairTimeframeSettings;
-    };
-    USDCAD: {
-      enabled: boolean;
-      M5: PairTimeframeSettings;
-      M15: PairTimeframeSettings;
-      M30: PairTimeframeSettings;
-    };
-    EURUSD: {
-      enabled: boolean;
-      M5: PairTimeframeSettings;
-      M15: PairTimeframeSettings;
-      M30: PairTimeframeSettings;
-    };
-    NZDUSD: {
-      enabled: boolean;
-      M5: PairTimeframeSettings;
-      M15: PairTimeframeSettings;
-      M30: PairTimeframeSettings;
-    };
-    USDCHF: {
-      enabled: boolean;
-      M5: PairTimeframeSettings;
-      M15: PairTimeframeSettings;
-      M30: PairTimeframeSettings;
-    };
-    BTCUSD: {
-      enabled: boolean;
-      M5: PairTimeframeSettings;
-      M15: PairTimeframeSettings;
-      M30: PairTimeframeSettings;
-    };
-  };
+  candles: Candle[];
+  symbol: string;
+  timeframe: string;
+  config: IndicatorConfig;
 }
 
-export interface MomentumCandleSignal {
-  timestamp: number;
-  direction: 'BULLISH' | 'BEARISH';
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  bodySize: number;
-  upperWick: number;
-  lowerWick: number;
-  minBody: number;
-  emaValue: number | null;
-  trend: 'BULLISH' | 'BEARISH' | 'NEUTRAL' | null;
-  validAlert: boolean;
+interface PairSettings {
+  pipSize: number;
+  minBody: Record<string, number>;
 }
 
-export const DEFAULT_MOMENTUM_CANDLE_OPTIONS: MomentumCandleOptions = {
-  modeCandle: 'Agresif',
-  modeAlert: 'Agresif',
-  wickPct: 30,
-
-  useKons: false,
-  konsCount: 3,
-
-  useEMA: false,
-  emaTimeframe: 'H1',
-  emaPeriod: 50,
-
-  pairs: {
-    XAUUSD: {
-      enabled: true,
-      M5: { enabled: true, minBody: 35 },
-      M15: { enabled: true, minBody: 45 },
-      M30: { enabled: true, minBody: 55 },
+const PAIR_SETTINGS: Record<string, PairSettings> = {
+  XAUUSD: {
+    pipSize: 0.1,
+    minBody: {
+      M5: 35,
+      M15: 45,
+      M30: 55,
     },
-    USDJPY: {
-      enabled: false,
-      M5: { enabled: true, minBody: 10 },
-      M15: { enabled: true, minBody: 15 },
-      M30: { enabled: true, minBody: 20 },
+  },
+  USDJPY: {
+    pipSize: 0.01,
+    minBody: {
+      M5: 10,
+      M15: 15,
+      M30: 20,
     },
-    GBPUSD: {
-      enabled: false,
-      M5: { enabled: true, minBody: 10 },
-      M15: { enabled: true, minBody: 15 },
-      M30: { enabled: true, minBody: 20 },
+  },
+  GBPUSD: {
+    pipSize: 0.0001,
+    minBody: {
+      M5: 10,
+      M15: 15,
+      M30: 20,
     },
-    AUDUSD: {
-      enabled: false,
-      M5: { enabled: true, minBody: 10 },
-      M15: { enabled: true, minBody: 15 },
-      M30: { enabled: true, minBody: 20 },
+  },
+  AUDUSD: {
+    pipSize: 0.0001,
+    minBody: {
+      M5: 10,
+      M15: 15,
+      M30: 20,
     },
-    USDCAD: {
-      enabled: false,
-      M5: { enabled: true, minBody: 10 },
-      M15: { enabled: true, minBody: 15 },
-      M30: { enabled: true, minBody: 20 },
+  },
+  USDCAD: {
+    pipSize: 0.0001,
+    minBody: {
+      M5: 10,
+      M15: 15,
+      M30: 20,
     },
-    EURUSD: {
-      enabled: false,
-      M5: { enabled: true, minBody: 10 },
-      M15: { enabled: true, minBody: 15 },
-      M30: { enabled: true, minBody: 20 },
+  },
+  EURUSD: {
+    pipSize: 0.0001,
+    minBody: {
+      M5: 10,
+      M15: 15,
+      M30: 20,
     },
-    NZDUSD: {
-      enabled: false,
-      M5: { enabled: true, minBody: 10 },
-      M15: { enabled: true, minBody: 15 },
-      M30: { enabled: true, minBody: 20 },
+  },
+  NZDUSD: {
+    pipSize: 0.0001,
+    minBody: {
+      M5: 10,
+      M15: 15,
+      M30: 20,
     },
-    USDCHF: {
-      enabled: false,
-      M5: { enabled: true, minBody: 10 },
-      M15: { enabled: true, minBody: 15 },
-      M30: { enabled: true, minBody: 20 },
+  },
+  USDCHF: {
+    pipSize: 0.0001,
+    minBody: {
+      M5: 10,
+      M15: 15,
+      M30: 20,
     },
-    BTCUSD: {
-      enabled: false,
-      M5: { enabled: true, minBody: 80 },
-      M15: { enabled: true, minBody: 120 },
-      M30: { enabled: true, minBody: 160 },
+  },
+  BTCUSD: {
+    pipSize: 1,
+    minBody: {
+      M5: 80,
+      M15: 120,
+      M30: 160,
     },
   },
 };
 
-const PIP_MULTIPLIERS: Record<string, number> = {
-  XAUUSD: 0.1,
-  USDJPY: 0.01,
-  GBPUSD: 0.0001,
-  AUDUSD: 0.0001,
-  USDCAD: 0.0001,
-  EURUSD: 0.0001,
-  NZDUSD: 0.0001,
-  USDCHF: 0.0001,
-  BTCUSD: 1,
-};
+function normalizeSymbol(symbol: string): string {
+  const normalized = symbol.toUpperCase().replace(/[^A-Z]/g, '');
 
-const TIMEFRAME_SECONDS: Record<string, number> = {
-  M5: 5 * 60,
-  M15: 15 * 60,
-  M30: 30 * 60,
-  H1: 60 * 60,
-};
+  // Mendukung nama broker seperti XAUUSDm, XAUUSD.pro, dan sebagainya.
+  const pairs = Object.keys(PAIR_SETTINGS);
 
-function normalizeSymbol(symbol: string): string | null {
-  const normalized = symbol
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/g, '');
-
-  // Mendukung nama simbol dengan suffix broker,
-  // misalnya XAUUSDm atau XAUUSD.pro.
   return (
-    Object.keys(PIP_MULTIPLIERS).find((pair) =>
-      normalized.startsWith(pair),
-    ) ?? null
+    pairs.find((pair) => normalized.startsWith(pair)) ??
+    pairs.find((pair) => normalized.includes(pair)) ??
+    normalized
   );
 }
 
-function normalizeTimeframe(
+function getPairSettings(symbol: string): PairSettings | null {
+  const normalized = normalizeSymbol(symbol);
+  return PAIR_SETTINGS[normalized] ?? null;
+}
+
+function getMinimumBody(
+  symbol: string,
   timeframe: string,
-): MomentumCandleTimeframe | null {
-  const normalized = timeframe.toUpperCase();
+): number {
+  const pair = getPairSettings(symbol);
 
-  if (['M5', '5', '5M'].includes(normalized)) return 'M5';
-  if (['M15', '15', '15M'].includes(normalized)) return 'M15';
-  if (['M30', '30', '30M'].includes(normalized)) return 'M30';
+  if (!pair) return 0;
 
-  return null;
+  const minPips = pair.minBody[timeframe];
+
+  if (minPips === undefined) return 0;
+
+  return minPips * pair.pipSize;
 }
 
-function calculateEMA(
-  candles: MomentumCandle[],
-  period: number,
-): Array<{ timestamp: number; value: number }> {
-  if (period < 1 || candles.length === 0) {
-    return [];
-  }
-
-  const sorted = [...candles]
-    .filter((candle) =>
-      Number.isFinite(Number(candle.timestamp)) &&
-      Number.isFinite(Number(candle.close)),
-    )
-    .sort(
-      (a, b) =>
-        Number(a.timestamp) - Number(b.timestamp),
-    );
-
-  const multiplier = 2 / (period + 1);
-  const result: Array<{ timestamp: number; value: number }> = [];
-
-  let ema = Number(sorted[0]?.close);
-
-  for (const candle of sorted) {
-    const close = Number(candle.close);
-
-    ema = close * multiplier + ema * (1 - multiplier);
-
-    result.push({
-      timestamp: Number(candle.timestamp),
-      value: ema,
-    });
-  }
-
-  return result;
+function calculateBody(candle: Candle): number {
+  return Math.abs(candle.close - candle.open);
 }
 
-function getEMAAtTime(
-  emaValues: Array<{ timestamp: number; value: number }>,
-  timestamp: number,
-): number | null {
-  let result: number | null = null;
+function calculateTotalWick(candle: Candle): number {
+  const upperWick =
+    candle.high - Math.max(candle.open, candle.close);
 
-  for (const item of emaValues) {
-    if (item.timestamp > timestamp) break;
-    result = item.value;
-  }
+  const lowerWick =
+    Math.min(candle.open, candle.close) - candle.low;
 
-  return result;
+  return Math.max(0, upperWick) + Math.max(0, lowerWick);
 }
 
-function isConsolidationValid(
-  candles: MomentumCandle[],
-  index: number,
-  currentBody: number,
-  count: number,
+function isBullish(candle: Candle): boolean {
+  return candle.close > candle.open;
+}
+
+function isBearish(candle: Candle): boolean {
+  return candle.close < candle.open;
+}
+
+/**
+ * Conservative:
+ * Total wick maksimal sesuai maxWickPercent.
+ *
+ * Contoh:
+ * Body = 70
+ * Total wick = 30
+ * Total candle range = 100
+ * Wick percentage = 30%
+ */
+function passesWickFilter(
+  candle: Candle,
+  maxWickPercent: number,
 ): boolean {
-  if (index < count) {
-    return false;
-  }
+  const body = calculateBody(candle);
+  const totalWick = calculateTotalWick(candle);
+  const totalRange = body + totalWick;
 
-  for (let offset = 1; offset <= count; offset += 1) {
-    const previous = candles[index - offset];
-    const previousBody = Math.abs(
-      Number(previous.close) - Number(previous.open),
-    );
+  if (totalRange <= 0) return false;
+
+  const wickPercent = (totalWick / totalRange) * 100;
+
+  return wickPercent <= maxWickPercent;
+}
+
+/**
+ * Consolidation filter:
+ * Body candle sebelumnya harus lebih kecil
+ * daripada body candle momentum saat ini.
+ *
+ * Semua candle sebelumnya yang diperiksa harus
+ * memiliki body lebih kecil.
+ */
+function passesConsolidationFilter(
+  candles: Candle[],
+  currentIndex: number,
+  consolidationCount: number,
+): boolean {
+  if (consolidationCount <= 0) return true;
+
+  if (currentIndex < consolidationCount) return false;
+
+  const currentBody = calculateBody(candles[currentIndex]);
+
+  if (currentBody <= 0) return false;
+
+  for (
+    let i = currentIndex - consolidationCount;
+    i < currentIndex;
+    i++
+  ) {
+    const previousBody = calculateBody(candles[i]);
 
     if (previousBody >= currentBody) {
       return false;
@@ -292,153 +213,139 @@ function isConsolidationValid(
   return true;
 }
 
+/**
+ * Menghitung EMA berdasarkan candle close.
+ *
+ * Fungsi ini digunakan jika data candle yang diberikan
+ * memang sudah berada pada timeframe EMA yang dipilih.
+ * Untuk timeframe EMA berbeda, agregasi timeframe
+ * harus dilakukan oleh pemanggil sebelum menghitung EMA.
+ */
+export function calculateMomentumEMA(
+  candles: Candle[],
+  period: number,
+): number[] {
+  if (period <= 0 || candles.length === 0) return [];
+
+  const multiplier = 2 / (period + 1);
+
+  const result: number[] = [];
+
+  let ema = candles[0].close;
+
+  for (let i = 0; i < candles.length; i++) {
+    if (i === 0) {
+      ema = candles[i].close;
+    } else {
+      ema =
+        candles[i].close * multiplier +
+        ema * (1 - multiplier);
+    }
+
+    result.push(ema);
+  }
+
+  return result;
+}
+
+/**
+ * Menghitung sinyal Momentum Candle.
+ *
+ * emaValues bersifat opsional:
+ * - Jika filter EMA tidak aktif, tidak diperlukan.
+ * - Jika filter EMA aktif, kirim EMA yang sudah disejajarkan
+ *   dengan candle pada timeframe chart.
+ *
+ * Jangan mengirim EMA H1 mentah untuk chart M5 tanpa
+ * proses penyelarasan timeframe terlebih dahulu.
+ */
 export function calculateMomentumCandleSignals(
-  candles: MomentumCandle[],
-  symbol: string,
-  timeframe: string,
-  options: MomentumCandleOptions = DEFAULT_MOMENTUM_CANDLE_OPTIONS,
-  emaCandles: MomentumCandle[] = [],
-  nowMs: number = Date.now(),
-): MomentumCandleSignal[] {
-  const pair = normalizeSymbol(symbol);
-  const tf = normalizeTimeframe(timeframe);
+  options: MomentumCandleOptions,
+  emaValues?: number[],
+): MomentumSignal[] {
+  const { candles, symbol, timeframe, config } = options;
 
-  if (!pair || !tf || !options.pairs[pair as keyof MomentumCandleOptions['pairs']]) {
+  if (!candles || candles.length === 0) return [];
+
+  if (config.type !== 'MOMENTUM_CANDLE' || !config.visible) {
     return [];
   }
 
-  const pairSettings =
-    options.pairs[pair as keyof MomentumCandleOptions['pairs']];
+  const minimumBody = getMinimumBody(symbol, timeframe);
 
-  if (!pairSettings.enabled || !pairSettings[tf].enabled) {
-    return [];
-  }
+  const mode = config.momentumCandleMode ?? 'CONSERVATIVE';
 
-  const pipMultiplier = PIP_MULTIPLIERS[pair];
-  const minBody =
-    pairSettings[tf].minBody * pipMultiplier;
+  const maxWickPercent = Math.max(
+    0,
+    Math.min(100, config.maxWickPercent ?? 30),
+  );
 
-  const sortedCandles = [...candles]
-    .filter((candle) =>
-      [
-        Number(candle.timestamp),
-        Number(candle.open),
-        Number(candle.high),
-        Number(candle.low),
-        Number(candle.close),
-      ].every(Number.isFinite),
-    )
-    .sort(
-      (a, b) =>
-        Number(a.timestamp) - Number(b.timestamp),
-    );
+  const useConsolidationFilter =
+    config.useConsolidationFilter ?? false;
 
-  const emaValues = options.useEMA
-    ? calculateEMA(emaCandles, options.emaPeriod)
-    : [];
+  const consolidationCount = Math.max(
+    1,
+    Math.floor(config.consolidationCount ?? 3),
+  );
 
-  const signals: MomentumCandleSignal[] = [];
+  const useEmaFilter = config.useEmaFilter ?? false;
 
-  for (let index = 0; index < sortedCandles.length; index += 1) {
-    const candle = sortedCandles[index];
+  const signals: MomentumSignal[] = [];
 
-    const open = Number(candle.open);
-    const high = Number(candle.high);
-    const low = Number(candle.low);
-    const close = Number(candle.close);
-    const timestamp = Number(candle.timestamp);
+  for (let i = 0; i < candles.length; i++) {
+    const candle = candles[i];
 
-    const bodySize = Math.abs(close - open);
-    const upperWick = high - Math.max(open, close);
-    const lowerWick = Math.min(open, close) - low;
-    const totalWick = upperWick + lowerWick;
-    const totalSize = bodySize + totalWick;
+    const body = calculateBody(candle);
 
-    if (bodySize < minBody || totalSize <= 0) {
-      continue;
-    }
+    // Doji tidak dianggap sebagai momentum candle.
+    if (body <= 0) continue;
 
-    const wickPercentage = (totalWick / totalSize) * 100;
+    // Filter minimum body.
+    if (minimumBody > 0 && body < minimumBody) continue;
 
-    if (wickPercentage > options.wickPct) {
-      continue;
-    }
+    const bullish = isBullish(candle);
+    const bearish = isBearish(candle);
 
-    const bullish = close > open;
-    const bearish = close < open;
+    if (!bullish && !bearish) continue;
 
-    if (!bullish && !bearish) {
-      continue;
-    }
-
-    if (options.modeCandle === 'Konservatif') {
-      if (bullish && lowerWick >= upperWick) continue;
-      if (bearish && upperWick >= lowerWick) continue;
-    }
-
+    // Filter wick hanya untuk mode Conservative.
     if (
-      options.useKons &&
-      !isConsolidationValid(
-        sortedCandles,
-        index,
-        bodySize,
-        options.konsCount,
+      mode === 'CONSERVATIVE' &&
+      !passesWickFilter(candle, maxWickPercent)
+    ) {
+      continue;
+    }
+
+    // Filter consolidation.
+    if (
+      useConsolidationFilter &&
+      !passesConsolidationFilter(
+        candles,
+        i,
+        consolidationCount,
       )
     ) {
       continue;
     }
 
-    let emaValue: number | null = null;
-    let trend: MomentumCandleSignal['trend'] = null;
+    // Filter EMA.
+    if (useEmaFilter) {
+      const ema = emaValues?.[i];
 
-    if (options.useEMA) {
-      emaValue = getEMAAtTime(emaValues, timestamp);
-
-      // Belum ada data EMA yang sesuai dengan waktu candle.
-      if (emaValue === null) {
+      // Jangan menghasilkan sinyal jika data EMA belum tersedia.
+      if (ema === undefined || !Number.isFinite(ema)) {
         continue;
       }
 
-      if (close > emaValue) {
-        trend = 'BULLISH';
-      } else if (close < emaValue) {
-        trend = 'BEARISH';
-      } else {
-        trend = 'NEUTRAL';
-      }
-
-      if (bullish && trend !== 'BULLISH') continue;
-      if (bearish && trend !== 'BEARISH') continue;
+      if (bullish && candle.close <= ema) continue;
+      if (bearish && candle.close >= ema) continue;
     }
 
-    const candleDuration =
-      TIMEFRAME_SECONDS[tf] * 1000;
-
-    const candleCloseTime =
-      timestamp * 1000 + candleDuration;
-
-    const timeLeft = candleCloseTime - nowMs;
-
-    const alertWindow =
-      timeLeft <= 90000 && timeLeft >= 20000;
-
-    const validAlert =
-      options.modeAlert === 'Agresif' || alertWindow;
-
     signals.push({
-      timestamp,
-      direction: bullish ? 'BULLISH' : 'BEARISH',
-      open,
-      high,
-      low,
-      close,
-      bodySize,
-      upperWick,
-      lowerWick,
-      minBody,
-      emaValue,
-      trend,
-      validAlert,
+      time: candle.timestamp,
+      type: bullish ? 'BULLISH' : 'BEARISH',
+      price: bullish ? candle.low : candle.high,
+      candleIndex: i,
     });
   }
 

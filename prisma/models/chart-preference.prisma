@@ -1,0 +1,13 @@
+model ChartPreference {
+  id           String          @id @default(uuid())
+  sessionId    String          @unique
+  timezone     String          @default("Asia/Jakarta")
+  showVolume   Boolean         @default(true)
+  volumeType   String          @default("TICK")
+  volumeHeight Float           @default(0.18)
+  indicators   String          @default("[]")
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  session      BacktestSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}

@@ -69,6 +69,14 @@ const CATALOG: IndicatorCatalogItem[] = [
     category: 'Volume',
     favorite: false,
   },
+  {
+    id: 'MOMENTUM_CANDLE',
+    name: 'Momentum Candle Sekolah Trading',
+    description:
+      'Deteksi candle momentum berdasarkan body, wick, konsolidasi, dan filter trend EMA',
+    category: 'Momentum',
+    favorite: false,
+  },
 ];
 
 const PRESET_COLORS = [
@@ -100,15 +108,23 @@ function getDefaultPeriod(type: IndicatorType): number {
   switch (type) {
     case 'EMA':
       return 9;
+
     case 'SMA':
       return 50;
+
     case 'BOLLINGER':
       return 20;
+
     case 'RSI':
     case 'ATR':
       return 14;
+
     case 'VOLUME':
       return 14;
+
+    case 'MOMENTUM_CANDLE':
+      return 14;
+
     default:
       return 14;
   }
@@ -118,16 +134,25 @@ function getDefaultColor(type: IndicatorType): string {
   switch (type) {
     case 'EMA':
       return '#3b82f6';
+
     case 'SMA':
       return '#10b981';
+
     case 'BOLLINGER':
       return '#f59e0b';
+
     case 'RSI':
       return '#8b5cf6';
+
     case 'ATR':
       return '#06b6d4';
+
     case 'VOLUME':
       return '#26a69a';
+
+    case 'MOMENTUM_CANDLE':
+      return '#2563eb';
+
     default:
       return '#3b82f6';
   }
@@ -140,6 +165,10 @@ function getIndicatorName(
 ): string {
   if (type === 'VOLUME') {
     return 'Volume';
+  }
+
+  if (type === 'MOMENTUM_CANDLE') {
+    return 'Momentum Candle Sekolah Trading';
   }
 
   if (type === 'BOLLINGER') {
@@ -208,36 +237,36 @@ const IndicatorManagerModal: React.FC<
   };
 
   const handleAddIndicator = (id: string) => {
-  const type = id as IndicatorType;
+    const type = id as IndicatorType;
 
-  // Volume cukup satu instance.
-  if (type === 'VOLUME') {
-    const existingVolume = currentIndicators.find(
-      (indicator) => indicator.type === 'VOLUME',
-    );
+    // Volume cukup satu instance.
+    if (type === 'VOLUME') {
+      const existingVolume = currentIndicators.find(
+        (indicator) => indicator.type === 'VOLUME',
+      );
 
-    // Jika sudah ada tetapi disembunyikan, tampilkan kembali.
-    if (existingVolume) {
-      if (!existingVolume.visible) {
-        onUpdateIndicators(
-          currentIndicators.map((indicator) =>
-            indicator.type === 'VOLUME'
-              ? { ...indicator, visible: true }
-              : indicator,
-          ),
-        );
+      // Jika sudah ada tetapi disembunyikan, tampilkan kembali.
+      if (existingVolume) {
+        if (!existingVolume.visible) {
+          onUpdateIndicators(
+            currentIndicators.map((indicator) =>
+              indicator.type === 'VOLUME'
+                ? { ...indicator, visible: true }
+                : indicator,
+            ),
+          );
+        }
+
+        return;
       }
-
-      return;
     }
-  }
 
-  setSelectedType(type);
-  setPeriod(getDefaultPeriod(type));
-  setColor(getDefaultColor(type));
-  setStrokeWidth(2);
-  setStdDev(2);
-};
+    setSelectedType(type);
+    setPeriod(getDefaultPeriod(type));
+    setColor(getDefaultColor(type));
+    setStrokeWidth(2);
+    setStdDev(2);
+  };
 
   const handleConfirmAdd = () => {
     if (!selectedType) {
@@ -540,7 +569,9 @@ const IndicatorManagerModal: React.FC<
                 Tambahkan{' '}
                 {selectedType === 'VOLUME'
                   ? 'Volume'
-                  : selectedType}
+                  : selectedType === 'MOMENTUM_CANDLE'
+                    ? 'Momentum Candle Sekolah Trading'
+                    : selectedType}
               </h3>
 
               <button

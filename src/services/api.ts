@@ -83,6 +83,7 @@ export async function fetchSession(id: string): Promise<BacktestSession & { repl
   return res.json();
 }
 
+
 export async function createSession(params: {
   name: string;
   datasetId: string;
@@ -90,16 +91,27 @@ export async function createSession(params: {
   startReplayTime?: number;
   replaySpeed?: number;
   notes?: string;
+
+  // Account configuration
+  initialBalance?: number;
+  currentBalance?: number;
+  leverage?: number;
 }): Promise<{ id: string; message: string }> {
   const res = await fetch('/api/backtest-sessions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),
   });
+
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Gagal membuat sesi');
+
+  if (!res.ok) {
+    throw new Error(data.error || 'Gagal membuat sesi');
+  }
+
   return data;
 }
+
 
 export async function updateSession(id: string, params: Partial<BacktestSession>): Promise<{ success: boolean }> {
   const res = await fetch(`/api/backtest-sessions/${id}`, {

@@ -1,0 +1,17 @@
+model Candle {
+  id         String  @id @default(uuid())
+  datasetId  String
+  timestamp  BigInt
+  open       Float
+  high       Float
+  low        Float
+  close      Float
+  tickVolume BigInt  @default(0)
+  realVolume BigInt  @default(0)
+  spread     Float   @default(0)
+
+  dataset    Dataset @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+
+  @@unique([datasetId, timestamp])
+  @@index([datasetId, timestamp])
+}

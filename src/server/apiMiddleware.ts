@@ -284,33 +284,93 @@ apiApp.get('/backtest-sessions/:id', async (req: Request, res: Response) => {
   }
 });
 
+
 apiApp.post('/backtest-sessions', async (req: Request, res: Response) => {
   try {
-    const { name, datasetId, activeTimeframe, startReplayTime, replaySpeed, notes } = req.body;
+    const {
+      name,
+      datasetId,
+      activeTimeframe,
+      startReplayTime,
+      replaySpeed,
+      notes,
+      initialBalance: rawInitialBalance,
+      currentBalance: rawCurrentBalance,
+      leverage: rawLeverage,
+    } = req.body;
+
     if (!name || !datasetId) {
-      return res.status(400).json({ error: 'Nama sesi dan datasetId wajib diisi.' });
+      return res.status(400).json({
+        error: 'Nama sesi dan datasetId wajib diisi.',
+      });
+    }
+
+    // Account configuration
+    const initialBalance =
+      rawInitialBalance === undefined
+        ? 10000
+        : Number(rawInitialBalance);
+
+    const currentBalance =
+      rawCurrentBalance === undefined
+        ? initialBalance
+        : Number(rawCurrentBalance);
+
+    const leverage =
+      rawLeverage === undefined
+        ? 500
+        : Number(rawLeverage);
+
+    // Validate account configuration
+    if (!Number.isFinite(initialBalance) || initialBalance <= 0) {
+      return res.status(400).json({
+        error: 'Modal awal harus berupa angka lebih dari 0.',
+      });
+    }
+
+    if (!Number.isFinite(currentBalance) || currentBalance < 0) {
+      return res.status(400).json({
+        error: 'Balance harus berupa angka minimal 0.',
+      });
+    }
+
+    if (!Number.isInteger(leverage) || leverage <= 0) {
+      return res.status(400).json({
+        error: 'Leverage harus berupa bilangan bulat positif.',
+      });
     }
 
     const dataset = await db.getDataset(datasetId);
+
     if (!dataset) {
-      return res.status(404).json({ error: 'Dataset tidak ditemukan.' });
+      return res.status(404).json({
+        error: 'Dataset tidak ditemukan.',
+      });
     }
 
     const sourceTf = dataset.timeframe as Timeframe;
     const tf = (activeTimeframe as Timeframe) || sourceTf;
 
     if (!isTimeframeAllowed(sourceTf, tf)) {
-      return res.status(400).json({ error: `Timeframe ${tf} tidak valid untuk dataset sumber ${sourceTf}.` });
+      return res.status(400).json({
+        error: `Timeframe ${tf} tidak valid untuk dataset sumber ${sourceTf}.`,
+      });
     }
 
     let initialTime = startReplayTime;
+
     if (!initialTime) {
       const candles = await db.getCandles(datasetId, undefined, 1);
-      initialTime = candles.length > 0 ? candles[0].timestamp : Math.floor(Date.now() / 1000);
+
+      initialTime =
+        candles.length > 0
+          ? candles[0].timestamp
+          : Math.floor(Date.now() / 1000);
     }
 
     const sessionId = randomUUID();
     const speed = replaySpeed || 1.0;
+    const now = new Date().toISOString();
 
     await db.saveSession({
       id: sessionId,
@@ -323,10 +383,16 @@ apiApp.post('/backtest-sessions', async (req: Request, res: Response) => {
       currentReplayTime: initialTime,
       currentCandleIndex: 0,
       replaySpeed: speed,
+
+      // Account configuration
+      initialBalance,
+      currentBalance,
+      leverage,
+
       status: 'ACTIVE',
       notes: notes || '',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: now,
+      updatedAt: now,
     });
 
     await db.saveReplayState({
@@ -337,14 +403,27 @@ apiApp.post('/backtest-sessions', async (req: Request, res: Response) => {
       speed,
       activeTimeframe: tf,
       isPlaying: false,
-      lastSavedAt: new Date().toISOString(),
+      lastSavedAt: now,
     });
 
-    res.status(201).json({ id: sessionId, message: 'Sesi backtest berhasil dibuat!' });
+    res.status(201).json({
+      id: sessionId,
+      message: 'Sesi backtest berhasil dibuat!',
+      account: {
+        initialBalance,
+        currentBalance,
+        leverage,
+      },
+    });
   } catch (err: any) {
-    res.status(500).json({ error: 'Gagal membuat sesi: ' + err.message });
+    console.error('[API] Create session error:', err);
+
+    res.status(500).json({
+      error: 'Gagal membuat sesi: ' + err.message,
+    });
   }
 });
+
 
 apiApp.patch('/backtest-sessions/:id', async (req: Request, res: Response) => {
   try {

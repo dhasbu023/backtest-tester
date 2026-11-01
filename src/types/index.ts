@@ -74,6 +74,7 @@ export interface Candle {
   spread?: number;
 }
 
+
 export interface BacktestSession {
   id: string;
   name: string;
@@ -81,16 +82,24 @@ export interface BacktestSession {
   symbol: string;
   sourceTimeframe: Timeframe;
   activeTimeframe: Timeframe;
-  startReplayTime: number; // Unix timestamp in seconds
+
+  startReplayTime: number;
   currentReplayTime: number;
   currentCandleIndex: number;
   replaySpeed: number;
+
+  // Account Configuration
+  initialBalance: number;
+  currentBalance: number;
+  leverage: number;
+
   status: 'ACTIVE' | 'PAUSED' | 'COMPLETED';
   notes?: string;
   createdAt: string;
   updatedAt: string;
   dataset?: Dataset;
 }
+
 
 export interface ReplayState {
   id: string;
@@ -104,9 +113,17 @@ export interface ReplayState {
 }
 
 // Indicator Types & Definitions
-export type IndicatorType = 'EMA' | 'SMA' | 'BOLLINGER' | 'RSI' | 'ATR' | 'VOLUME';
+export type IndicatorType =
+  | 'EMA'
+  | 'SMA'
+  | 'BOLLINGER'
+  | 'RSI'
+  | 'ATR'
+  | 'VOLUME'
+  | 'MOMENTUM_CANDLE';
 
-export interface IndicatorConfig {
+
+  export interface IndicatorConfig {
   id: string;
   type: IndicatorType;
   name: string;
@@ -114,13 +131,27 @@ export interface IndicatorConfig {
   period: number;
   color: string;
   strokeWidth: number;
+
   stdDev?: number; // for Bollinger Bands
   upperColor?: string;
   lowerColor?: string;
   fillColor?: string;
   levels?: number[]; // for RSI, default [30, 50, 70]
+
+  // Momentum Candle settings
+  momentumCandleMode?: 'AGGRESSIVE' | 'CONSERVATIVE';
+  maxWickPercent?: number;
+
+  useConsolidationFilter?: boolean;
+  consolidationCount?: number;
+
+  useEmaFilter?: boolean;
+  emaTimeframe?: 'M5' | 'M15' | 'M30' | 'H1';
+  emaPeriod?: number;
+
   pane: 'main' | 'sub'; // main overlays chart, sub creates dedicated lower indicator pane
 }
+ 
 
 // Drawing Tools Types & Definitions
 export type DrawingToolType =

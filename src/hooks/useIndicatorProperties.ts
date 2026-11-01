@@ -1,8 +1,4 @@
 
-// ============================================================
-// IMPORTS
-// ============================================================
-
 import {
   useCallback,
   useMemo,
@@ -11,7 +7,9 @@ import {
   type SetStateAction,
 } from 'react';
 
-import type { IndicatorConfig } from '../types/index.js';
+import type {
+  IndicatorConfig,
+} from '../types/index.js';
 
 import type {
   IndicatorProperties,
@@ -19,28 +17,12 @@ import type {
 
 import { VOLUME_PROPERTIES_ID } from '../components/Chart/utils/chartConstants.js';
 
-// ============================================================
-// TYPES
-// ============================================================
-
 interface UseIndicatorPropertiesProps {
-  // Daftar seluruh indikator yang aktif.
   indicators: IndicatorConfig[];
-
-  // Fungsi untuk menyimpan perubahan konfigurasi indikator.
   onUpdateIndicators: (indicators: IndicatorConfig[]) => void;
-
-  // Warna Volume yang digunakan sebagai fallback.
   volumeColorOverride: string | null;
-
-  // Setter warna Volume.
   setVolumeColorOverride: Dispatch<SetStateAction<string | null>>;
 }
-
-// ============================================================
-// HOOK: INDICATOR PROPERTIES
-// Mengatur target indikator dan perubahan propertinya.
-// ============================================================
 
 export function useIndicatorProperties({
   indicators,
@@ -49,35 +31,26 @@ export function useIndicatorProperties({
   setVolumeColorOverride,
 }: UseIndicatorPropertiesProps) {
 
-  // ----------------------------------------------------------
-  // 1. STATE TARGET PROPERTI
-  // ----------------------------------------------------------
-
+  // Target properties yang sedang dibuka.
   const [subPropertiesTargetId, setSubPropertiesTargetId] =
     useState<string | null>(null);
 
-  // ----------------------------------------------------------
-  // 2. DETEKSI TARGET VOLUME
-  // ----------------------------------------------------------
-
+  // Deteksi properties Volume.
   const isVolumeProperties =
     subPropertiesTargetId === VOLUME_PROPERTIES_ID;
 
-  // ----------------------------------------------------------
-  // 3. CARI INDIKATOR YANG SEDANG DIEDIT
-  // ----------------------------------------------------------
-
+  // Cari indikator yang sedang diedit.
   const subPropertiesTarget = useMemo(() => {
     if (!subPropertiesTargetId) return null;
 
-    // Khusus Volume, cari berdasarkan tipe indikator.
     if (isVolumeProperties) {
       return (
-        indicators.find((indicator) => indicator.type === 'VOLUME') ?? null
+        indicators.find(
+          (indicator) => indicator.type === 'VOLUME',
+        ) ?? null
       );
     }
 
-    // Indikator lainnya dicari berdasarkan ID.
     return (
       indicators.find(
         (indicator) => indicator.id === subPropertiesTargetId,
@@ -89,66 +62,85 @@ export function useIndicatorProperties({
     isVolumeProperties,
   ]);
 
-  // ----------------------------------------------------------
-  // 4. SIAPKAN NILAI AWAL PROPERTI
-  // ----------------------------------------------------------
+  // Siapkan nilai awal properties.
+  const subPropertiesInitialValues = useMemo(
+    (): IndicatorProperties => {
 
-  const subPropertiesInitialValues = useMemo((): IndicatorProperties => {
+      if (!subPropertiesTarget) {
+        return {
+          period: 14,
+          color: volumeColorOverride ?? '#26a69a',
+          strokeWidth: 2,
+          stdDev: 2,
+        };
+      }
 
-    // Jika target belum dipilih, gunakan nilai default.
-    if (!subPropertiesTarget) {
-      return {
-        color: volumeColorOverride ?? '#26a69a',
-      } as IndicatorProperties;
-    }
+      const initialValues: IndicatorProperties = {
+        period: subPropertiesTarget.period ?? 14,
+        color: subPropertiesTarget.color ?? '#3b82f6',
+        strokeWidth: subPropertiesTarget.strokeWidth ?? 2,
+        stdDev: subPropertiesTarget.stdDev ?? 2,
+      };
 
-    // Salin konfigurasi indikator.
-    const initialValues = {
-      ...subPropertiesTarget,
-    };
+      // Pengaturan khusus Momentum Candle.
+      if (subPropertiesTarget.type === 'MOMENTUM_CANDLE') {
+        return {
+          ...initialValues,
 
-    // Gunakan warna override jika target adalah Volume.
-    if (isVolumeProperties && volumeColorOverride) {
-      return {
-        ...initialValues,
-        color: volumeColorOverride,
-      } as IndicatorProperties;
-    }
+          momentumCandleMode:
+            subPropertiesTarget.momentumCandleMode ??
+            'CONSERVATIVE',
 
-    // Kembalikan konfigurasi awal indikator.
-    return initialValues as IndicatorProperties;
+          maxWickPercent:
+            subPropertiesTarget.maxWickPercent ?? 30,
 
-  }, [
-    subPropertiesTarget,
-    isVolumeProperties,
-    volumeColorOverride,
-  ]);
+          useConsolidationFilter:
+            subPropertiesTarget.useConsolidationFilter ?? false,
 
-  // ----------------------------------------------------------
-  // 5. SIMPAN PERUBAHAN PROPERTI
-  // ----------------------------------------------------------
+          consolidationCount:
+            subPropertiesTarget.consolidationCount ?? 3,
 
+          useEmaFilter:
+            subPropertiesTarget.useEmaFilter ?? false,
+
+          emaTimeframe:
+            subPropertiesTarget.emaTimeframe ?? 'M15',
+
+          emaPeriod:
+            subPropertiesTarget.emaPeriod ?? 50,
+        };
+      }
+
+      // Volume menggunakan warna override jika tersedia.
+      if (isVolumeProperties && volumeColorOverride) {
+        return {
+          ...initialValues,
+          color: volumeColorOverride,
+        };
+      }
+
+      return initialValues;
+    },
+    [
+      subPropertiesTarget,
+      isVolumeProperties,
+      volumeColorOverride,
+    ],
+  );
+
+  // Simpan perubahan properties.
   const handleSaveSubIndicatorProperties = useCallback(
     (properties: IndicatorProperties) => {
 
-      // Pastikan ada target indikator yang dipilih.
       if (!subPropertiesTargetId) return;
 
-      // ......................................................
-      // A. KHUSUS VOLUME
-      // ......................................................
-
+      // Khusus Volume.
       if (isVolumeProperties) {
 
-        // Simpan warna Volume sebagai override.
-        if (
-          'color' in properties &&
-          typeof properties.color === 'string'
-        ) {
+        if (typeof properties.color === 'string') {
           setVolumeColorOverride(properties.color);
         }
 
-        // Perbarui konfigurasi Volume.
         onUpdateIndicators(
           indicators.map((indicator) =>
             indicator.type === 'VOLUME'
@@ -162,10 +154,7 @@ export function useIndicatorProperties({
 
       } else {
 
-        // ....................................................
-        // B. INDIKATOR SELAIN VOLUME
-        // ....................................................
-
+        // Indikator lainnya, termasuk Momentum Candle.
         onUpdateIndicators(
           indicators.map((indicator) =>
             indicator.id === subPropertiesTargetId
@@ -178,10 +167,7 @@ export function useIndicatorProperties({
         );
       }
 
-      // ......................................................
-      // C. TUTUP MODAL SETELAH PENYIMPANAN
-      // ......................................................
-
+      // Tutup modal setelah penyimpanan.
       setSubPropertiesTargetId(null);
     },
     [
@@ -192,10 +178,6 @@ export function useIndicatorProperties({
       setVolumeColorOverride,
     ],
   );
-
-  // ----------------------------------------------------------
-  // 6. KEMBALIKAN STATE DAN FUNGSI
-  // ----------------------------------------------------------
 
   return {
     subPropertiesTargetId,

@@ -1,0 +1,22 @@
+model BacktestOrder {
+  id          String          @id @default(uuid())
+  sessionId   String
+  orderType   String          @default("MARKET")
+  direction   String
+  lot         Float
+  openPrice   Float
+  stopLoss    Float?
+  takeProfit  Float?
+  closePrice  Float?
+  status      String          @default("OPEN")
+  pnl         Float           @default(0)
+  openTime    DateTime?
+  closeTime   DateTime?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  session     BacktestSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([sessionId, status])
+}

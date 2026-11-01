@@ -1,0 +1,30 @@
+model BacktestSession {
+  id                 String           @id @default(uuid())
+  name               String
+  datasetId          String
+  symbol             String           @default("XAUUSD")
+  sourceTimeframe    String           @default("M1")
+  activeTimeframe    String           @default("M1")
+  startReplayTime    BigInt
+  currentReplayTime  BigInt
+  currentCandleIndex Int              @default(0)
+  replaySpeed        Float            @default(1.0)
+  status             String           @default("ACTIVE")
+  notes              String?
+
+  // Account settings
+  initialBalance     Float            @default(10000)
+  currentBalance     Float            @default(10000)
+  leverage           Int              @default(500)
+
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  dataset            Dataset          @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+  preference         ChartPreference?
+  drawings           DrawingObject[]
+  replayState        ReplayState?
+  orders             BacktestOrder[]
+
+  @@index([datasetId])
+}

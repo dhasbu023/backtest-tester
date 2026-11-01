@@ -1,0 +1,22 @@
+model DrawingObject {
+  id              String          @id @default(uuid())
+  sessionId       String
+  type            String
+  points          String
+  color           String          @default("#2563eb")
+  strokeWidth     Int             @default(2)
+  fillColor       String?
+  opacity         Float?          @default(0.2)
+  text            String?
+  fontSize        Int?            @default(12)
+  levels          String?
+  extensionLevels String?
+  locked          Boolean         @default(false)
+  visible         Boolean         @default(true)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  session         BacktestSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+}

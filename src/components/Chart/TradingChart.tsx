@@ -17,6 +17,7 @@ import React, {
 } from 'react';
 
 import { createPortal } from 'react-dom';
+import { Sliders, X } from 'lucide-react';
 
 
 // ============================================================
@@ -24,14 +25,13 @@ import { createPortal } from 'react-dom';
 // ============================================================
 
 import {
-  type CandlestickData,
+  createSeriesMarkers,
   type IChartApi,
   type IPaneApi,
   type ISeriesApi,
   type Time,
 } from 'lightweight-charts';
 
-import { Sliders, X } from 'lucide-react';
 
 
 // ============================================================
@@ -50,6 +50,7 @@ import { useChartTimezone } from '../../hooks/useChartTimezone.js';
 import { useChartCandleUpdate } from '../../hooks/useChartCandleUpdate.js';
 import { useIndicatorProperties } from '../../hooks/useIndicatorProperties.js';
 import { useChartControls } from '../../hooks/useChartControls.js';
+import { useMomentumCandle } from '../../hooks/useMomentumCandle.js';
 
 import {
   useSubIndicatorSeries,
@@ -233,7 +234,15 @@ export const TradingChart: React.FC<TradingChartProps> = ({
   const [candlestickSeriesInstance, setCandlestickSeriesInstance] =
     useState<ISeriesApi<'Candlestick'> | null>(null);
 
+  // ----------------------------------------------------------
+  // Momentum Candle markers
+  // ----------------------------------------------------------
+  const momentumMarkerApiRef =
+  useRef<ReturnType<typeof createSeriesMarkers<Time>> | null>(null);
 
+  const momentumMarkerSeriesRef =
+    useRef<ISeriesApi<'Candlestick'> | null>(null);
+    
   // ----------------------------------------------------------
   // Main indicator series
   // ----------------------------------------------------------
@@ -539,6 +548,58 @@ export const TradingChart: React.FC<TradingChartProps> = ({
     indicators,
   });
 
+  // ==========================================================
+  // MOMENTUM CANDLE
+  // Menghitung dan memasang marker bullish/bearish.
+  // ==========================================================
+
+  const momentumMarkers = useMomentumCandle({
+    candles,
+    indicators,
+    symbol,
+    timeframe,
+  });
+
+  useEffect(() => {
+    const series = candlestickSeriesRef.current;
+
+    // Candlestick series belum tersedia.
+    if (!series) return;
+
+    // Jika series berubah, lepaskan plugin marker lama.
+    if (momentumMarkerSeriesRef.current !== series) {
+      momentumMarkerApiRef.current?.detach();
+
+      // Buat plugin marker untuk series yang baru.
+      momentumMarkerApiRef.current = createSeriesMarkers(
+        series,
+        momentumMarkers,
+      );
+
+      momentumMarkerSeriesRef.current = series;
+
+      return;
+    }
+
+    // Jika series masih sama, cukup perbarui marker.
+    momentumMarkerApiRef.current?.setMarkers(
+      momentumMarkers,
+    );
+
+  }, [
+    candlestickSeriesInstance,
+    momentumMarkers,
+  ]);
+
+  // Bersihkan plugin marker ketika TradingChart dilepas.
+  useEffect(() => {
+    return () => {
+      momentumMarkerApiRef.current?.detach();
+
+      momentumMarkerApiRef.current = null;
+      momentumMarkerSeriesRef.current = null;
+    };
+  }, []);
 
   // ==========================================================
   // 10. RESET INDICATOR PROPERTIES
@@ -993,6 +1054,9 @@ export const TradingChart: React.FC<TradingChartProps> = ({
                 'Indikator'
           }
           initialValues={subPropertiesInitialValues}
+          showMomentumCandleSettings={
+          subPropertiesTarget?.type === 'MOMENTUM_CANDLE'
+        }
           showPeriod={!isVolumeProperties}
           showStdDev={
             subPropertiesTarget?.type === 'BOLLINGER'

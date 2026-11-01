@@ -1,0 +1,21 @@
+model DatasetImportJob {
+  id              String    @id @default(uuid())
+  datasetId       String?
+  fileName        String
+  fileSize        BigInt    @default(0)
+  symbol          String    @default("XAUUSD")
+  timeframe       String    @default("M1")
+  status          String    @default("PENDING")
+  totalRows       Int       @default(0)
+  validRows       Int       @default(0)
+  invalidRows     Int       @default(0)
+  duplicateRows   Int       @default(0)
+  progressPercent Float     @default(0.0)
+  errorMessage    String?
+  startedAt       DateTime  @default(now())
+  completedAt     DateTime?
+
+  dataset         Dataset?  @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+}
