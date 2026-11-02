@@ -47,29 +47,25 @@ export type OrderExecutionType = 'MARKET' | 'PENDING';
 
 export interface BacktestOrder {
   id: string;
-
   sessionId: string;
+  orderNumber: number;
 
   direction: OrderDirection;
   orderType: OrderType;
   status: OrderStatus;
 
   lot: number;
-
-  // Harga order
   openPrice: number;
+
   stopLoss: number | null;
   takeProfit: number | null;
   closePrice: number | null;
 
-  // Hasil transaksi
   pnl: number;
 
-  // Waktu dalam Unix timestamp (detik)
   openTime: number | null;
   closeTime: number | null;
 
-  // Informasi tambahan
   comment?: string | null;
 
   createdAt?: string;

@@ -1,10 +1,24 @@
 
-import { useState } from 'react';
+import {
+  useCallback,
+  useRef,
+  useState,
+} from 'react';
+
+import type {
+  KeyboardEvent,
+  PointerEvent,
+} from 'react';
+
+import { useOrders } from '../hooks/useOrders';
 
 import { TradingChart } from '../components/Chart/TradingChart.js';
+import { DrawingToolbar } from '../components/Chart/DrawingToolbar.js';
 import { ReplayControlPanel } from '../components/Chart/ReplayControlPanel.js';
 import { ErrorBoundary } from '../components/Chart/ErrorBoundary.js';
+
 import OrderModal from '../components/Orders/OrderModal.js';
+import OrderList from '../components/Orders/OrderList.js';
 
 import type {
   BacktestSession,
@@ -13,9 +27,34 @@ import type {
   Timeframe,
   DrawingObject,
   IndicatorConfig,
+  DrawingToolType,
 } from '../types/index.js';
 
 import type { CreateOrderInput } from '../types/order';
+
+// ============================================
+// CONSTANTS
+// ============================================
+
+const DEFAULT_ORDER_PANEL_HEIGHT = 300;
+const MIN_ORDER_PANEL_HEIGHT = 150;
+const COLLAPSED_ORDER_PANEL_HEIGHT = 44;
+
+// ============================================
+// DRAWING HISTORY TYPE
+// ============================================
+
+type DrawingHistoryControls = {
+  canUndo: boolean;
+  canRedo: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
+  onClearAll: () => void;
+};
+
+// ============================================
+// PROPS
+// ============================================
 
 type ChartPageProps = {
   mode: 'CHART' | 'BACKTEST';
@@ -63,6 +102,10 @@ type ChartPageProps = {
   onJumpToTimestamp: (timestamp: number) => void;
 };
 
+// ============================================
+// COMPONENT
+// ============================================
+
 export default function ChartPage({
   mode,
   sessionId,
@@ -99,113 +142,382 @@ export default function ChartPage({
   onChangeSpeed,
   onJumpToTimestamp,
 }: ChartPageProps) {
+
+  void mode;
+  void volumeType;
+
   const symbol = activeSession?.symbol || 'XAUUSD';
   const sourceTimeframe = activeDataset?.timeframe || 'M1';
   const activeSessionId = activeSession?.id || '';
 
+  // ==========================================
+  // DRAWING TOOLBAR STATE
+  // ==========================================
+
+  const [activeTool, setActiveTool] =
+    useState<DrawingToolType>('CURSOR');
+
+  const [currentColor, setCurrentColor] =
+    useState('#2962ff');
+
+  const [currentStrokeWidth, setCurrentStrokeWidth] =
+    useState(2);
+
+  // ==========================================
+  // DRAWING HISTORY STATE
+  // ==========================================
+
+  const [drawingHistory, setDrawingHistory] =
+    useState<DrawingHistoryControls>({
+      canUndo: false,
+      canRedo: false,
+      onUndo: () => {},
+      onRedo: () => {},
+      onClearAll: () => {},
+    });
+
+  const handleDrawingHistoryChange = useCallback(
+    (controls: DrawingHistoryControls) => {
+      setDrawingHistory(controls);
+    },
+    []
+  );
+
+  // ==========================================
+  // ORDER MANAGEMENT
+  // ==========================================
+
+  const {
+    orders,
+    loading: ordersLoading,
+    error: ordersError,
+    refresh: refreshOrders,
+    create: createOrder,
+    cancel: cancelOrder,
+  } = useOrders(activeSessionId || null);
+
+  // ==========================================
   // REPLAY CONTROL
-  const [showReplayControls, setShowReplayControls] = useState(false);
+  // ==========================================
 
+  const [showReplayControls, setShowReplayControls] =
+    useState(false);
+
+  // ==========================================
+  // ORDER PANEL
+  // ==========================================
+
+  const [showOrderPanel, setShowOrderPanel] =
+    useState(true);
+
+  const [orderPanelHeight, setOrderPanelHeight] =
+    useState(DEFAULT_ORDER_PANEL_HEIGHT);
+
+  const dragStartRef = useRef<{
+    pointerY: number;
+    panelHeight: number;
+  } | null>(null);
+
+  // ==========================================
   // ORDER MODAL
-  const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
+  // ==========================================
 
-  // Ambil harga dari candle sumber pada posisi replay saat ini.
-  // Ambil harga dari candle terakhir yang terlihat di chart.
-// displayCandles berasal dari data replay yang sedang ditampilkan.
-const lastDisplayedCandle =
-  displayCandles.length > 0
-    ? displayCandles[displayCandles.length - 1]
-    : null;
+  const [isOrderModalOpen, setIsOrderModalOpen] =
+    useState(false);
 
-// Fallback ke source candle pada posisi replay.
-const currentReplayCandle =
-  sourceCandles[currentIndex] ?? null;
+  // ==========================================
+  // CURRENT PRICE
+  // ==========================================
 
-const currentPrice =
-  lastDisplayedCandle?.close ??
-  currentReplayCandle?.close ??
-  0;
+  const lastDisplayedCandle =
+    displayCandles.length > 0
+      ? displayCandles[displayCandles.length - 1]
+      : null;
 
-const leverage = activeSession?.leverage || 500;
+  const currentReplayCandle =
+    sourceCandles[currentIndex] ?? null;
 
-// Tombol aktif jika sesi tersedia dan harga valid.
-// Tidak bergantung pada isChartLoading.
-const canCreateOrder =
-  showReplayControls &&
-  Boolean(activeSessionId) &&
-  Number.isFinite(currentPrice) &&
-  currentPrice > 0;
-  console.log('[DEBUG CREATE ORDER]', {
-  showReplayControls,
-  activeSessionId,
-  currentPrice,
-  isFinite: Number.isFinite(currentPrice),
-  canCreateOrder,
-});
+  const currentPrice =
+    lastDisplayedCandle?.close ??
+    currentReplayCandle?.close ??
+    0;
 
-  const handleToggleReplay = () => {
+  const leverage = activeSession?.leverage || 500;
+
+  const canCreateOrder =
+    showReplayControls &&
+    Boolean(activeSessionId) &&
+    Number.isFinite(currentPrice) &&
+    currentPrice > 0;
+
+  // ==========================================
+  // TOGGLE REPLAY
+  // ==========================================
+
+  const handleToggleReplay = useCallback(() => {
     setShowReplayControls((previous) => !previous);
-  };
+  }, []);
 
-  const handleChartErrorReset = () => {
+  // ==========================================
+  // CHART ERROR
+  // ==========================================
+
+  const handleChartErrorReset = useCallback(() => {
     if (sessionId) {
       onRetryOpenSession();
     }
-  };
+  }, [sessionId, onRetryOpenSession]);
 
-  // Sementara hanya mengaktifkan tampilan form.
-  // Penyimpanan order akan dihubungkan ke backend pada tahap berikutnya.
+  // ==========================================
+  // CREATE ORDER
+  // ==========================================
+
   const handleCreateOrder = async (
-    _input: CreateOrderInput
+    input: CreateOrderInput
   ): Promise<void> => {
-    throw new Error(
-      'Penyimpanan order belum dihubungkan ke backend. Form order sudah aktif.'
-    );
+    try {
+      await createOrder(input);
+
+      setIsOrderModalOpen(false);
+
+      console.log('[ORDER] Berhasil membuat order:', input);
+    } catch (error) {
+      console.error('[ORDER] Gagal membuat order:', error);
+      throw error;
+    }
   };
 
-  
-  return (
-    <main className="flex h-full min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden">
+  // ==========================================
+  // CANCEL ORDER
+  // ==========================================
 
-      {/* CHART AREA */}
-      <section className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <ErrorBoundary
-          fallbackTitle="Terjadi kendala visual pada chart"
-          onReset={handleChartErrorReset}
-        >
-          <div className="relative h-full min-h-0 min-w-0 w-full flex-1 overflow-hidden">
-           <TradingChart
+  const handleCancelOrder = async (
+    order: Parameters<typeof cancelOrder>[0] extends string
+      ? { id: string }
+      : never
+  ) => {
+    try {
+      await cancelOrder(order.id);
+    } catch (error) {
+      console.error('[ORDER] Gagal membatalkan order:', error);
+    }
+  };
+
+  // ==========================================
+  // ORDER PANEL RESIZE
+  // ==========================================
+
+  const handleResizeStart = (
+    event: PointerEvent<HTMLDivElement>
+  ) => {
+    event.preventDefault();
+
+    dragStartRef.current = {
+      pointerY: event.clientY,
+      panelHeight: orderPanelHeight,
+    };
+
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const handleResizeMove = (
+    event: PointerEvent<HTMLDivElement>
+  ) => {
+    if (!dragStartRef.current) {
+      return;
+    }
+
+    const deltaY =
+      dragStartRef.current.pointerY - event.clientY;
+
+    const maxPanelHeight = Math.max(
+      MIN_ORDER_PANEL_HEIGHT,
+      Math.floor(window.innerHeight * 0.7)
+    );
+
+    const nextHeight = Math.min(
+      maxPanelHeight,
+      Math.max(
+        MIN_ORDER_PANEL_HEIGHT,
+        dragStartRef.current.panelHeight + deltaY
+      )
+    );
+
+    setOrderPanelHeight(nextHeight);
+  };
+
+  const handleResizeEnd = (
+    event: PointerEvent<HTMLDivElement>
+  ) => {
+    dragStartRef.current = null;
+
+    if (
+      event.currentTarget.hasPointerCapture(event.pointerId)
+    ) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  };
+
+  // ==========================================
+  // KEYBOARD RESIZE
+  // ==========================================
+
+  const handleResizeKeyboard = (
+    event: KeyboardEvent<HTMLDivElement>
+  ) => {
+    const step = event.shiftKey ? 50 : 20;
+
+    const maxPanelHeight = Math.max(
+      MIN_ORDER_PANEL_HEIGHT,
+      Math.floor(window.innerHeight * 0.7)
+    );
+
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+
+      setOrderPanelHeight((height) =>
+        Math.min(maxPanelHeight, height + step)
+      );
+    }
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+
+      setOrderPanelHeight((height) =>
+        Math.max(MIN_ORDER_PANEL_HEIGHT, height - step)
+      );
+    }
+
+    if (event.key === 'Home') {
+      event.preventDefault();
+      setOrderPanelHeight(MIN_ORDER_PANEL_HEIGHT);
+    }
+
+    if (event.key === 'End') {
+      event.preventDefault();
+      setOrderPanelHeight(maxPanelHeight);
+    }
+  };
+
+  // ==========================================
+  // TOGGLE ORDER PANEL
+  // ==========================================
+
+  const handleToggleOrderPanel = () => {
+    setShowOrderPanel((previous) => !previous);
+  };
+
+  // ==========================================
+  // RENDER
+  // ==========================================
+
+  return (
+    <main
+      className="
+        relative flex h-full min-h-0 min-w-0 w-full flex-1
+        flex-col overflow-hidden
+        bg-white dark:bg-slate-950
+      "
+    >
+      {/* ========================================
+          CHART AREA
+          ======================================== */}
+
+      <section
+        className="
+          relative flex min-h-0 min-w-0 flex-1
+          overflow-hidden
+        "
+      >
+        {/* ======================================
+            DRAWING TOOLBAR
+            Tetap berada di ChartPage.
+            ====================================== */}
+
+        <DrawingToolbar
+          activeTool={activeTool}
+          onSelectTool={setActiveTool}
+          currentColor={currentColor}
+          onChangeColor={setCurrentColor}
+          currentStrokeWidth={currentStrokeWidth}
+          onChangeStrokeWidth={setCurrentStrokeWidth}
+          canUndo={drawingHistory.canUndo}
+          canRedo={drawingHistory.canRedo}
+          onUndo={drawingHistory.onUndo}
+          onRedo={drawingHistory.onRedo}
+          onClearAll={drawingHistory.onClearAll}
+        />
+
+        {/* ======================================
+            TRADING CHART
+            ====================================== */}
+
+        <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
+          <ErrorBoundary
+            fallbackTitle="Terjadi kendala visual pada chart"
+            onReset={handleChartErrorReset}
+          >
+            <TradingChart
               candles={displayCandles}
               symbol={symbol}
               timeframe={activeTimeframe}
               sourceTimeframe={sourceTimeframe}
               onChangeTimeframe={onChangeTimeframe}
+
               isDarkMode={isDarkMode}
               isLoading={isChartLoading}
+
               sessionId={activeSessionId}
+
               activeTimezone={activeTimezone}
               onChangeTimezone={onChangeTimezone}
+
               drawings={drawings}
               onUpdateDrawings={onUpdateDrawings}
+
+              // DRAWING TOOLBAR CONNECTION
+              activeTool={activeTool}
+              onSelectDrawingTool={setActiveTool}
+
+              currentColor={currentColor}
+              onChangeDrawingColor={setCurrentColor}
+
+              currentStrokeWidth={currentStrokeWidth}
+              onChangeDrawingStrokeWidth={setCurrentStrokeWidth}
+
+              onDrawingHistoryChange={handleDrawingHistoryChange}
+
+              // INDICATORS
               indicators={indicators}
               onUpdateIndicators={onUpdateIndicators}
+
+              // VOLUME
               showVolume={showVolume}
               onToggleVolume={onToggleVolume}
               volumeType={volumeType}
               onChangeVolumeType={onChangeVolumeType}
               hasRealVolume={hasRealVolume}
+
+              // REPLAY
               showReplayControls={showReplayControls}
               onToggleReplay={handleToggleReplay}
-              onCreateOrderClick={() => setIsOrderModalOpen(true)}
-              canCreateOrder={canCreateOrder}
             />
-          </div>
-        </ErrorBoundary>
+          </ErrorBoundary>
+        </div>
       </section>
 
-      {/* REPLAY CONTROL PANEL */}
+      {/* ========================================
+          REPLAY CONTROL PANEL
+          ======================================== */}
+
       {showReplayControls && (
-        <section className="relative z-20 w-full shrink-0 border-t border-slate-200 dark:border-slate-800">
+        <section
+          className="
+            relative z-10 w-full shrink-0
+            border-t border-slate-200
+            bg-white dark:border-slate-800 dark:bg-slate-950
+          "
+        >
           <ReplayControlPanel
             currentIndex={currentIndex}
             totalCandles={sourceCandles.length}
@@ -228,7 +540,206 @@ const canCreateOrder =
         </section>
       )}
 
-      {/* ORDER MODAL */}
+      {/* ========================================
+          ORDER PANEL
+          ======================================== */}
+
+      {activeSessionId && (
+        <section
+          className="
+            relative z-20 flex w-full shrink-0 flex-col
+            border-t border-slate-300
+            bg-white dark:border-slate-700 dark:bg-slate-950
+          "
+          style={{
+            height: showOrderPanel
+              ? `${orderPanelHeight}px`
+              : `${COLLAPSED_ORDER_PANEL_HEIGHT}px`,
+            minHeight: `${COLLAPSED_ORDER_PANEL_HEIGHT}px`,
+          }}
+        >
+          {/* RESIZE HANDLE */}
+
+          {showOrderPanel && (
+            <div
+              role="separator"
+              aria-label="Ubah tinggi Trading Orders"
+              aria-orientation="horizontal"
+              aria-valuemin={MIN_ORDER_PANEL_HEIGHT}
+              aria-valuemax={Math.floor(window.innerHeight * 0.7)}
+              aria-valuenow={orderPanelHeight}
+              tabIndex={0}
+              onPointerDown={handleResizeStart}
+              onPointerMove={handleResizeMove}
+              onPointerUp={handleResizeEnd}
+              onPointerCancel={handleResizeEnd}
+              onKeyDown={handleResizeKeyboard}
+              className="
+                group relative flex h-2 w-full shrink-0
+                cursor-row-resize touch-none
+                items-center justify-center
+                bg-slate-100 hover:bg-blue-100
+                dark:bg-slate-900 dark:hover:bg-blue-950
+              "
+            >
+              <div
+                className="
+                  h-1 w-12 rounded-full
+                  bg-slate-400 transition-colors
+                  group-hover:bg-blue-500
+                  dark:bg-slate-600
+                  dark:group-hover:bg-blue-400
+                "
+              />
+            </div>
+          )}
+
+          {/* ORDER HEADER */}
+
+          <div
+            className="
+              flex h-10 w-full shrink-0 items-center
+              justify-between border-b border-slate-200
+              px-3 dark:border-slate-800
+            "
+          >
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                Trading Orders
+              </span>
+
+              <span
+                className="
+                  rounded-md bg-slate-100 px-2 py-0.5
+                  text-[10px] text-slate-600
+                  dark:bg-slate-800 dark:text-slate-300
+                "
+              >
+                {orders.length}
+              </span>
+            </div>
+
+            <div className="flex shrink-0 items-center gap-2">
+              {showOrderPanel && (
+                <span className="mr-2 text-[10px] text-slate-400">
+                  {orderPanelHeight}px
+                </span>
+              )}
+
+              {/* CREATE ORDER BUTTON */}
+
+              {showReplayControls && (
+                <button
+                  type="button"
+                  disabled={!canCreateOrder}
+                  onClick={() => setIsOrderModalOpen(true)}
+                  className="
+                    rounded-md bg-blue-600 px-3 py-1
+                    text-xs font-medium text-white
+                    hover:bg-blue-700
+                    disabled:cursor-not-allowed
+                    disabled:opacity-40
+                  "
+                >
+                  + New Order
+                </button>
+              )}
+
+              {/* TOGGLE ORDER PANEL */}
+
+              <button
+                type="button"
+                onClick={handleToggleOrderPanel}
+                title={
+                  showOrderPanel
+                    ? 'Sembunyikan Trading Orders'
+                    : 'Tampilkan Trading Orders'
+                }
+                aria-label={
+                  showOrderPanel
+                    ? 'Sembunyikan Trading Orders'
+                    : 'Tampilkan Trading Orders'
+                }
+                className="
+                  flex h-7 w-7 items-center justify-center
+                  rounded-md text-slate-500
+                  hover:bg-slate-100 hover:text-slate-900
+                  dark:text-slate-400 dark:hover:bg-slate-800
+                  dark:hover:text-white
+                "
+              >
+                {showOrderPanel ? (
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path
+                      d="m6 9 6 6 6-6"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                ) : (
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path
+                      d="m6 15 6-6 6 6"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* ORDER LIST */}
+
+          {showOrderPanel && (
+            <div
+              className="
+                min-h-0 min-w-0 flex-1
+                overflow-x-auto overflow-y-auto
+                overscroll-contain p-3
+              "
+            >
+              <OrderList
+                orders={orders}
+                loading={ordersLoading}
+                error={ordersError}
+                onRefresh={() => {
+                  void refreshOrders();
+                }}
+                onEdit={(order) => {
+                  console.log('[ORDER] Edit:', order);
+                }}
+                onCancel={(order) => {
+                  void handleCancelOrder(order);
+                }}
+                onClose={(order) => {
+                  console.log('[ORDER] Close:', order);
+                }}
+                onDetail={(order) => {
+                  console.log('[ORDER] Detail:', order);
+                }}
+              />
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* ========================================
+          ORDER MODAL
+          ======================================== */}
+
       {showReplayControls && activeSessionId && (
         <OrderModal
           isOpen={isOrderModalOpen}
@@ -242,5 +753,3 @@ const canCreateOrder =
     </main>
   );
 }
-
-

@@ -12,6 +12,12 @@ import type {
 } from '../types/index.js';
 
 import type {
+  BacktestOrder,
+  CreateOrderInput,
+  OrderFilter,
+} from '../types/order.js';
+
+import type {
   DatasetRecord,
   ImportJobRecord,
   SessionRecord,
@@ -26,6 +32,7 @@ import { SessionRepository } from './repositories/sessionRepository.js';
 import { ReplayRepository } from './repositories/replayRepository.js';
 import { DrawingRepository } from './repositories/drawingRepository.js';
 import { PreferenceRepository } from './repositories/preferenceRepository.js';
+import { OrderRepository } from './repositories/orderRepository.js';
 
 // Tetap menyediakan type export untuk file lain yang mungkin
 // sebelumnya mengimpor type dari db.ts.
@@ -100,6 +107,10 @@ class DatabaseManager {
   private readonly preferenceRepository = new PreferenceRepository(
     this.repositoryContext,
   );
+
+  private readonly orderRepository = new OrderRepository(
+  this.repositoryContext,
+);
 
   // ============================================================
   // DATABASE HELPERS
@@ -239,8 +250,8 @@ class DatabaseManager {
       'ReplayState',
       'DrawingObject',
       'ChartPreference',
+      'BacktestOrder',
     ];
-
     for (const table of requiredTables) {
       const result = await this.pgPool.query(
         'SELECT to_regclass($1) AS table_name',
@@ -397,7 +408,27 @@ class DatabaseManager {
   ): Promise<void> {
     return this.preferenceRepository.savePreference(pref);
   }
+  
 
+  // ============================================================
+// BACKTEST ORDERS
+// Delegated to OrderRepository
+// ============================================================
+
+async getOrders(
+  sessionId: string,
+  filter: Omit<OrderFilter, 'sessionId'> = {},
+): Promise<BacktestOrder[]> {
+  return this.orderRepository.getOrders(sessionId, filter);
+}
+
+async createOrder(
+  input: CreateOrderInput & {
+    openTime?: number | null;
+  },
+): Promise<BacktestOrder> {
+  return this.orderRepository.createOrder(input);
+}
   // ============================================================
   // DATABASE STATUS
   // ============================================================

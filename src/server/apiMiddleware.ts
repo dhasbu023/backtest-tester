@@ -17,7 +17,7 @@ function generateSessionId(): string {
 
   const uniquePart = randomUUID()
     .replace(/-/g, '')
-    .slice(0, 12)
+    .slice(0, 3)
     .toUpperCase();
 
   return `BTS-${datePart}-${uniquePart}`;
@@ -36,7 +36,7 @@ function generateDatasetId(): string {
 
   const uniquePart = randomUUID()
     .replace(/-/g, '')
-    .slice(0, 12)
+    .slice(0, 3)
     .toUpperCase();
 
   return `DS-${datePart}-${uniquePart}`;
@@ -586,5 +586,119 @@ apiApp.post('/backtest-sessions/:id/preference', async (req: Request, res: Respo
     res.status(500).json({ error: 'Gagal menyimpan preferensi: ' + err.message });
   }
 });
+
+
+// ==========================================
+// BACKTEST ORDERS ENDPOINTS
+// ==========================================
+
+// GET /api/backtest-sessions/:id/orders
+apiApp.get(
+  '/backtest-sessions/:id/orders',
+  async (req: Request, res: Response) => {
+    try {
+      const sessionId = req.params.id;
+
+      const statusParam = req.query.status?.toString();
+      const direction = req.query.direction?.toString();
+      const orderType = req.query.orderType?.toString();
+
+      const filter: {
+        status?: string | string[];
+        direction?: string;
+        orderType?: string;
+      } = {};
+
+      if (statusParam) {
+        filter.status = statusParam.includes(',')
+          ? statusParam.split(',')
+          : statusParam;
+      }
+
+      if (direction) {
+        filter.direction = direction;
+      }
+
+      if (orderType) {
+        filter.orderType = orderType;
+      }
+
+      const orders = await db.getOrders(sessionId, filter);
+
+      res.json(orders);
+    } catch (err: any) {
+      console.error('[API] Get orders error:', err);
+
+      res.status(500).json({
+        error: 'Gagal mengambil order: ' + err.message,
+      });
+    }
+  }
+);
+
+// POST /api/backtest-sessions/:id/orders
+apiApp.post(
+  '/backtest-sessions/:id/orders',
+  async (req: Request, res: Response) => {
+    try {
+      const sessionId = req.params.id;
+
+      const {
+        direction,
+        orderType,
+        lot,
+        entryPrice,
+        stopLoss,
+        takeProfit,
+        openTime,
+      } = req.body;
+
+      if (!direction || !orderType) {
+        return res.status(400).json({
+          error: 'Direction dan orderType wajib diisi.',
+        });
+      }
+
+      const numericLot = Number(lot);
+      const numericEntryPrice = Number(entryPrice);
+
+      if (!Number.isFinite(numericLot) || numericLot <= 0) {
+        return res.status(400).json({
+          error: 'Lot harus berupa angka lebih dari 0.',
+        });
+      }
+
+      if (!Number.isFinite(numericEntryPrice) || numericEntryPrice <= 0) {
+        return res.status(400).json({
+          error: 'Entry price tidak valid.',
+        });
+      }
+
+      const order = await db.createOrder({
+        sessionId,
+        direction,
+        orderType,
+        lot: numericLot,
+        entryPrice: numericEntryPrice,
+        stopLoss: stopLoss == null ? null : Number(stopLoss),
+        takeProfit: takeProfit == null ? null : Number(takeProfit),
+        openTime: openTime == null ? null : Number(openTime),
+      });
+
+      console.log('[API] Order created:', order.id);
+
+      res.status(201).json(order);
+    } catch (err: any) {
+      console.error('[API] Create order error:', err);
+
+      res.status(500).json({
+        error: 'Gagal membuat order: ' + err.message,
+      });
+    }
+  }
+);
+
+
+
 
 export default apiApp;

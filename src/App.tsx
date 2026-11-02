@@ -12,6 +12,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Header } from './components/Header.js';
 import SessionsPage from './pages/SessionsPage.js';
 import ChartPage from './pages/ChartPage.js';
+import DashboardPage from './pages/DashboardPage.js';
+
+import MainLayout from './layouts/MainLayout.js';
 
 import { useTheme } from './hooks/useTheme.js';
 import { useChartPreferences } from './hooks/useChartPreferences.js';
@@ -43,7 +46,12 @@ import {
 import { AlertCircle } from 'lucide-react';
 
 type AppProps = {
-  mode: 'SESSIONS' | 'CHART' | 'BACKTEST';
+  mode:
+    | 'DASHBOARD'
+    | 'SESSIONS'
+    | 'STATISTICS'
+    | 'CHART'
+    | 'BACKTEST';
 };
 
 type AggregationCache = {
@@ -130,10 +138,8 @@ export default function App({ mode }: AppProps) {
 
   const currentLoadedSessionIdRef = useRef<string | null>(null);
 
-  // Cache satu hasil agregasi terakhir.
-  // Cache hanya digunakan jika sumber, timeframe, dan indeks sama.
-  // Dengan demikian, cache tidak menggunakan candle masa depan.
-  const aggregationCacheRef = useRef<AggregationCache | null>(null);
+  const aggregationCacheRef =
+    useRef<AggregationCache | null>(null);
 
   // =========================================================
   // AGGREGATION HELPER
@@ -197,8 +203,6 @@ export default function App({ mode }: AppProps) {
   // TIMESTAMP SEARCH
   // =========================================================
 
-  // Mencari candle pertama dengan timestamp >= target.
-  // Mengasumsikan data candle sudah terurut ascending.
   const findCandleIndexAtOrAfter = useCallback(
     (candles: Candle[], targetTimestamp: number): number => {
       let left = 0;
@@ -432,8 +436,6 @@ export default function App({ mode }: AppProps) {
 
       const cached = aggregationCacheRef.current;
 
-      // Hindari menghitung ulang dan memperbarui state
-      // jika posisi serta timeframe tidak berubah.
       if (
         cached &&
         cached.source === sourceCandles &&
@@ -505,7 +507,10 @@ export default function App({ mode }: AppProps) {
     [activeSession, sourceCandles]
   );
 
-  // Bersihkan timer save jika komponen dilepas.
+  // =========================================================
+  // CLEANUP TIMERS
+  // =========================================================
+
   useEffect(() => {
     return () => {
       if (saveTimeoutRef.current !== null) {
@@ -651,13 +656,10 @@ export default function App({ mode }: AppProps) {
 
       setGlobalError(null);
 
-      // Jangan lakukan pekerjaan tambahan jika timeframe sama.
       if (newTimeframe === activeTimeframe) {
         return;
       }
 
-      // Replay tetap menggunakan indeks candle sumber.
-      // Yang berubah hanya timeframe tampilan chart.
       const safeIndex = sourceCandles.length > 0
         ? Math.max(
             0,
@@ -856,66 +858,75 @@ export default function App({ mode }: AppProps) {
   const currentTimestamp =
     sourceCandles[currentIndex]?.timestamp || 0;
 
-  // =========================================================
+   // =========================================================
   // RENDER
   // =========================================================
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors font-sans">
-      <Header
-        currentView={currentView}
-        activeSessionName={activeSession?.name}
-        activeSessionSymbol={activeSession?.symbol || 'XAUUSD'}
-        onBackToSessions={() => {
-          setIsPlaying(false);
-          localStorage.removeItem('active_session_id');
-          navigate('/sessions');
-          void loadSessions();
-        }}
-        isDarkMode={isDarkMode}
-        onToggleTheme={toggleTheme}
-      />
-
+    <MainLayout
+      isDarkMode={isDarkMode}
+      onToggleTheme={toggleTheme}
+    >
+      {/* GLOBAL ERROR */}
       {globalError && (
-        <div className="bg-rose-50 dark:bg-rose-950/80 border-b border-rose-200 dark:border-rose-900 px-4 py-2 flex items-center justify-between text-xs text-rose-700 dark:text-rose-300 z-40">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
+        <div className="mx-6 mt-4 p-3 rounded-lg bg-rose-50 dark:bg-rose-950/80 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-sm flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{globalError}</span>
           </div>
 
           <button
             type="button"
             onClick={() => setGlobalError(null)}
-            className="text-xs font-bold hover:underline ml-4 cursor-pointer"
+            className="text-xs font-bold hover:underline shrink-0"
           >
             Tutup
           </button>
         </div>
       )}
 
-      <main className="flex-1 flex flex-col min-h-0 relative overflow-hidden">
-        {mode === 'SESSIONS' ? (
-          <SessionsPage
-            sessions={sessions}
-            isLoading={isLoadingSessions}
-            isCreateModalOpen={isCreateModalOpen}
-            onSelectSession={(id) => {
-              navigate(`/chart/${encodeURIComponent(id)}`);
-            }}
-            onOpenCreateModal={() => {
-              setIsCreateModalOpen(true);
-            }}
-            onDeleteSession={handleDeleteSession}
-            onCloseCreateModal={() => {
-              setIsCreateModalOpen(false);
-            }}
-            onSessionCreated={async (id) => {
-              setIsCreateModalOpen(false);
-              await loadSessions();
-              navigate(`/chart/${encodeURIComponent(id)}`);
-            }}
-          />
-        ) : (
+      {/* DASHBOARD */}
+      {mode === 'DASHBOARD' && (
+        <DashboardPage
+          sessions={sessions}
+          isLoading={isLoadingSessions}
+          onOpenCreateSession={() => {
+            navigate('/sessions');
+          }}
+        />
+      )}
+
+      {/* SESSIONS */}
+      {mode === 'SESSIONS' && (
+        <SessionsPage
+          sessions={sessions}
+          isLoading={isLoadingSessions}
+          isCreateModalOpen={isCreateModalOpen}
+          onSelectSession={(id) => {
+            setIsPlaying(false);
+            localStorage.setItem('active_session_id', id);
+
+            navigate(`/chart/${encodeURIComponent(id)}`);
+          }}
+          onOpenCreateModal={() => {
+            setIsCreateModalOpen(true);
+          }}
+          onDeleteSession={handleDeleteSession}
+          onCloseCreateModal={() => {
+            setIsCreateModalOpen(false);
+          }}
+          onSessionCreated={async (id) => {
+            setIsCreateModalOpen(false);
+            await loadSessions();
+
+            navigate(`/chart/${encodeURIComponent(id)}`);
+          }}
+        />
+      )}
+
+      {/* CHART / BACKTEST */}
+      {(mode === 'CHART' || mode === 'BACKTEST') && (
+        <div className="flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden">
           <ChartPage
             mode={mode}
             sessionId={sessionId}
@@ -950,7 +961,7 @@ export default function App({ mode }: AppProps) {
             onToggleVolume={handleToggleVolume}
             onChangeVolumeType={handleChangeVolumeType}
             onPlayPause={() => {
-              setIsPlaying((playing) => !playing);
+              setIsPlaying((previous) => !previous);
             }}
             onNextCandle={handleNextCandle}
             onPrevCandle={handlePrevCandle}
@@ -959,8 +970,18 @@ export default function App({ mode }: AppProps) {
             onChangeSpeed={handleChangeSpeed}
             onJumpToTimestamp={handleJumpToTimestamp}
           />
-        )}
-      </main>
-    </div>
+        </div>
+      )}
+
+      {/* STATISTICS */}
+      {mode === 'STATISTICS' && (
+        <div className="p-6">
+          <h1 className="text-xl font-bold">Statistics</h1>
+          <p className="text-sm text-slate-500 mt-2">
+            Halaman statistik belum dihubungkan.
+          </p>
+        </div>
+      )}
+    </MainLayout>
   );
 }

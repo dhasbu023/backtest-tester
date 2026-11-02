@@ -1,6 +1,7 @@
 model BacktestOrder {
   id          String          @id @default(uuid())
   sessionId   String
+  orderNumber Int
   orderType   String          @default("MARKET")
   direction   String
   lot         Float
@@ -17,6 +18,7 @@ model BacktestOrder {
 
   session     BacktestSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
+  @@unique([sessionId, orderNumber])
   @@index([sessionId])
   @@index([sessionId, status])
 }

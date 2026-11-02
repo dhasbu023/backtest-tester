@@ -4,9 +4,9 @@ import React, { useMemo, useState } from 'react';
 import type {
   BacktestOrder,
   OrderStatus,
-} from '../../types/order';
+} from '../types/order';
 
-import OrderTable from './OrderTable';
+import OrderTable from '../components/Orders/OrderTable';
 
 type HistoryFilter =
   | 'ALL'

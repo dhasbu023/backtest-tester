@@ -9,6 +9,7 @@
 // 1. REACT IMPORTS
 // ============================================================
 
+
 import React, {
   useEffect,
   useMemo,
@@ -17,7 +18,6 @@ import React, {
 } from 'react';
 
 import { createPortal } from 'react-dom';
-import { Sliders, X } from 'lucide-react';
 
 
 // ============================================================
@@ -25,13 +25,14 @@ import { Sliders, X } from 'lucide-react';
 // ============================================================
 
 import {
-  createSeriesMarkers,
+  type CandlestickData,
   type IChartApi,
   type IPaneApi,
   type ISeriesApi,
   type Time,
 } from 'lightweight-charts';
 
+import { Sliders, X } from 'lucide-react';
 
 
 // ============================================================
@@ -50,7 +51,6 @@ import { useChartTimezone } from '../../hooks/useChartTimezone.js';
 import { useChartCandleUpdate } from '../../hooks/useChartCandleUpdate.js';
 import { useIndicatorProperties } from '../../hooks/useIndicatorProperties.js';
 import { useChartControls } from '../../hooks/useChartControls.js';
-import { useMomentumCandle } from '../../hooks/useMomentumCandle.js';
 
 import {
   useSubIndicatorSeries,
@@ -85,7 +85,7 @@ import type {
 // ============================================================
 
 import { ChartToolbar } from './ChartToolbar.js';
-import { DrawingToolbar } from './DrawingToolbar.js';
+
 import { DrawingLayer } from './Drawing/DrawingLayer.js';
 import { CandleInfoBar } from './ChartHeader/CandleInfoBar.js';
 
@@ -111,6 +111,14 @@ import {
 
 import { formatVolumeValue } from './utils/chartFormatters.js';
 
+
+interface DrawingHistoryControls {
+  canUndo: boolean;
+  canRedo: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
+  onClearAll: () => void;
+}
 
 // ============================================================
 // 9. COMPONENT PROPS
@@ -141,6 +149,20 @@ interface TradingChartProps {
   drawings: DrawingObject[];
   onUpdateDrawings: (drawings: DrawingObject[]) => void;
 
+  // Drawing toolbar dikontrol oleh ChartPage
+activeTool: DrawingToolType;
+onSelectDrawingTool: (tool: DrawingToolType) => void;
+
+currentColor: string;
+onChangeDrawingColor: (color: string) => void;
+
+currentStrokeWidth: number;
+onChangeDrawingStrokeWidth: (width: number) => void;
+
+onDrawingHistoryChange: (
+  controls: DrawingHistoryControls
+) => void;
+
   // Indicators
   indicators: IndicatorConfig[];
   onUpdateIndicators: (indicators: IndicatorConfig[]) => void;
@@ -155,16 +177,13 @@ interface TradingChartProps {
   // Replay controls
   showReplayControls: boolean;
   onToggleReplay: () => void;
-
-  // Order
-  canCreateOrder: boolean;
-  onCreateOrderClick: () => void;
 }
 
 
 // ============================================================
 // 10. TRADING CHART COMPONENT
 // ============================================================
+
 export const TradingChart: React.FC<TradingChartProps> = ({
   // Chart data
   candles,
@@ -186,9 +205,18 @@ export const TradingChart: React.FC<TradingChartProps> = ({
   activeTimezone,
   onChangeTimezone,
 
-  // Drawing objects
-  drawings,
-  onUpdateDrawings,
+ // Drawing objects
+drawings,
+onUpdateDrawings,
+
+// Drawing toolbar dari ChartPage
+activeTool,
+onSelectDrawingTool,
+currentColor,
+onChangeDrawingColor,
+currentStrokeWidth,
+onChangeDrawingStrokeWidth,
+onDrawingHistoryChange,
 
   // Indicators
   indicators,
@@ -202,12 +230,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
   // Replay
   showReplayControls,
   onToggleReplay,
-
-  // Order
-  canCreateOrder,
-  onCreateOrderClick,
 }) => {
-
 
   // ==========================================================
   // 1. REFS
@@ -242,15 +265,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
   const [candlestickSeriesInstance, setCandlestickSeriesInstance] =
     useState<ISeriesApi<'Candlestick'> | null>(null);
 
-  // ----------------------------------------------------------
-  // Momentum Candle markers
-  // ----------------------------------------------------------
-  const momentumMarkerApiRef =
-  useRef<ReturnType<typeof createSeriesMarkers<Time>> | null>(null);
 
-  const momentumMarkerSeriesRef =
-    useRef<ISeriesApi<'Candlestick'> | null>(null);
-    
   // ----------------------------------------------------------
   // Main indicator series
   // ----------------------------------------------------------
@@ -339,19 +354,6 @@ export const TradingChart: React.FC<TradingChartProps> = ({
   const [hoveredCandle, setHoveredCandle] =
     useState<Candle | null>(null);
 
-
-  // ----------------------------------------------------------
-  // Drawing tool
-  // ----------------------------------------------------------
-
-  const [activeTool, setActiveTool] =
-    useState<DrawingToolType>('CURSOR');
-
-  const [currentColor, setCurrentColor] =
-    useState(DEFAULT_DRAWING_COLOR);
-
-  const [currentStrokeWidth, setCurrentStrokeWidth] =
-    useState(DEFAULT_STROKE_WIDTH);
 
 
   // ----------------------------------------------------------
@@ -495,7 +497,45 @@ export const TradingChart: React.FC<TradingChartProps> = ({
     setSelectedDrawingId,
   });
 
+  // ==========================================================
+// DRAWING HISTORY BRIDGE
+// Mengirim status Undo/Redo dan fungsi drawing ke ChartPage.
+// ==========================================================
 
+const drawingHistoryActionsRef = useRef({
+  undo: handleUndo,
+  redo: handleRedo,
+  clearAll: handleClearAllDrawings,
+});
+
+drawingHistoryActionsRef.current = {
+  undo: handleUndo,
+  redo: handleRedo,
+  clearAll: handleClearAllDrawings,
+};
+
+useEffect(() => {
+  onDrawingHistoryChange({
+    canUndo,
+    canRedo,
+
+    onUndo: () => {
+      drawingHistoryActionsRef.current.undo();
+    },
+
+    onRedo: () => {
+      drawingHistoryActionsRef.current.redo();
+    },
+
+    onClearAll: () => {
+      drawingHistoryActionsRef.current.clearAll();
+    },
+  });
+}, [
+  canUndo,
+  canRedo,
+  onDrawingHistoryChange,
+]);
   // ==========================================================
   // 6. SUB-INDICATOR DATA
   // Menghitung data RSI, ATR, dan readout indikator.
@@ -556,58 +596,6 @@ export const TradingChart: React.FC<TradingChartProps> = ({
     indicators,
   });
 
-  // ==========================================================
-  // MOMENTUM CANDLE
-  // Menghitung dan memasang marker bullish/bearish.
-  // ==========================================================
-
-  const momentumMarkers = useMomentumCandle({
-    candles,
-    indicators,
-    symbol,
-    timeframe,
-  });
-
-  useEffect(() => {
-    const series = candlestickSeriesRef.current;
-
-    // Candlestick series belum tersedia.
-    if (!series) return;
-
-    // Jika series berubah, lepaskan plugin marker lama.
-    if (momentumMarkerSeriesRef.current !== series) {
-      momentumMarkerApiRef.current?.detach();
-
-      // Buat plugin marker untuk series yang baru.
-      momentumMarkerApiRef.current = createSeriesMarkers(
-        series,
-        momentumMarkers,
-      );
-
-      momentumMarkerSeriesRef.current = series;
-
-      return;
-    }
-
-    // Jika series masih sama, cukup perbarui marker.
-    momentumMarkerApiRef.current?.setMarkers(
-      momentumMarkers,
-    );
-
-  }, [
-    candlestickSeriesInstance,
-    momentumMarkers,
-  ]);
-
-  // Bersihkan plugin marker ketika TradingChart dilepas.
-  useEffect(() => {
-    return () => {
-      momentumMarkerApiRef.current?.detach();
-
-      momentumMarkerApiRef.current = null;
-      momentumMarkerSeriesRef.current = null;
-    };
-  }, []);
 
   // ==========================================================
   // 10. RESET INDICATOR PROPERTIES
@@ -719,22 +707,20 @@ export const TradingChart: React.FC<TradingChartProps> = ({
 
       <div className="relative z-20 shrink-0 border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-[#0b0f19]">
 
-    <ChartToolbar
-        sourceTimeframe={sourceTimeframe}
-        activeTimeframe={timeframe}
-        onChangeTimeframe={onChangeTimeframe}
-        activeTimezone={activeTimezone}
-        onChangeTimezone={onChangeTimezone}
-        indicators={indicators}
-        onOpenIndicatorsModal={() =>
-          setIsIndicatorManagerModalOpen(true)
-        }
-        onFitContent={fitContent}
-        showReplayControls={showReplayControls}
-        onToggleReplay={onToggleReplay}
-        canCreateOrder={canCreateOrder}
-        onCreateOrderClick={onCreateOrderClick}
-      />
+        <ChartToolbar
+          sourceTimeframe={sourceTimeframe}
+          activeTimeframe={timeframe}
+          onChangeTimeframe={onChangeTimeframe}
+          activeTimezone={activeTimezone}
+          onChangeTimezone={onChangeTimezone}
+          indicators={indicators}
+          onOpenIndicatorsModal={() =>
+            setIsIndicatorManagerModalOpen(true)
+          }
+          onFitContent={fitContent}
+          showReplayControls={showReplayControls}
+          onToggleReplay={onToggleReplay}
+        />
 
       </div>
 
@@ -760,31 +746,6 @@ export const TradingChart: React.FC<TradingChartProps> = ({
       <div className="relative flex min-h-0 flex-1 overflow-hidden bg-white dark:bg-[#0b0f19]">
 
 
-        {/* ===================================================
-            DRAWING TOOLBAR
-            =================================================== */}
-
-        <div className="relative z-30 w-12 shrink-0 overflow-visible border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-[#0b0f19]">
-
-          <DrawingToolbar
-            activeTool={activeTool}
-            onSelectTool={setActiveTool}
-            currentColor={currentColor}
-            onChangeColor={setCurrentColor}
-            currentStrokeWidth={currentStrokeWidth}
-            onChangeStrokeWidth={setCurrentStrokeWidth}
-            canUndo={canUndo}
-            canRedo={canRedo}
-            onUndo={handleUndo}
-            onRedo={handleRedo}
-            onClearAll={handleClearAllDrawings}
-            drawings={drawings}
-            onToggleDrawingVisible={handleToggleDrawingVisible}
-            onToggleDrawingLock={handleToggleDrawingLock}
-            onDeleteDrawing={handleDeleteDrawing}
-          />
-
-        </div>
 
 
         {/* ===================================================
@@ -968,19 +929,25 @@ export const TradingChart: React.FC<TradingChartProps> = ({
             candles={candles}
             timeframe={timeframe}
             drawings={drawings}
+
             activeTool={activeTool}
-            onSelectTool={setActiveTool}
+            onSelectTool={onSelectDrawingTool}
+
             selectedDrawingId={selectedDrawingId}
             onSelectDrawing={setSelectedDrawingId}
+
             onAddDrawing={handleAddDrawing}
             onUpdateDrawing={handleUpdateDrawing}
             onDeleteDrawing={handleDeleteDrawing}
             onDrawingDragStart={handleDrawingDragStart}
             onDrawingDragEnd={handleDrawingDragEnd}
+
             chart={chartInstance}
             series={candlestickSeriesInstance}
+
             currentColor={currentColor}
             currentStrokeWidth={currentStrokeWidth}
+
             activeTimezone={activeTimezone}
             isDarkMode={isDarkMode}
             containerWidth={containerDimensions.width}
@@ -1064,9 +1031,6 @@ export const TradingChart: React.FC<TradingChartProps> = ({
                 'Indikator'
           }
           initialValues={subPropertiesInitialValues}
-          showMomentumCandleSettings={
-          subPropertiesTarget?.type === 'MOMENTUM_CANDLE'
-        }
           showPeriod={!isVolumeProperties}
           showStdDev={
             subPropertiesTarget?.type === 'BOLLINGER'
