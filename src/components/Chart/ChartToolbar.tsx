@@ -34,6 +34,10 @@ interface ChartToolbarProps {
   // Replay
   showReplayControls?: boolean;
   onToggleReplay?: () => void;
+
+    // Order
+  canCreateOrder?: boolean;
+  onCreateOrderClick?: () => void;
 }
 
 export const ChartToolbar: React.FC<ChartToolbarProps> = ({
@@ -48,8 +52,12 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
   onOpenIndicatorsModal,
   onFitContent,
 
-  showReplayControls = false,
+    showReplayControls = false,
   onToggleReplay = () => {},
+
+  // Order
+  canCreateOrder = false,
+  onCreateOrderClick = () => {},
 }) => {
   const [showTzDropdown, setShowTzDropdown] = useState(false);
 
@@ -246,6 +254,24 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
             {showReplayControls ? 'Tutup Replay' : 'Mulai Replay'}
           </span>
         </button>
+                {/* Buat Order - hanya muncul saat replay aktif */}
+        {showReplayControls && (
+          <button
+            type="button"
+            data-testid="create-order-button"
+            onClick={onCreateOrderClick}
+            disabled={!canCreateOrder}
+            title={
+              canCreateOrder
+                ? 'Buat order baru'
+                : 'Order belum tersedia'
+            }
+            className="pointer-events-auto relative z-50 flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-emerald-600 bg-emerald-600 px-3 py-1.5 font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <span className="text-base font-bold">+</span>
+            <span>Buat Order</span>
+          </button>
+        )}
       </div>
     </div>
   );

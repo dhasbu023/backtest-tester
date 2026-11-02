@@ -155,13 +155,16 @@ interface TradingChartProps {
   // Replay controls
   showReplayControls: boolean;
   onToggleReplay: () => void;
+
+  // Order
+  canCreateOrder: boolean;
+  onCreateOrderClick: () => void;
 }
 
 
 // ============================================================
 // 10. TRADING CHART COMPONENT
 // ============================================================
-
 export const TradingChart: React.FC<TradingChartProps> = ({
   // Chart data
   candles,
@@ -199,7 +202,12 @@ export const TradingChart: React.FC<TradingChartProps> = ({
   // Replay
   showReplayControls,
   onToggleReplay,
+
+  // Order
+  canCreateOrder,
+  onCreateOrderClick,
 }) => {
+
 
   // ==========================================================
   // 1. REFS
@@ -711,20 +719,22 @@ export const TradingChart: React.FC<TradingChartProps> = ({
 
       <div className="relative z-20 shrink-0 border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-[#0b0f19]">
 
-        <ChartToolbar
-          sourceTimeframe={sourceTimeframe}
-          activeTimeframe={timeframe}
-          onChangeTimeframe={onChangeTimeframe}
-          activeTimezone={activeTimezone}
-          onChangeTimezone={onChangeTimezone}
-          indicators={indicators}
-          onOpenIndicatorsModal={() =>
-            setIsIndicatorManagerModalOpen(true)
-          }
-          onFitContent={fitContent}
-          showReplayControls={showReplayControls}
-          onToggleReplay={onToggleReplay}
-        />
+    <ChartToolbar
+        sourceTimeframe={sourceTimeframe}
+        activeTimeframe={timeframe}
+        onChangeTimeframe={onChangeTimeframe}
+        activeTimezone={activeTimezone}
+        onChangeTimezone={onChangeTimezone}
+        indicators={indicators}
+        onOpenIndicatorsModal={() =>
+          setIsIndicatorManagerModalOpen(true)
+        }
+        onFitContent={fitContent}
+        showReplayControls={showReplayControls}
+        onToggleReplay={onToggleReplay}
+        canCreateOrder={canCreateOrder}
+        onCreateOrderClick={onCreateOrderClick}
+      />
 
       </div>
 
