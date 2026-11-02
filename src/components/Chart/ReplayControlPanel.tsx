@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+
+import React, { useRef, useState } from 'react';
+
 import {
   Play,
   Pause,
@@ -11,8 +13,11 @@ import {
   CheckCircle2,
   Save,
   X,
+  GripHorizontal,
 } from 'lucide-react';
+
 import type { Timeframe } from '../../types/index.js';
+
 import {
   formatDateTimeWithTz,
   parseLocalDateTimeToUTC,
@@ -56,21 +61,158 @@ export const ReplayControlPanel: React.FC<ReplayControlPanelProps> = ({
   onChangeSpeed,
   onJumpToTimestamp,
 }) => {
+  // ==========================================
+  // STATE
+  // ==========================================
+
   const [showJumpModal, setShowJumpModal] = useState(false);
   const [jumpInput, setJumpInput] = useState('');
 
+  // null = posisi default tengah bawah.
+  // Setelah drag, posisi menggunakan koordinat layar.
+  const [panelPosition, setPanelPosition] = useState<{
+    x: number | null;
+    y: number | null;
+  }>({
+    x: null,
+    y: null,
+  });
+
+  const [isDragging, setIsDragging] = useState(false);
+
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  const dragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    initialX: number;
+    initialY: number;
+  } | null>(null);
+
+  // ==========================================
+  // REPLAY PROGRESS
+  // ==========================================
+
   const maxIndex = Math.max(0, totalCandles - 1);
-  const safeIndex = Math.min(Math.max(0, currentIndex), maxIndex);
+
+  const safeIndex = Math.min(
+    Math.max(0, currentIndex),
+    maxIndex,
+  );
 
   const percentProgress =
-    totalCandles > 0
-      ? Math.round((safeIndex / maxIndex) * 100) || 0
+    totalCandles > 1
+      ? Math.round((safeIndex / maxIndex) * 100)
       : 0;
 
-  const handleJumpSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  // ==========================================
+  // DRAG PANEL
+  // ==========================================
+
+  const handleDragStart = (
+    event: React.PointerEvent<HTMLDivElement>,
+  ) => {
+    // Hanya tombol kiri mouse.
+    if (event.pointerType === 'mouse' && event.button !== 0) {
+      return;
+    }
+
+    const target = event.target as HTMLElement;
+
+    // Jangan drag ketika berinteraksi dengan kontrol.
+    const interactiveElement = target.closest(
+      'button, input, select, textarea, a, [role="slider"]',
+    );
+
+    if (interactiveElement) {
+      return;
+    }
+
+    const panel = panelRef.current;
+
+    if (!panel) return;
+
+    const rect = panel.getBoundingClientRect();
+
+    // Mencegah pemilihan teks ketika drag.
     event.preventDefault();
 
-    if (!jumpInput.trim() || !onJumpToTimestamp) return;
+    dragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      initialX: rect.left,
+      initialY: rect.top,
+    };
+
+    setIsDragging(true);
+
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const handleDragMove = (
+    event: React.PointerEvent<HTMLDivElement>,
+  ) => {
+    const drag = dragRef.current;
+
+    if (!drag || drag.pointerId !== event.pointerId) {
+      return;
+    }
+
+    const panel = panelRef.current;
+
+    if (!panel) return;
+
+    const rect = panel.getBoundingClientRect();
+
+    const deltaX = event.clientX - drag.startX;
+    const deltaY = event.clientY - drag.startY;
+
+    // Posisi baru berdasarkan posisi awal panel.
+    let nextX = drag.initialX + deltaX;
+    let nextY = drag.initialY + deltaY;
+
+    // Batas layar.
+    const maxX = Math.max(0, window.innerWidth - rect.width);
+    const maxY = Math.max(0, window.innerHeight - rect.height);
+
+    nextX = Math.max(0, Math.min(maxX, nextX));
+    nextY = Math.max(0, Math.min(maxY, nextY));
+
+    setPanelPosition({
+      x: nextX,
+      y: nextY,
+    });
+  };
+
+  const handleDragEnd = (
+    event: React.PointerEvent<HTMLDivElement>,
+  ) => {
+    if (dragRef.current?.pointerId !== event.pointerId) {
+      return;
+    }
+
+    dragRef.current = null;
+    setIsDragging(false);
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  };
+
+  // ==========================================
+  // JUMP TO TIME
+  // ==========================================
+
+  const handleJumpSubmit = (
+    event: React.FormEvent<HTMLFormElement>,
+  ) => {
+    event.preventDefault();
+
+    if (!jumpInput.trim() || !onJumpToTimestamp) {
+      return;
+    }
 
     const parsedUTC = parseLocalDateTimeToUTC(
       jumpInput.trim(),
@@ -88,15 +230,81 @@ export const ReplayControlPanel: React.FC<ReplayControlPanelProps> = ({
     }
   };
 
+  // ==========================================
+  // PANEL POSITION STYLE
+  // ==========================================
+
+  const panelStyle: React.CSSProperties = {
+    position: 'fixed',
+    zIndex: 40,
+
+    left:
+      panelPosition.x !== null
+        ? `${panelPosition.x}px`
+        : '50%',
+
+    top:
+      panelPosition.y !== null
+        ? `${panelPosition.y}px`
+        : 'auto',
+
+    bottom:
+      panelPosition.y === null
+        ? '16px'
+        : 'auto',
+
+    transform:
+      panelPosition.x === null
+        ? 'translateX(-50%)'
+        : 'none',
+
+    cursor: isDragging ? 'grabbing' : 'grab',
+
+    userSelect: isDragging ? 'none' : 'auto',
+
+    WebkitUserSelect: isDragging ? 'none' : 'auto',
+  };
+
+  // ==========================================
+  // RENDER
+  // ==========================================
+
   return (
     <>
-      {/* Floating replay card */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-3 z-40 flex justify-center px-3 sm:bottom-4">
+      {/* ======================================
+          FULLY DRAGGABLE REPLAY PANEL
+      ====================================== */}
+
+      <div
+        ref={panelRef}
+        style={panelStyle}
+        onPointerDown={handleDragStart}
+        onPointerMove={handleDragMove}
+        onPointerUp={handleDragEnd}
+        onPointerCancel={handleDragEnd}
+        onLostPointerCapture={handleDragEnd}
+        className="w-[min(620px,calc(100vw-24px))]"
+      >
         <section
           aria-label="Kontrol chart replay"
-          className="pointer-events-auto w-full max-w-[620px] overflow-visible rounded-xl border border-slate-200/90 bg-white/95 p-2.5 text-slate-800 shadow-xl backdrop-blur-md dark:border-slate-700/90 dark:bg-slate-900/95 dark:text-slate-100 sm:p-3"
+          className={`
+            overflow-visible rounded-xl border
+            border-slate-200/90
+            bg-white/95 p-2.5
+            text-slate-800 shadow-xl
+            backdrop-blur-md
+            dark:border-slate-700/90
+            dark:bg-slate-900/95
+            dark:text-slate-100
+            sm:p-3
+            ${isDragging ? 'shadow-2xl' : ''}
+          `}
         >
-          {/* Progress */}
+          {/* DRAG INDICATOR */}
+
+
+          {/* PROGRESS */}
+
           <div className="mb-2 flex items-center gap-2">
             <span className="shrink-0 text-[10px] font-medium text-slate-500 dark:text-slate-400">
               Replay
@@ -124,8 +332,12 @@ export const ReplayControlPanel: React.FC<ReplayControlPanelProps> = ({
             </span>
           </div>
 
-          {/* Compact controls */}
+          {/* PLAYBACK CONTROLS */}
+
           <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-2">
+
+            {/* PLAY / PAUSE / NEXT / PREVIOUS */}
+
             <div className="flex items-center gap-1">
               <button
                 type="button"
@@ -153,17 +365,24 @@ export const ReplayControlPanel: React.FC<ReplayControlPanelProps> = ({
                 onClick={onPlayPause}
                 disabled={totalCandles === 0}
                 title="Play / Pause (Spasi)"
-                className={`flex h-8 items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-semibold text-white shadow-sm transition-colors disabled:opacity-40 ${
-                  isPlaying
-                    ? 'bg-amber-500 hover:bg-amber-600'
-                    : 'bg-blue-600 hover:bg-blue-700'
-                }`}
+                className={`
+                  flex h-8 items-center justify-center gap-1.5
+                  rounded-lg px-3 text-xs font-semibold
+                  text-white shadow-sm transition-colors
+                  disabled:opacity-40
+                  ${
+                    isPlaying
+                      ? 'bg-amber-500 hover:bg-amber-600'
+                      : 'bg-blue-600 hover:bg-blue-700'
+                  }
+                `}
               >
                 {isPlaying ? (
                   <Pause className="h-3.5 w-3.5 fill-current" />
                 ) : (
                   <Play className="ml-0.5 h-3.5 w-3.5 fill-current" />
                 )}
+
                 {isPlaying ? 'Pause' : 'Play'}
               </button>
 
@@ -179,7 +398,8 @@ export const ReplayControlPanel: React.FC<ReplayControlPanelProps> = ({
               </button>
             </div>
 
-            {/* Speed selector */}
+            {/* SPEED SELECTOR */}
+
             <div className="flex items-center gap-0.5 rounded-lg bg-slate-100 p-1 dark:bg-slate-800">
               <Gauge className="mx-1 h-3.5 w-3.5 shrink-0 text-slate-400" />
 
@@ -190,24 +410,31 @@ export const ReplayControlPanel: React.FC<ReplayControlPanelProps> = ({
                   onClick={() => onChangeSpeed(speed)}
                   aria-pressed={replaySpeed === speed}
                   title={`Kecepatan ${speed}x`}
-                  className={`rounded-md px-1.5 py-1 text-[10px] font-semibold transition-colors ${
-                    replaySpeed === speed
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'text-slate-600 hover:bg-white dark:text-slate-300 dark:hover:bg-slate-700'
-                  }`}
+                  className={`
+                    rounded-md px-1.5 py-1
+                    text-[10px] font-semibold
+                    transition-colors
+                    ${
+                      replaySpeed === speed
+                        ? 'bg-blue-600 text-white shadow-sm'
+                        : 'text-slate-600 hover:bg-white dark:text-slate-300 dark:hover:bg-slate-700'
+                    }
+                  `}
                 >
                   {speed}x
                 </button>
               ))}
             </div>
 
-            {/* Time, jump, save status */}
+            {/* TIME / JUMP / SAVE STATUS */}
+
             <div className="flex min-w-0 items-center gap-1.5">
               <div
                 className="flex min-w-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 dark:border-slate-700 dark:bg-slate-800/80"
                 title={`Waktu candle: ${activeTimezone}`}
               >
                 <Clock className="h-3.5 w-3.5 shrink-0 text-blue-500" />
+
                 <span className="truncate font-mono text-[10px] font-semibold">
                   {formatDateTimeWithTz(
                     currentTimestamp,
@@ -230,7 +457,11 @@ export const ReplayControlPanel: React.FC<ReplayControlPanelProps> = ({
 
               <div
                 className="hidden shrink-0 items-center justify-center sm:flex"
-                title={isSaving ? 'Menyimpan perubahan' : 'Perubahan tersimpan'}
+                title={
+                  isSaving
+                    ? 'Menyimpan perubahan'
+                    : 'Perubahan tersimpan'
+                }
               >
                 {isSaving ? (
                   <Save className="h-3.5 w-3.5 animate-pulse text-amber-500" />
@@ -243,7 +474,10 @@ export const ReplayControlPanel: React.FC<ReplayControlPanelProps> = ({
         </section>
       </div>
 
-      {/* Jump to date modal */}
+      {/* ======================================
+          JUMP TO DATE MODAL
+      ====================================== */}
+
       {showJumpModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
           <div
@@ -252,10 +486,15 @@ export const ReplayControlPanel: React.FC<ReplayControlPanelProps> = ({
             aria-labelledby="replay-jump-title"
             className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-700 dark:bg-slate-900"
           >
+            {/* MODAL HEADER */}
+
             <div className="mb-3 flex items-center justify-between">
               <div className="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-white">
                 <Calendar className="h-4 w-4 text-blue-600" />
-                <span id="replay-jump-title">Lompat ke Waktu</span>
+
+                <span id="replay-jump-title">
+                  Lompat ke Waktu
+                </span>
               </div>
 
               <button
@@ -268,20 +507,30 @@ export const ReplayControlPanel: React.FC<ReplayControlPanelProps> = ({
               </button>
             </div>
 
+            {/* MODAL DESCRIPTION */}
+
             <p className="mb-4 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
               Masukkan tanggal dan waktu sesuai zona waktu{' '}
-              <strong>{activeTimezone}</strong>. Format:
-              {' '}
-              <code className="text-blue-500">YYYY-MM-DD HH:mm</code>.
+              <strong>{activeTimezone}</strong>. Format:{' '}
+              <code className="text-blue-500">
+                YYYY-MM-DD HH:mm
+              </code>.
               Replay akan mencari candle pada waktu tersebut.
             </p>
 
-            <form onSubmit={handleJumpSubmit} className="space-y-4">
+            {/* MODAL FORM */}
+
+            <form
+              onSubmit={handleJumpSubmit}
+              className="space-y-4"
+            >
               <input
                 type="text"
                 placeholder="2026-07-01 04:00"
                 value={jumpInput}
-                onChange={(event) => setJumpInput(event.target.value)}
+                onChange={(event) =>
+                  setJumpInput(event.target.value)
+                }
                 autoFocus
                 required
                 aria-label="Tanggal dan waktu tujuan"
