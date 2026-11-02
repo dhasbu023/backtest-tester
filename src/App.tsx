@@ -7,9 +7,8 @@ import {
   useMemo,
 } from 'react';
 
-import { useNavigate, useParams } from 'react-router-dom';
 
-import { Header } from './components/Header.js';
+import { useNavigate, useParams } from 'react-router-dom';
 import SessionsPage from './pages/SessionsPage.js';
 import ChartPage from './pages/ChartPage.js';
 import DashboardPage from './pages/DashboardPage.js';
@@ -19,6 +18,8 @@ import MainLayout from './layouts/MainLayout.js';
 import { useTheme } from './hooks/useTheme.js';
 import { useChartPreferences } from './hooks/useChartPreferences.js';
 import { useReplayKeyboard } from './hooks/useReplayKeyboard.js';
+import { useReplayControls } from './hooks/useReplayControls.js';
+import { useActiveSession } from './hooks/useActiveSession.js';
 
 import type {
   BacktestSession,
@@ -27,20 +28,10 @@ import type {
   Timeframe,
 } from './types/index.js';
 
-import {
-  fetchSessions,
-  fetchSession,
-  fetchDataset,
-  fetchCandles,
-  saveReplayState,
-  fetchDrawings,
-  fetchPreference,
-  deleteSession as apiDeleteSession,
-} from './services/api.js';
+import { useSessions } from './hooks/useSessions.js';
 
 import {
   aggregateCandles,
-  isTimeframeAllowed,
 } from './server/timeframeAggregator.js';
 
 import { AlertCircle } from 'lucide-react';
@@ -66,8 +57,7 @@ export default function App({ mode }: AppProps) {
   const navigate = useNavigate();
   const { sessionId } = useParams<{ sessionId: string }>();
 
-  const currentView: 'SESSIONS' | 'CHART' =
-    mode === 'SESSIONS' ? 'SESSIONS' : 'CHART';
+
 
   // =========================================================
   // THEME
@@ -79,8 +69,6 @@ export default function App({ mode }: AppProps) {
   // SESSIONS & NAVIGATION
   // =========================================================
 
-  const [sessions, setSessions] = useState<BacktestSession[]>([]);
-  const [isLoadingSessions, setIsLoadingSessions] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [globalError, setGlobalError] = useState<string | null>(null);
 
@@ -106,6 +94,7 @@ export default function App({ mode }: AppProps) {
     handleUpdateIndicators,
   } = useChartPreferences({ activeSession });
 
+
   const [activeDataset, setActiveDataset] =
     useState<Dataset | null>(null);
 
@@ -124,22 +113,55 @@ export default function App({ mode }: AppProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [replaySpeed, setReplaySpeed] = useState(1);
   const [isChartLoading, setIsChartLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+
 
   // =========================================================
   // REFERENCES
   // =========================================================
 
-  const replayTimerRef =
-    useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const saveTimeoutRef =
-    useRef<ReturnType<typeof setTimeout> | null>(null);
-
   const currentLoadedSessionIdRef = useRef<string | null>(null);
 
   const aggregationCacheRef =
     useRef<AggregationCache | null>(null);
+
+
+
+  // =========================================================
+// SESSIONS HOOK
+// =========================================================
+
+const handleSessionError = useCallback((message: string) => {
+  setGlobalError(message);
+}, []);
+
+const handleActiveSessionDeleted = useCallback(() => {
+  setIsPlaying(false);
+
+  localStorage.removeItem('active_session_id');
+
+  setActiveSession(null);
+  setActiveDataset(null);
+  setSourceCandles([]);
+  setDisplayCandles([]);
+  setCurrentIndex(0);
+
+  aggregationCacheRef.current = null;
+
+  resetChartPreferences();
+
+  navigate('/sessions');
+}, [resetChartPreferences, navigate]);
+
+const {
+  sessions,
+  isLoadingSessions,
+  loadSessions,
+  handleDeleteSession,
+} = useSessions({
+  activeSessionId: activeSession?.id ?? null,
+  onActiveSessionDeleted: handleActiveSessionDeleted,
+  onError: handleSessionError,
+});
 
   // =========================================================
   // AGGREGATION HELPER
@@ -199,6 +221,15 @@ export default function App({ mode }: AppProps) {
     []
   );
 
+
+  // =========================================================
+// CLEAR AGGREGATION CACHE
+// =========================================================
+
+const clearAggregationCache = useCallback(() => {
+  aggregationCacheRef.current = null;
+}, []);
+
   // =========================================================
   // TIMESTAMP SEARCH
   // =========================================================
@@ -224,167 +255,33 @@ export default function App({ mode }: AppProps) {
   );
 
   // =========================================================
-  // LOAD SESSIONS
+  // ACTIVE SESSION HOOK
   // =========================================================
 
-  const loadSessions = useCallback(async () => {
-    setIsLoadingSessions(true);
-    setGlobalError(null);
+  const {
+    handleOpenSession,
+    cancelOpenSession,
+  } = useActiveSession({
+    setActiveSession,
+    setActiveDataset,
+    setSourceCandles,
+    setDisplayCandles,
+    setCurrentIndex,
+    setActiveTimeframe,
+    setReplaySpeed,
+    setIsPlaying,
+    setIsChartLoading,
+    setGlobalError,
 
-    try {
-      const data = await fetchSessions();
-      setSessions(data);
-      return data;
-    } catch (err: unknown) {
-      console.error('Failed to load sessions:', err);
+    getAggregatedCandles,
+    findCandleIndexAtOrAfter,
 
-      const message =
-        err instanceof Error ? err.message : String(err);
+    loadChartPreferences,
+    resetChartPreferences,
 
-      setGlobalError(
-        'Gagal memuat daftar sesi dari database: ' + message
-      );
+    clearAggregationCache,
+  });
 
-      return [];
-    } finally {
-      setIsLoadingSessions(false);
-    }
-  }, []);
-
-  // =========================================================
-  // OPEN SESSION FROM URL
-  // =========================================================
-
-  const handleOpenSession = useCallback(
-    async (id: string) => {
-      setIsChartLoading(true);
-      setIsPlaying(false);
-      setGlobalError(null);
-
-      aggregationCacheRef.current = null;
-
-      try {
-        const session = await fetchSession(id);
-
-        if (!session) {
-          throw new Error('Sesi tidak ditemukan.');
-        }
-
-        const dataset = await fetchDataset(session.datasetId);
-
-        if (!dataset) {
-          throw new Error('Dataset untuk sesi ini tidak ditemukan.');
-        }
-
-        setActiveSession(session);
-        setActiveDataset(dataset);
-
-        let tf = (
-          session.activeTimeframe || dataset.timeframe
-        ) as Timeframe;
-
-        if (!isTimeframeAllowed(dataset.timeframe, tf)) {
-          tf = dataset.timeframe;
-        }
-
-        setActiveTimeframe(tf);
-        setReplaySpeed(session.replaySpeed || 1);
-
-        const [loadedDrawings, loadedPref] = await Promise.all([
-          fetchDrawings(session.id).catch(() => []),
-          fetchPreference(session.id).catch(() => null),
-        ]);
-
-        loadChartPreferences(
-          loadedDrawings || [],
-          loadedPref,
-          session.id
-        );
-
-        const candlesData = await fetchCandles({
-          datasetId: session.datasetId,
-          timeframe: dataset.timeframe,
-          limit: 200000,
-        });
-
-        const raw = candlesData?.candles || [];
-
-        setSourceCandles(raw);
-
-        let targetIndex = raw.length > 0 ? raw.length - 1 : 0;
-
-        if (raw.length > 0) {
-          const targetTime = Number(session.currentReplayTime);
-
-          if (
-            Number.isFinite(targetTime) &&
-            targetTime > 0
-          ) {
-            const found = findCandleIndexAtOrAfter(
-              raw,
-              targetTime
-            );
-
-            targetIndex =
-              found !== -1 ? found : raw.length - 1;
-          } else if (
-            session.currentCandleIndex !== undefined &&
-            session.currentCandleIndex !== null &&
-            Number(session.currentCandleIndex) > 0
-          ) {
-            targetIndex = Math.max(
-              0,
-              Math.min(
-                Number(session.currentCandleIndex) || 0,
-                raw.length - 1
-              )
-            );
-          }
-
-          const aggregated = getAggregatedCandles(
-            raw,
-            dataset.timeframe,
-            tf,
-            targetIndex
-          );
-
-          setDisplayCandles(aggregated);
-        } else {
-          aggregationCacheRef.current = null;
-          setDisplayCandles([]);
-        }
-
-        setCurrentIndex(targetIndex);
-
-        localStorage.setItem('active_session_id', session.id);
-      } catch (err: unknown) {
-        console.error('Error opening session:', err);
-
-        const message =
-          err instanceof Error ? err.message : String(err);
-
-        setGlobalError('Gagal membuka sesi: ' + message);
-
-        aggregationCacheRef.current = null;
-
-        setActiveSession(null);
-        setActiveDataset(null);
-        setSourceCandles([]);
-        setDisplayCandles([]);
-        setCurrentIndex(0);
-
-        resetChartPreferences();
-      } finally {
-        setIsChartLoading(false);
-      }
-    },
-    [
-      findCandleIndexAtOrAfter,
-      getAggregatedCandles,
-      loadChartPreferences,
-      resetChartPreferences,
-    ]
-  );
 
   // =========================================================
   // INITIAL LOAD & URL SESSION CHANGES
@@ -394,30 +291,40 @@ export default function App({ mode }: AppProps) {
     void loadSessions();
   }, [loadSessions]);
 
-  useEffect(() => {
-    if (sessionId) {
-      if (currentLoadedSessionIdRef.current !== sessionId) {
-        currentLoadedSessionIdRef.current = sessionId;
-        void handleOpenSession(sessionId);
-      }
-
-      return;
+  
+useEffect(() => {
+  if (sessionId) {
+    if (currentLoadedSessionIdRef.current !== sessionId) {
+      currentLoadedSessionIdRef.current = sessionId;
+      void handleOpenSession(sessionId);
     }
 
-    currentLoadedSessionIdRef.current = null;
+    return;
+  }
 
-    setIsPlaying(false);
-    setActiveSession(null);
-    setActiveDataset(null);
-    setSourceCandles([]);
-    setDisplayCandles([]);
-    setCurrentIndex(0);
-    setIsChartLoading(false);
+  // Batalkan proses loading sesi sebelumnya.
+  cancelOpenSession();
 
-    aggregationCacheRef.current = null;
+  currentLoadedSessionIdRef.current = null;
 
-    resetChartPreferences();
-  }, [sessionId, handleOpenSession, resetChartPreferences]);
+  setIsPlaying(false);
+  setActiveSession(null);
+  setActiveDataset(null);
+  setSourceCandles([]);
+  setDisplayCandles([]);
+  setCurrentIndex(0);
+  setIsChartLoading(false);
+
+  aggregationCacheRef.current = null;
+
+  resetChartPreferences();
+}, [
+  sessionId,
+  handleOpenSession,
+  cancelOpenSession,
+  resetChartPreferences,
+]);
+
 
   // =========================================================
   // UPDATE VISIBLE CANDLES
@@ -458,391 +365,50 @@ export default function App({ mode }: AppProps) {
     [sourceCandles, activeDataset, getAggregatedCandles]
   );
 
-  // =========================================================
-  // SAVE REPLAY POSITION
-  // =========================================================
-
-  const triggerDebouncedSave = useCallback(
-    (index: number, tf: Timeframe, speed: number) => {
-      if (!activeSession || sourceCandles.length === 0) {
-        return;
-      }
-
-      const safeIndex = Math.max(
-        0,
-        Math.min(index, sourceCandles.length - 1)
-      );
-
-      const candle = sourceCandles[safeIndex];
-
-      if (!candle) {
-        return;
-      }
-
-      if (saveTimeoutRef.current !== null) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-
-      setIsSaving(true);
-
-      const sessionIdToSave = activeSession.id;
-
-      saveTimeoutRef.current = setTimeout(async () => {
-        try {
-          await saveReplayState(sessionIdToSave, {
-            currentTime: candle.timestamp,
-            currentIndex: safeIndex,
-            speed,
-            activeTimeframe: tf,
-            isPlaying: false,
-          });
-        } catch (err) {
-          console.warn('Auto-save error:', err);
-        } finally {
-          setIsSaving(false);
-          saveTimeoutRef.current = null;
-        }
-      }, 600);
-    },
-    [activeSession, sourceCandles]
-  );
 
   // =========================================================
-  // CLEANUP TIMERS
-  // =========================================================
+// REPLAY CONTROLS HOOK
+// =========================================================
 
-  useEffect(() => {
-    return () => {
-      if (saveTimeoutRef.current !== null) {
-        clearTimeout(saveTimeoutRef.current);
-      }
+const {
+  isSaving,
+  handleNextCandle,
+  handlePrevCandle,
+  handleReset,
+  handleSeek,
+  handleChangeTimeframe,
+  handleChangeSpeed,
+  handleJumpToTimestamp,
+} = useReplayControls({
+  activeSession,
+  sourceCandles,
+  currentIndex,
+  activeTimeframe,
+  replaySpeed,
+  activeDatasetTimeframe: activeDataset?.timeframe ?? null,
+  isPlaying,
+  setCurrentIndex,
+  setActiveTimeframe,
+  setReplaySpeed,
+  setIsPlaying,
+  setGlobalError,
+  updateVisibleCandles,
+  findCandleIndexAtOrAfter,
+});
+  
+  
 
-      if (replayTimerRef.current !== null) {
-        clearInterval(replayTimerRef.current);
-      }
-    };
-  }, []);
-
-  // =========================================================
-  // REPLAY: NEXT CANDLE
-  // =========================================================
-
-  const handleNextCandle = useCallback(() => {
-    if (currentIndex >= sourceCandles.length - 1) {
-      setIsPlaying(false);
-      return;
-    }
-
-    const nextIndex = currentIndex + 1;
-
-    setCurrentIndex(nextIndex);
-    updateVisibleCandles(nextIndex, activeTimeframe);
-
-    triggerDebouncedSave(
-      nextIndex,
-      activeTimeframe,
-      replaySpeed
-    );
-  }, [
-    currentIndex,
-    sourceCandles.length,
-    updateVisibleCandles,
-    activeTimeframe,
-    triggerDebouncedSave,
-    replaySpeed,
-  ]);
-
-  // =========================================================
-  // REPLAY: PREVIOUS CANDLE
-  // =========================================================
-
-  const handlePrevCandle = useCallback(() => {
-    if (currentIndex <= 0) {
-      return;
-    }
-
-    const prevIndex = currentIndex - 1;
-
-    setCurrentIndex(prevIndex);
-    updateVisibleCandles(prevIndex, activeTimeframe);
-
-    triggerDebouncedSave(
-      prevIndex,
-      activeTimeframe,
-      replaySpeed
-    );
-  }, [
-    currentIndex,
-    updateVisibleCandles,
-    activeTimeframe,
-    triggerDebouncedSave,
-    replaySpeed,
-  ]);
-
-  // =========================================================
-  // REPLAY: RESET
-  // =========================================================
-
-  const handleReset = useCallback(() => {
-    setIsPlaying(false);
-    setCurrentIndex(0);
-
-    updateVisibleCandles(0, activeTimeframe);
-
-    triggerDebouncedSave(0, activeTimeframe, replaySpeed);
-  }, [
-    updateVisibleCandles,
-    activeTimeframe,
-    triggerDebouncedSave,
-    replaySpeed,
-  ]);
-
-  // =========================================================
-  // REPLAY: SEEK
-  // =========================================================
-
-  const handleSeek = useCallback(
-    (newIndex: number) => {
-      if (sourceCandles.length === 0) {
-        return;
-      }
-
-      const clampedIndex = Math.max(
-        0,
-        Math.min(newIndex, sourceCandles.length - 1)
-      );
-
-      setCurrentIndex(clampedIndex);
-      updateVisibleCandles(clampedIndex, activeTimeframe);
-
-      triggerDebouncedSave(
-        clampedIndex,
-        activeTimeframe,
-        replaySpeed
-      );
-    },
-    [
-      sourceCandles.length,
-      updateVisibleCandles,
-      activeTimeframe,
-      triggerDebouncedSave,
-      replaySpeed,
-    ]
-  );
-
-  // =========================================================
-  // CHANGE TIMEFRAME
-  // =========================================================
-
-  const handleChangeTimeframe = useCallback(
-    (newTimeframe: Timeframe) => {
-      if (!activeDataset) {
-        return;
-      }
-
-      if (
-        !isTimeframeAllowed(
-          activeDataset.timeframe,
-          newTimeframe
-        )
-      ) {
-        setGlobalError(
-          `Timeframe ${newTimeframe} tidak diperbolehkan ` +
-          `untuk timeframe sumber ${activeDataset.timeframe}`
-        );
-
-        return;
-      }
-
-      setGlobalError(null);
-
-      if (newTimeframe === activeTimeframe) {
-        return;
-      }
-
-      const safeIndex = sourceCandles.length > 0
-        ? Math.max(
-            0,
-            Math.min(currentIndex, sourceCandles.length - 1)
-          )
-        : 0;
-
-      setActiveTimeframe(newTimeframe);
-
-      updateVisibleCandles(safeIndex, newTimeframe);
-
-      triggerDebouncedSave(
-        safeIndex,
-        newTimeframe,
-        replaySpeed
-      );
-    },
-    [
-      activeDataset,
-      activeTimeframe,
-      sourceCandles.length,
-      currentIndex,
-      replaySpeed,
-      updateVisibleCandles,
-      triggerDebouncedSave,
-    ]
-  );
-
-  // =========================================================
-  // CHANGE REPLAY SPEED
-  // =========================================================
-
-  const handleChangeSpeed = useCallback(
-    (speed: number) => {
-      setReplaySpeed(speed);
-
-      triggerDebouncedSave(
-        currentIndex,
-        activeTimeframe,
-        speed
-      );
-    },
-    [
-      currentIndex,
-      activeTimeframe,
-      triggerDebouncedSave,
-    ]
-  );
-
-  // =========================================================
-  // JUMP TO DATE / TIMESTAMP
-  // =========================================================
-
-  const handleJumpToTimestamp = useCallback(
-    (targetTimestamp: number) => {
-      if (sourceCandles.length === 0) {
-        return;
-      }
-
-      const foundIndex = findCandleIndexAtOrAfter(
-        sourceCandles,
-        targetTimestamp
-      );
-
-      const targetIndex =
-        foundIndex === -1
-          ? sourceCandles.length - 1
-          : foundIndex;
-
-      setCurrentIndex(targetIndex);
-
-      updateVisibleCandles(targetIndex, activeTimeframe);
-
-      triggerDebouncedSave(
-        targetIndex,
-        activeTimeframe,
-        replaySpeed
-      );
-    },
-    [
-      sourceCandles,
-      findCandleIndexAtOrAfter,
-      updateVisibleCandles,
-      activeTimeframe,
-      triggerDebouncedSave,
-      replaySpeed,
-    ]
-  );
-
-  // =========================================================
-  // REPLAY AUTOPLAY TIMER
-  // =========================================================
-
-  useEffect(() => {
-    if (replayTimerRef.current !== null) {
-      clearInterval(replayTimerRef.current);
-      replayTimerRef.current = null;
-    }
-
-    if (!isPlaying || sourceCandles.length === 0) {
-      return;
-    }
-
-    const intervalMs = Math.max(
-      30,
-      Math.round(1000 / Math.max(replaySpeed, 0.1))
-    );
-
-    replayTimerRef.current = setInterval(() => {
-      setCurrentIndex((previousIndex) => {
-        if (previousIndex >= sourceCandles.length - 1) {
-          setIsPlaying(false);
-          return previousIndex;
-        }
-
-        const nextIndex = previousIndex + 1;
-
-        updateVisibleCandles(nextIndex, activeTimeframe);
-
-        return nextIndex;
-      });
-    }, intervalMs);
-
-    return () => {
-      if (replayTimerRef.current !== null) {
-        clearInterval(replayTimerRef.current);
-        replayTimerRef.current = null;
-      }
-    };
-  }, [
-    isPlaying,
-    replaySpeed,
-    sourceCandles.length,
-    updateVisibleCandles,
-    activeTimeframe,
-  ]);
 
   // =========================================================
   // KEYBOARD SHORTCUTS
   // =========================================================
 
   useReplayKeyboard({
-    enabled: currentView === 'CHART',
-    setIsPlaying,
-    handleNextCandle,
-    handlePrevCandle,
-  });
-
-  // =========================================================
-  // DELETE SESSION
-  // =========================================================
-
-  const handleDeleteSession = async (id: string) => {
-    try {
-      await apiDeleteSession(id);
-
-      if (activeSession?.id === id) {
-        setIsPlaying(false);
-
-        localStorage.removeItem('active_session_id');
-
-        setActiveSession(null);
-        setActiveDataset(null);
-        setSourceCandles([]);
-        setDisplayCandles([]);
-        setCurrentIndex(0);
-
-        aggregationCacheRef.current = null;
-
-        resetChartPreferences();
-
-        navigate('/sessions');
-      }
-
-      await loadSessions();
-    } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : String(err);
-
-      setGlobalError('Gagal menghapus sesi: ' + message);
-    }
-  };
-
+  enabled: mode === 'CHART' || mode === 'BACKTEST',
+  setIsPlaying,
+  handleNextCandle,
+  handlePrevCandle,
+});
   // =========================================================
   // CHART DATA
   // =========================================================

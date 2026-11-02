@@ -4,6 +4,12 @@ import { db } from './db.js';
 import { parseMT5CSV } from './csvParser.js';
 import { aggregateCandles, getAllowedTimeframes, isTimeframeAllowed } from './timeframeAggregator.js';
 import { Candle, Timeframe } from '../types/index.js';
+import type {
+  OrderFilter,
+  OrderStatus,
+  OrderDirection,
+  OrderType,
+} from '../types/order.js';
 
 
 // Generate structured and unique Backtest Session ID
@@ -592,6 +598,7 @@ apiApp.post('/backtest-sessions/:id/preference', async (req: Request, res: Respo
 // BACKTEST ORDERS ENDPOINTS
 // ==========================================
 
+
 // GET /api/backtest-sessions/:id/orders
 apiApp.get(
   '/backtest-sessions/:id/orders',
@@ -600,27 +607,81 @@ apiApp.get(
       const sessionId = req.params.id;
 
       const statusParam = req.query.status?.toString();
-      const direction = req.query.direction?.toString();
-      const orderType = req.query.orderType?.toString();
+      const directionParam = req.query.direction?.toString().toUpperCase();
+      const orderTypeParam = req.query.orderType?.toString().toUpperCase();
 
-      const filter: {
-        status?: string | string[];
-        direction?: string;
-        orderType?: string;
-      } = {};
+      const validStatuses: OrderStatus[] = [
+        'PENDING',
+        'OPEN',
+        'CLOSED_TP',
+        'CLOSED_SL',
+        'CLOSED_MANUAL',
+        'CANCELLED',
+      ];
 
+      const validDirections: OrderDirection[] = [
+        'BUY',
+        'SELL',
+      ];
+
+      const validOrderTypes: OrderType[] = [
+        'MARKET',
+        'BUY_LIMIT',
+        'SELL_LIMIT',
+        'BUY_STOP',
+        'SELL_STOP',
+      ];
+
+      const filter: Omit<OrderFilter, 'sessionId'> = {};
+
+      // Filter status
       if (statusParam) {
-        filter.status = statusParam.includes(',')
-          ? statusParam.split(',')
-          : statusParam;
+        const statuses = statusParam
+          .split(',')
+          .map((status) => status.trim().toUpperCase())
+          .filter(Boolean);
+
+        const invalidStatuses = statuses.filter(
+          (status) => !validStatuses.includes(status as OrderStatus)
+        );
+
+        if (invalidStatuses.length > 0) {
+          return res.status(400).json({
+            error: 'Status order tidak valid',
+            invalidStatuses,
+          });
+        }
+
+        if (statuses.length > 0) {
+          filter.status =
+            statuses.length === 1
+              ? statuses[0] as OrderStatus
+              : statuses as OrderStatus[];
+        }
       }
 
-      if (direction) {
-        filter.direction = direction;
+      // Filter direction
+      if (directionParam) {
+        if (!validDirections.includes(directionParam as OrderDirection)) {
+          return res.status(400).json({
+            error: 'Direction tidak valid',
+            allowed: validDirections,
+          });
+        }
+
+        filter.direction = directionParam as OrderDirection;
       }
 
-      if (orderType) {
-        filter.orderType = orderType;
+      // Filter order type
+      if (orderTypeParam) {
+        if (!validOrderTypes.includes(orderTypeParam as OrderType)) {
+          return res.status(400).json({
+            error: 'Order type tidak valid',
+            allowed: validOrderTypes,
+          });
+        }
+
+        filter.orderType = orderTypeParam as OrderType;
       }
 
       const orders = await db.getOrders(sessionId, filter);
@@ -635,6 +696,7 @@ apiApp.get(
     }
   }
 );
+
 
 // POST /api/backtest-sessions/:id/orders
 apiApp.post(
