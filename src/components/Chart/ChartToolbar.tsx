@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+
+import { useState } from 'react';
+
 import {
   Sliders,
   Globe,
@@ -16,6 +18,10 @@ import type {
 
 import { TIMEZONE_OPTIONS } from '../../types/index.js';
 import { getAllowedTimeframes } from '../../server/timeframeAggregator.js';
+
+// ============================================
+// PROPS
+// ============================================
 
 interface ChartToolbarProps {
   sourceTimeframe: Timeframe;
@@ -35,12 +41,16 @@ interface ChartToolbarProps {
   showReplayControls?: boolean;
   onToggleReplay?: () => void;
 
-    // Order
+  // Order
   canCreateOrder?: boolean;
   onCreateOrderClick?: () => void;
 }
 
-export const ChartToolbar: React.FC<ChartToolbarProps> = ({
+// ============================================
+// COMPONENT
+// ============================================
+
+export const ChartToolbar = ({
   sourceTimeframe,
   activeTimeframe,
   onChangeTimeframe,
@@ -52,32 +62,101 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
   onOpenIndicatorsModal,
   onFitContent,
 
-    showReplayControls = false,
-  onToggleReplay = () => {},
+  // Replay
+  showReplayControls = false,
+  onToggleReplay,
 
   // Order
   canCreateOrder = false,
-  onCreateOrderClick = () => {},
-}) => {
+  onCreateOrderClick,
+}: ChartToolbarProps) => {
   const [showTzDropdown, setShowTzDropdown] = useState(false);
+
+  // ==========================================
+  // TIMEFRAME
+  // ==========================================
 
   const allowedTimeframes = getAllowedTimeframes(sourceTimeframe);
 
+  // ==========================================
+  // TIMEZONE
+  // ==========================================
+
   const activeTzObj =
     TIMEZONE_OPTIONS.find(
-      (timezone) => timezone.id === activeTimezone,
+      (timezone) => timezone.id === activeTimezone
     ) || TIMEZONE_OPTIONS[1];
 
+  // ==========================================
+  // INDICATORS
+  // ==========================================
+
   const activeIndicatorsCount = indicators.filter(
-    (indicator) => indicator.visible,
+    (indicator) => indicator.visible
   ).length;
 
+  // ==========================================
+  // HANDLERS
+  // ==========================================
+
+  const handleToggleTimezone = () => {
+    setShowTzDropdown((previous) => !previous);
+  };
+
+  const handleSelectTimezone = (timezoneId: string) => {
+    onChangeTimezone(timezoneId);
+    setShowTzDropdown(false);
+  };
+
+  const handleToggleReplay = () => {
+    onToggleReplay?.();
+  };
+
+  const handleCreateOrder = () => {
+    if (!canCreateOrder) {
+      console.warn('[CHART TOOLBAR] Order belum bisa dibuat.');
+      return;
+    }
+
+    if (!onCreateOrderClick) {
+      console.error(
+        '[CHART TOOLBAR] onCreateOrderClick belum diteruskan dari ChartPage.'
+      );
+      return;
+    }
+
+    onCreateOrderClick();
+  };
+
+  // ==========================================
+  // RENDER
+  // ==========================================
+
   return (
-    <div className="relative z-30 flex h-10 shrink-0 select-none items-center justify-between gap-2 border-b border-slate-200 bg-slate-50 px-3 text-xs dark:border-slate-800 dark:bg-slate-900">
-      {/* LEFT: TIMEFRAME + INDICATORS */}
+    <div
+      className="
+        relative z-30 flex h-10 w-full shrink-0
+        select-none items-center justify-between gap-2
+        border-b border-slate-200 bg-slate-50 px-3
+        text-xs dark:border-slate-800 dark:bg-slate-900
+      "
+    >
+      {/* ======================================
+          LEFT: TIMEFRAME + INDICATORS
+          ====================================== */}
+
       <div className="flex min-w-0 items-center gap-1.5 overflow-x-auto">
-        {/* Timeframe Buttons */}
-        <div className="flex shrink-0 items-center gap-0.5 rounded-lg border border-slate-300/60 bg-slate-200/70 p-0.5 dark:border-slate-700/60 dark:bg-slate-800">
+
+        {/* TIMEFRAME BUTTONS */}
+
+        <div
+          className="
+            flex shrink-0 items-center gap-0.5
+            rounded-lg border border-slate-300/60
+            bg-slate-200/70 p-0.5
+            dark:border-slate-700/60 dark:bg-slate-800
+          "
+        >
           {(
             ['M1', 'M5', 'M15', 'M30', 'H1', 'H4', 'D1'] as Timeframe[]
           ).map((tf) => {
@@ -94,13 +173,17 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
                   }
                 }}
                 disabled={!isAllowed}
-                className={`cursor-pointer rounded px-2 py-0.5 font-mono text-xs font-bold transition-all ${
-                  isActive
-                    ? 'bg-blue-600 text-white shadow'
-                    : isAllowed
-                      ? 'text-slate-700 hover:bg-white dark:text-slate-300 dark:hover:bg-slate-700'
-                      : 'cursor-not-allowed text-slate-300 opacity-35 dark:text-slate-600'
-                }`}
+                className={`
+                  cursor-pointer rounded px-2 py-0.5
+                  font-mono text-xs font-bold transition-all
+                  ${
+                    isActive
+                      ? 'bg-blue-600 text-white shadow'
+                      : isAllowed
+                        ? 'text-slate-700 hover:bg-white dark:text-slate-300 dark:hover:bg-slate-700'
+                        : 'cursor-not-allowed text-slate-300 opacity-35 dark:text-slate-600'
+                  }
+                `}
                 title={
                   isAllowed
                     ? `Ganti ke ${tf}`
@@ -113,13 +196,23 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
           })}
         </div>
 
+        {/* DIVIDER */}
+
         <div className="mx-1 h-4 w-px shrink-0 bg-slate-200 dark:bg-slate-800" />
 
-        {/* Indicators */}
+        {/* INDICATORS */}
+
         <button
           type="button"
           onClick={onOpenIndicatorsModal}
-          className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-slate-700 transition-colors hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+          className="
+            flex shrink-0 cursor-pointer items-center gap-1.5
+            rounded-lg border border-slate-200 bg-white
+            px-2.5 py-1 text-slate-700 transition-colors
+            hover:bg-slate-100
+            dark:border-slate-700 dark:bg-slate-800
+            dark:text-slate-200 dark:hover:bg-slate-700
+          "
         >
           <Sliders className="h-3.5 w-3.5 text-blue-500" />
 
@@ -128,22 +221,42 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
           </span>
 
           {activeIndicatorsCount > 0 && (
-            <span className="rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+            <span
+              className="
+                rounded-full bg-blue-100 px-1.5 py-0.5
+                text-[10px] font-bold text-blue-700
+                dark:bg-blue-900 dark:text-blue-300
+              "
+            >
               {activeIndicatorsCount}
             </span>
           )}
         </button>
       </div>
 
-      {/* RIGHT: TIMEZONE + REPLAY */}
-      <div className="flex shrink-0 items-center gap-2">
-        {/* Timezone */}
+      {/* ======================================
+          RIGHT: TIMEZONE + REPLAY + ORDER
+          ====================================== */}
+
+      <div className="relative z-40 flex shrink-0 items-center gap-2">
+
+        {/* TIMEZONE */}
+
         <div className="relative">
+
           <button
             type="button"
-            onClick={() => setShowTzDropdown((value) => !value)}
+            onClick={handleToggleTimezone}
             aria-expanded={showTzDropdown}
-            className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+            aria-haspopup="true"
+            className="
+              flex cursor-pointer items-center gap-1.5
+              rounded-lg border border-slate-200 bg-white
+              px-2.5 py-1 text-xs font-medium text-slate-700
+              transition-colors hover:bg-slate-100
+              dark:border-slate-700 dark:bg-slate-800
+              dark:text-slate-200 dark:hover:bg-slate-700
+            "
             title="Ubah timezone tampilan chart"
           >
             <Globe className="h-3.5 w-3.5 text-blue-500" />
@@ -159,9 +272,26 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
             <ChevronDown className="ml-0.5 h-3 w-3 text-slate-400" />
           </button>
 
+          {/* TIMEZONE DROPDOWN */}
+
           {showTzDropdown && (
-            <div className="absolute right-0 z-50 mt-1 w-64 space-y-1 rounded-xl border border-slate-200 bg-white p-2 text-xs shadow-2xl dark:border-slate-800 dark:bg-slate-900">
-              <div className="border-b border-slate-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:border-slate-800">
+            <div
+              className="
+                absolute right-0 top-full z-[100]
+                mt-1 w-64 space-y-1 rounded-xl
+                border border-slate-200 bg-white p-2
+                text-xs shadow-2xl
+                dark:border-slate-800 dark:bg-slate-900
+              "
+            >
+              <div
+                className="
+                  border-b border-slate-100 px-2 py-1
+                  text-[10px] font-bold uppercase
+                  tracking-wider text-slate-400
+                  dark:border-slate-800
+                "
+              >
                 Pilih Timezone Tampilan
               </div>
 
@@ -173,15 +303,18 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
                     <button
                       key={tz.id}
                       type="button"
-                      onClick={() => {
-                        onChangeTimezone(tz.id);
-                        setShowTzDropdown(false);
-                      }}
-                      className={`flex w-full cursor-pointer items-center justify-between rounded-lg p-2 text-left transition-colors ${
-                        isSelected
-                          ? 'bg-blue-50 font-bold text-blue-600 dark:bg-blue-950/40 dark:text-blue-400'
-                          : 'text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
-                      }`}
+                      onClick={() => handleSelectTimezone(tz.id)}
+                      className={`
+                        flex w-full cursor-pointer
+                        items-center justify-between
+                        rounded-lg p-2 text-left
+                        transition-colors
+                        ${
+                          isSelected
+                            ? 'bg-blue-50 font-bold text-blue-600 dark:bg-blue-950/40 dark:text-blue-400'
+                            : 'text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
+                        }
+                      `}
                     >
                       <div>
                         <div className="flex items-center gap-1.5">
@@ -210,20 +343,34 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
           )}
         </div>
 
-        {/* Fit Content */}
+        {/* FIT CONTENT */}
+
         {onFitContent && (
           <button
             type="button"
             onClick={onFitContent}
             title="Paskan Tampilan Chart ke Layar (Auto Fit)"
-            className="flex shrink-0 items-center gap-1 rounded-lg border border-slate-300 bg-white px-2 py-1.5 font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-100 hover:text-blue-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white"
+            className="
+              flex shrink-0 cursor-pointer items-center gap-1
+              rounded-lg border border-slate-300 bg-white
+              px-2 py-1.5 font-medium text-slate-700
+              shadow-sm transition-colors
+              hover:bg-slate-100 hover:text-blue-600
+              dark:border-slate-700 dark:bg-slate-800
+              dark:text-slate-300 dark:hover:bg-slate-700
+              dark:hover:text-white
+            "
           >
             <Maximize2 className="h-3.5 w-3.5" />
-            <span className="hidden md:inline">Paskan Layar</span>
+
+            <span className="hidden md:inline">
+              Paskan Layar
+            </span>
           </button>
         )}
 
-        {/* Replay */}
+        {/* REPLAY */}
+
         <button
           type="button"
           data-testid="replay-toggle-button"
@@ -233,16 +380,20 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
               ? 'Tutup panel replay'
               : 'Mulai replay'
           }
-          onClick={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            onToggleReplay();
-          }}
-          className={`pointer-events-auto relative z-50 flex shrink-0 cursor-pointer select-none items-center gap-1.5 rounded-lg border px-3 py-1.5 font-semibold shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-            showReplayControls
-              ? 'border-amber-500 bg-amber-500 text-white hover:bg-amber-600'
-              : 'border-blue-600 bg-blue-600 text-white hover:bg-blue-700'
-          }`}
+          onClick={handleToggleReplay}
+          className={`
+            pointer-events-auto relative z-50
+            flex shrink-0 cursor-pointer select-none
+            items-center gap-1.5 rounded-lg border
+            px-3 py-1.5 font-semibold shadow-sm
+            transition-colors focus:outline-none
+            focus:ring-2 focus:ring-blue-500
+            ${
+              showReplayControls
+                ? 'border-amber-500 bg-amber-500 text-white hover:bg-amber-600'
+                : 'border-blue-600 bg-blue-600 text-white hover:bg-blue-700'
+            }
+          `}
         >
           {showReplayControls ? (
             <X className="h-3.5 w-3.5" />
@@ -254,21 +405,40 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
             {showReplayControls ? 'Tutup Replay' : 'Mulai Replay'}
           </span>
         </button>
-                {/* Buat Order - hanya muncul saat replay aktif */}
+
+        {/* ==================================
+            CREATE ORDER
+            Hanya muncul saat replay aktif
+            ================================== */}
+
         {showReplayControls && (
           <button
             type="button"
             data-testid="create-order-button"
-            onClick={onCreateOrderClick}
+            onClick={handleCreateOrder}
             disabled={!canCreateOrder}
+            aria-disabled={!canCreateOrder}
             title={
               canCreateOrder
-                ? 'Buat order baru'
-                : 'Order belum tersedia'
+                ? 'Buka form order baru'
+                : 'Harga replay belum tersedia'
             }
-            className="pointer-events-auto relative z-50 flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-emerald-600 bg-emerald-600 px-3 py-1.5 font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="
+              pointer-events-auto relative z-50
+              flex shrink-0 cursor-pointer
+              items-center gap-1.5 rounded-md
+              border border-emerald-600
+              bg-emerald-600 px-2.5 py-1.5
+              text-[11px] font-semibold text-white
+              transition-colors hover:bg-emerald-700
+              focus:outline-none focus:ring-2
+              focus:ring-emerald-500 focus:ring-offset-1
+              disabled:cursor-not-allowed
+              disabled:opacity-40
+            "
           >
-            <span className="text-base font-bold">+</span>
+            <span className="text-sm font-bold">+</span>
+
             <span>Buat Order</span>
           </button>
         )}

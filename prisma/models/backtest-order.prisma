@@ -1,24 +1,30 @@
+
 model BacktestOrder {
   id          String          @id @default(uuid())
   sessionId   String
-  orderNumber Int
+
   orderType   String          @default("MARKET")
   direction   String
+
   lot         Float
   openPrice   Float
+  currentPrice Float          @default(0)
+
   stopLoss    Float?
   takeProfit  Float?
+
   closePrice  Float?
   status      String          @default("OPEN")
   pnl         Float           @default(0)
+
   openTime    DateTime?
   closeTime   DateTime?
+
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
   session     BacktestSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
-  @@unique([sessionId, orderNumber])
   @@index([sessionId])
   @@index([sessionId, status])
 }

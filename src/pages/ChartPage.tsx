@@ -142,9 +142,7 @@ export default function ChartPage({
   onChangeSpeed,
   onJumpToTimestamp,
 }: ChartPageProps) {
-
   void mode;
-  void volumeType;
 
   const symbol = activeSession?.symbol || 'XAUUSD';
   const sourceTimeframe = activeDataset?.timeframe || 'M1';
@@ -203,6 +201,10 @@ export default function ChartPage({
   const [showReplayControls, setShowReplayControls] =
     useState(false);
 
+  const handleToggleReplay = useCallback(() => {
+    setShowReplayControls((previous) => !previous);
+  }, []);
+
   // ==========================================
   // ORDER PANEL
   // ==========================================
@@ -217,6 +219,10 @@ export default function ChartPage({
     pointerY: number;
     panelHeight: number;
   } | null>(null);
+
+  const handleToggleOrderPanel = useCallback(() => {
+    setShowOrderPanel((previous) => !previous);
+  }, []);
 
   // ==========================================
   // ORDER MODAL
@@ -251,11 +257,32 @@ export default function ChartPage({
     currentPrice > 0;
 
   // ==========================================
-  // TOGGLE REPLAY
+  // OPEN ORDER MODAL
   // ==========================================
 
-  const handleToggleReplay = useCallback(() => {
-    setShowReplayControls((previous) => !previous);
+  const handleOpenOrderModal = useCallback(() => {
+    if (!canCreateOrder) {
+      console.warn(
+        '[ORDER] Tidak bisa membuat order:',
+        {
+          showReplayControls,
+          activeSessionId,
+          currentPrice,
+        }
+      );
+      return;
+    }
+
+    setIsOrderModalOpen(true);
+  }, [
+    canCreateOrder,
+    showReplayControls,
+    activeSessionId,
+    currentPrice,
+  ]);
+
+  const handleCloseOrderModal = useCallback(() => {
+    setIsOrderModalOpen(false);
   }, []);
 
   // ==========================================
@@ -272,36 +299,46 @@ export default function ChartPage({
   // CREATE ORDER
   // ==========================================
 
-  const handleCreateOrder = async (
-    input: CreateOrderInput
-  ): Promise<void> => {
-    try {
-      await createOrder(input);
+  const handleCreateOrder = useCallback(
+    async (input: CreateOrderInput): Promise<void> => {
+      try {
+        await createOrder(input);
 
-      setIsOrderModalOpen(false);
+        setIsOrderModalOpen(false);
 
-      console.log('[ORDER] Berhasil membuat order:', input);
-    } catch (error) {
-      console.error('[ORDER] Gagal membuat order:', error);
-      throw error;
-    }
-  };
+        console.log(
+          '[ORDER] Berhasil membuat order:',
+          input
+        );
+      } catch (error) {
+        console.error(
+          '[ORDER] Gagal membuat order:',
+          error
+        );
+
+        throw error;
+      }
+    },
+    [createOrder]
+  );
 
   // ==========================================
   // CANCEL ORDER
   // ==========================================
 
-  const handleCancelOrder = async (
-    order: Parameters<typeof cancelOrder>[0] extends string
-      ? { id: string }
-      : never
-  ) => {
-    try {
-      await cancelOrder(order.id);
-    } catch (error) {
-      console.error('[ORDER] Gagal membatalkan order:', error);
-    }
-  };
+  const handleCancelOrder = useCallback(
+    async (order: { id: string }) => {
+      try {
+        await cancelOrder(order.id);
+      } catch (error) {
+        console.error(
+          '[ORDER] Gagal membatalkan order:',
+          error
+        );
+      }
+    },
+    [cancelOrder]
+  );
 
   // ==========================================
   // ORDER PANEL RESIZE
@@ -400,14 +437,6 @@ export default function ChartPage({
   };
 
   // ==========================================
-  // TOGGLE ORDER PANEL
-  // ==========================================
-
-  const handleToggleOrderPanel = () => {
-    setShowOrderPanel((previous) => !previous);
-  };
-
-  // ==========================================
   // RENDER
   // ==========================================
 
@@ -419,9 +448,7 @@ export default function ChartPage({
         bg-white dark:bg-slate-950
       "
     >
-      {/* ========================================
-          CHART AREA
-          ======================================== */}
+      {/* CHART AREA */}
 
       <section
         className="
@@ -429,11 +456,6 @@ export default function ChartPage({
           overflow-hidden
         "
       >
-        {/* ======================================
-            DRAWING TOOLBAR
-            Tetap berada di ChartPage.
-            ====================================== */}
-
         <DrawingToolbar
           activeTool={activeTool}
           onSelectTool={setActiveTool}
@@ -448,10 +470,6 @@ export default function ChartPage({
           onClearAll={drawingHistory.onClearAll}
         />
 
-        {/* ======================================
-            TRADING CHART
-            ====================================== */}
-
         <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
           <ErrorBoundary
             fallbackTitle="Terjadi kendala visual pada chart"
@@ -463,28 +481,21 @@ export default function ChartPage({
               timeframe={activeTimeframe}
               sourceTimeframe={sourceTimeframe}
               onChangeTimeframe={onChangeTimeframe}
-
               isDarkMode={isDarkMode}
               isLoading={isChartLoading}
-
               sessionId={activeSessionId}
-
               activeTimezone={activeTimezone}
               onChangeTimezone={onChangeTimezone}
-
               drawings={drawings}
               onUpdateDrawings={onUpdateDrawings}
 
-              // DRAWING TOOLBAR CONNECTION
+              // DRAWING TOOLBAR
               activeTool={activeTool}
               onSelectDrawingTool={setActiveTool}
-
               currentColor={currentColor}
               onChangeDrawingColor={setCurrentColor}
-
               currentStrokeWidth={currentStrokeWidth}
               onChangeDrawingStrokeWidth={setCurrentStrokeWidth}
-
               onDrawingHistoryChange={handleDrawingHistoryChange}
 
               // INDICATORS
@@ -501,14 +512,16 @@ export default function ChartPage({
               // REPLAY
               showReplayControls={showReplayControls}
               onToggleReplay={handleToggleReplay}
+
+              // CREATE ORDER
+              canCreateOrder={canCreateOrder}
+              onCreateOrderClick={handleOpenOrderModal}
             />
           </ErrorBoundary>
         </div>
       </section>
 
-      {/* ========================================
-          REPLAY CONTROL PANEL
-          ======================================== */}
+      {/* REPLAY CONTROL PANEL */}
 
       {showReplayControls && (
         <section
@@ -540,9 +553,7 @@ export default function ChartPage({
         </section>
       )}
 
-      {/* ========================================
-          ORDER PANEL
-          ======================================== */}
+      {/* ORDER PANEL */}
 
       {activeSessionId && (
         <section
@@ -603,102 +614,61 @@ export default function ChartPage({
               px-3 dark:border-slate-800
             "
           >
-            <div className="flex min-w-0 items-center gap-2">
-              <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-                Trading Orders
-              </span>
+            <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+              Trading Orders
+            </span>
 
-              <span
-                className="
-                  rounded-md bg-slate-100 px-2 py-0.5
-                  text-[10px] text-slate-600
-                  dark:bg-slate-800 dark:text-slate-300
-                "
-              >
-                {orders.length}
-              </span>
-            </div>
-
-            <div className="flex shrink-0 items-center gap-2">
-              {showOrderPanel && (
-                <span className="mr-2 text-[10px] text-slate-400">
-                  {orderPanelHeight}px
-                </span>
-              )}
-
-              {/* CREATE ORDER BUTTON */}
-
-              {showReplayControls && (
-                <button
-                  type="button"
-                  disabled={!canCreateOrder}
-                  onClick={() => setIsOrderModalOpen(true)}
-                  className="
-                    rounded-md bg-blue-600 px-3 py-1
-                    text-xs font-medium text-white
-                    hover:bg-blue-700
-                    disabled:cursor-not-allowed
-                    disabled:opacity-40
-                  "
+            <button
+              type="button"
+              onClick={handleToggleOrderPanel}
+              title={
+                showOrderPanel
+                  ? 'Sembunyikan Trading Orders'
+                  : 'Tampilkan Trading Orders'
+              }
+              aria-label={
+                showOrderPanel
+                  ? 'Sembunyikan Trading Orders'
+                  : 'Tampilkan Trading Orders'
+              }
+              className="
+                flex h-7 w-7 items-center justify-center
+                rounded-md text-slate-500
+                hover:bg-slate-100 hover:text-slate-900
+                dark:text-slate-400 dark:hover:bg-slate-800
+                dark:hover:text-white
+              "
+            >
+              {showOrderPanel ? (
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
                 >
-                  + New Order
-                </button>
+                  <path
+                    d="m6 9 6 6 6-6"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              ) : (
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path
+                    d="m6 15 6-6 6 6"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
               )}
-
-              {/* TOGGLE ORDER PANEL */}
-
-              <button
-                type="button"
-                onClick={handleToggleOrderPanel}
-                title={
-                  showOrderPanel
-                    ? 'Sembunyikan Trading Orders'
-                    : 'Tampilkan Trading Orders'
-                }
-                aria-label={
-                  showOrderPanel
-                    ? 'Sembunyikan Trading Orders'
-                    : 'Tampilkan Trading Orders'
-                }
-                className="
-                  flex h-7 w-7 items-center justify-center
-                  rounded-md text-slate-500
-                  hover:bg-slate-100 hover:text-slate-900
-                  dark:text-slate-400 dark:hover:bg-slate-800
-                  dark:hover:text-white
-                "
-              >
-                {showOrderPanel ? (
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="h-4 w-4"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <path
-                      d="m6 9 6 6 6-6"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                ) : (
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="h-4 w-4"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <path
-                      d="m6 15 6-6 6 6"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                )}
-              </button>
-            </div>
+            </button>
           </div>
 
           {/* ORDER LIST */}
@@ -736,9 +706,7 @@ export default function ChartPage({
         </section>
       )}
 
-      {/* ========================================
-          ORDER MODAL
-          ======================================== */}
+      {/* ORDER MODAL */}
 
       {showReplayControls && activeSessionId && (
         <OrderModal
@@ -746,7 +714,7 @@ export default function ChartPage({
           sessionId={activeSessionId}
           currentPrice={currentPrice}
           leverage={leverage}
-          onClose={() => setIsOrderModalOpen(false)}
+          onClose={handleCloseOrderModal}
           onSubmit={handleCreateOrder}
         />
       )}

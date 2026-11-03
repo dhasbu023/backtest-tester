@@ -32,6 +32,12 @@ createRoot(document.getElementById('root')!).render(
         element={<App mode="SESSIONS" />}
       />
 
+      {/* Datasets */}
+      <Route
+        path="/datasets"
+        element={<App mode="DATASETS" />}
+      />
+
       {/* Statistics */}
       <Route
         path="/statistics"

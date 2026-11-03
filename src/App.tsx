@@ -12,6 +12,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import SessionsPage from './pages/SessionsPage.js';
 import ChartPage from './pages/ChartPage.js';
 import DashboardPage from './pages/DashboardPage.js';
+import StatisticsPage from './pages/StatisticsPage.js';
+import DatasetsPage from './pages/DatasetsPage.js';
 
 import MainLayout from './layouts/MainLayout.js';
 
@@ -40,6 +42,7 @@ type AppProps = {
   mode:
     | 'DASHBOARD'
     | 'SESSIONS'
+    | 'DATASETS'
     | 'STATISTICS'
     | 'CHART'
     | 'BACKTEST';
@@ -490,6 +493,12 @@ const {
         />
       )}
 
+
+      {/* DATASETS */}
+      {mode === 'DATASETS' && (
+        <DatasetsPage />
+      )}
+
       {/* CHART / BACKTEST */}
       {(mode === 'CHART' || mode === 'BACKTEST') && (
         <div className="flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden">
@@ -539,15 +548,10 @@ const {
         </div>
       )}
 
-      {/* STATISTICS */}
-      {mode === 'STATISTICS' && (
-        <div className="p-6">
-          <h1 className="text-xl font-bold">Statistics</h1>
-          <p className="text-sm text-slate-500 mt-2">
-            Halaman statistik belum dihubungkan.
-          </p>
-        </div>
-      )}
+     {/* STATISTICS */}
+        {mode === 'STATISTICS' && (
+          <StatisticsPage />
+        )}
     </MainLayout>
   );
 }
