@@ -15,7 +15,7 @@ model DatasetImportJob {
   startedAt       DateTime  @default(now())
   completedAt     DateTime?
 
-  dataset         Dataset?  @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+  dataset Dataset? @relation(fields: [datasetId], references: [id], onDelete: Cascade)
 
   @@index([status])
 }

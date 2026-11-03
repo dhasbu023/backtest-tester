@@ -175,8 +175,12 @@ onDrawingHistoryChange: (
   hasRealVolume: boolean;
 
   // Replay controls
-  showReplayControls: boolean;
-  onToggleReplay: () => void;
+    showReplayControls: boolean;
+    onToggleReplay: () => void;
+
+    // Create order
+    canCreateOrder?: boolean;
+    onCreateOrderClick?: () => void;
 }
 
 
@@ -228,8 +232,12 @@ onDrawingHistoryChange,
   hasRealVolume,
 
   // Replay
-  showReplayControls,
-  onToggleReplay,
+showReplayControls,
+onToggleReplay,
+
+// Create order
+canCreateOrder = false,
+onCreateOrderClick,
 }) => {
 
   // ==========================================================
@@ -708,19 +716,23 @@ useEffect(() => {
       <div className="relative z-20 shrink-0 border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-[#0b0f19]">
 
         <ChartToolbar
-          sourceTimeframe={sourceTimeframe}
-          activeTimeframe={timeframe}
-          onChangeTimeframe={onChangeTimeframe}
-          activeTimezone={activeTimezone}
-          onChangeTimezone={onChangeTimezone}
-          indicators={indicators}
-          onOpenIndicatorsModal={() =>
-            setIsIndicatorManagerModalOpen(true)
-          }
-          onFitContent={fitContent}
-          showReplayControls={showReplayControls}
-          onToggleReplay={onToggleReplay}
-        />
+        sourceTimeframe={sourceTimeframe}
+        activeTimeframe={timeframe}
+        onChangeTimeframe={onChangeTimeframe}
+        activeTimezone={activeTimezone}
+        onChangeTimezone={onChangeTimezone}
+        indicators={indicators}
+        onOpenIndicatorsModal={() =>
+          setIsIndicatorManagerModalOpen(true)
+        }
+        onFitContent={fitContent}
+        showReplayControls={showReplayControls}
+        onToggleReplay={onToggleReplay}
+
+        // Create order
+        canCreateOrder={canCreateOrder}
+        onCreateOrderClick={onCreateOrderClick}
+      />
 
       </div>
 

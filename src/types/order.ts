@@ -2,19 +2,9 @@
 /**
  * Order Types
  * File: src/types/order.ts
- *
- * Definisi tipe data untuk sistem trading dan backtest.
  */
 
-// ============================================
-// ORDER DIRECTION
-// ============================================
-
 export type OrderDirection = 'BUY' | 'SELL';
-
-// ============================================
-// ORDER TYPE
-// ============================================
 
 export type OrderType =
   | 'MARKET'
@@ -23,10 +13,6 @@ export type OrderType =
   | 'BUY_STOP'
   | 'SELL_STOP';
 
-// ============================================
-// ORDER STATUS
-// ============================================
-
 export type OrderStatus =
   | 'PENDING'
   | 'OPEN'
@@ -34,10 +20,6 @@ export type OrderStatus =
   | 'CLOSED_SL'
   | 'CLOSED_MANUAL'
   | 'CANCELLED';
-
-// ============================================
-// ORDER EXECUTION TYPE
-// ============================================
 
 export type OrderExecutionType = 'MARKET' | 'PENDING';
 
@@ -50,26 +32,27 @@ export interface BacktestOrder {
   sessionId: string;
   orderNumber: number;
 
-  direction: OrderDirection;
   orderType: OrderType;
-  status: OrderStatus;
+  direction: OrderDirection;
 
   lot: number;
   openPrice: number;
+  currentPrice?: number;
 
   stopLoss: number | null;
   takeProfit: number | null;
-  closePrice: number | null;
 
+  closePrice: number | null;
+  status: OrderStatus;
   pnl: number;
 
   openTime: number | null;
   closeTime: number | null;
 
-  comment?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
 
-  createdAt?: string;
-  updatedAt?: string;
+  comment?: string | null;
 }
 
 // ============================================
@@ -78,13 +61,12 @@ export interface BacktestOrder {
 
 export interface CreateOrderInput {
   sessionId: string;
-
   direction: OrderDirection;
   orderType: OrderType;
 
   lot: number;
-
   entryPrice: number;
+
   stopLoss?: number | null;
   takeProfit?: number | null;
 
@@ -97,8 +79,8 @@ export interface CreateOrderInput {
 
 export interface UpdateOrderInput {
   lot?: number;
-
   entryPrice?: number;
+
   stopLoss?: number | null;
   takeProfit?: number | null;
 
@@ -128,7 +110,6 @@ export interface CancelOrderInput {
 
 export interface OrderCalculation {
   direction: OrderDirection;
-
   lot: number;
 
   entryPrice: number;
@@ -137,7 +118,6 @@ export interface OrderCalculation {
 
   riskAmount: number;
   rewardAmount: number;
-
   riskRewardRatio: number | null;
 
   requiredMargin: number;

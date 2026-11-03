@@ -7,21 +7,22 @@ import type {
   OrderType,
 } from '../../types/order';
 
+import {
+  calculateFloatingPnL,
+} from '../../utils/orderCalculator';
+
 // ============================================
 // PROPS
 // ============================================
 
 interface OrderTableProps {
   orders: BacktestOrder[];
-
+  currentPrice: number;
   loading?: boolean;
 
   onDetail?: (order: BacktestOrder) => void;
-
   onEdit?: (order: BacktestOrder) => void;
-
   onCancel?: (order: BacktestOrder) => void;
-
   onClose?: (order: BacktestOrder) => void;
 }
 
@@ -29,7 +30,9 @@ interface OrderTableProps {
 // FORMAT HELPERS
 // ============================================
 
-function formatPrice(value: number | null | undefined): string {
+function formatPrice(
+  value: number | null | undefined
+): string {
   if (value == null || !Number.isFinite(value)) {
     return '-';
   }
@@ -38,11 +41,15 @@ function formatPrice(value: number | null | undefined): string {
 }
 
 function formatLot(value: number): string {
-  return Number.isFinite(value) ? value.toFixed(2) : '-';
+  return Number.isFinite(value)
+    ? value.toFixed(2)
+    : '-';
 }
 
 function formatMoney(value: number): string {
-  if (!Number.isFinite(value)) return '-';
+  if (!Number.isFinite(value)) {
+    return '-';
+  }
 
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -52,13 +59,20 @@ function formatMoney(value: number): string {
   }).format(value);
 }
 
-function formatTime(value: number | null): string {
-  if (value == null || !Number.isFinite(value)) {
+function formatDateTime(
+  value: number | string | null | undefined
+): string {
+  if (value == null || value === '') {
     return '-';
   }
 
-  // openTime dan closeTime menggunakan Unix timestamp detik.
-  const date = new Date(value * 1000);
+  let date: Date;
+
+  if (typeof value === 'number') {
+    date = new Date(value * 1000);
+  } else {
+    date = new Date(value);
+  }
 
   if (Number.isNaN(date.getTime())) {
     return '-';
@@ -84,7 +98,7 @@ function getOrderTypeLabel(type: OrderType): string {
     SELL_STOP: 'Sell Stop',
   };
 
-  return labels[type];
+  return labels[type] ?? type;
 }
 
 // ============================================
@@ -140,21 +154,18 @@ function getStatusConfig(status: OrderStatus): {
 }
 
 // ============================================
-// COMPONENT
+// TABLE COMPONENT
 // ============================================
 
 export default function OrderTable({
   orders,
+  currentPrice,
   loading = false,
   onDetail,
   onEdit,
   onCancel,
   onClose,
 }: OrderTableProps) {
-  // ==========================================
-  // LOADING
-  // ==========================================
-
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12 text-sm text-gray-500 dark:text-gray-400">
@@ -162,10 +173,6 @@ export default function OrderTable({
       </div>
     );
   }
-
-  // ==========================================
-  // EMPTY
-  // ==========================================
 
   if (orders.length === 0) {
     return (
@@ -181,184 +188,175 @@ export default function OrderTable({
     );
   }
 
-  // ==========================================
-  // TABLE
-  // ==========================================
+  const hasValidCurrentPrice =
+    Number.isFinite(currentPrice) &&
+    currentPrice > 0;
 
   return (
-    <div className="w-full overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
-      <table className="w-full min-w-[1100px] border-collapse text-left text-sm">
+    <div className="w-full min-w-0 overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+      <table className="w-max min-w-full border-collapse text-left text-xs">
+        {/* TABLE HEADER */}
+
         <thead className="bg-gray-50 dark:bg-gray-900">
           <tr className="border-b border-gray-200 dark:border-gray-700">
-            <th className="px-4 py-3 font-semibold text-gray-600 dark:text-gray-300">
-              ID Order
-            </th>
-
-            <th className="px-4 py-3 font-semibold text-gray-600 dark:text-gray-300">
-              Waktu
-            </th>
-
-            <th className="px-4 py-3 font-semibold text-gray-600 dark:text-gray-300">
-              Tipe
-            </th>
-
-            <th className="px-4 py-3 font-semibold text-gray-600 dark:text-gray-300">
-              Arah
-            </th>
-
-            <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-300">
-              Lot
-            </th>
-
-            <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-300">
-              Entry
-            </th>
-
-            <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-300">
-              SL
-            </th>
-
-            <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-300">
-              TP
-            </th>
-
-            <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-300">
-              Close
-            </th>
-
-            <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-300">
-              P/L
-            </th>
-
-            <th className="px-4 py-3 font-semibold text-gray-600 dark:text-gray-300">
-              Status
-            </th>
-
-            <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-300">
-              Aksi
-            </th>
+            {[
+              
+              'No. Order',
+              'Tipe',
+              'Arah',
+              'Lot',
+              'Entry',
+              'Harga Sekarang',
+              'Stop Loss',
+              'Take Profit',
+              'P/L',
+              'Waktu Open',
+              'Waktu Close',
+              'Aksi',
+            ].map((heading) => (
+              <th
+                key={heading}
+                className="whitespace-nowrap px-4 py-3 font-semibold text-gray-600 dark:text-gray-300"
+              >
+                {heading}
+              </th>
+            ))}
           </tr>
         </thead>
+
+        {/* TABLE BODY */}
 
         <tbody>
           {orders.map((order) => {
             const status = getStatusConfig(order.status);
 
             const isBuy = order.direction === 'BUY';
-
             const isOpen = order.status === 'OPEN';
-
             const isPending = order.status === 'PENDING';
 
-            const isClosed =
-              order.status === 'CLOSED_TP' ||
-              order.status === 'CLOSED_SL' ||
-              order.status === 'CLOSED_MANUAL';
+            // ========================================
+            // LIVE PRICE & FLOATING PNL
+            // ========================================
+
+            const displayPrice =
+              isOpen && hasValidCurrentPrice
+                ? currentPrice
+                : order.currentPrice;
+
+            const displayPnL =
+              isOpen && hasValidCurrentPrice
+                ? calculateFloatingPnL(
+                    order.direction,
+                    order.openPrice,
+                    currentPrice,
+                    order.lot
+                  )
+                : order.pnl;
 
             return (
               <tr
                 key={order.id}
                 className="border-b border-gray-100 transition hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-900/60"
               >
-                {/* ID */}
-                <td className="px-4 py-3">
-                  <button
-                    type="button"
-                    onClick={() => onDetail?.(order)}
-                    className="font-mono text-xs text-blue-600 hover:underline dark:text-blue-400"
-                    title="Lihat detail order"
-                  >
-                    {order.id.length > 14
-                      ? `${order.id.slice(0, 14)}...`
-                      : order.id}
-                  </button>
+              
+
+                {/* ORDER NUMBER */}
+
+                <td className="px-4 py-3 text-center font-semibold tabular-nums text-gray-700 dark:text-gray-300">
+                  {order.orderNumber ?? '-'}
                 </td>
 
-                {/* TIME */}
-                <td className="whitespace-nowrap px-4 py-3 text-xs text-gray-600 dark:text-gray-400">
-                  {formatTime(
-                    isClosed ? order.closeTime : order.openTime
-                  )}
-                </td>
+                {/* ORDER TYPE */}
 
-                {/* TYPE */}
-                <td className="px-4 py-3 text-xs text-gray-700 dark:text-gray-300">
+                <td className="whitespace-nowrap px-4 py-3 text-gray-700 dark:text-gray-300">
                   {getOrderTypeLabel(order.orderType)}
                 </td>
 
                 {/* DIRECTION */}
+
                 <td className="px-4 py-3">
                   <span
-                    className={[
-                      'font-semibold',
-                      isBuy ? 'text-green-600' : 'text-red-600',
-                    ].join(' ')}
+                    className={
+                      isBuy
+                        ? 'font-semibold text-green-600'
+                        : 'font-semibold text-red-600'
+                    }
                   >
                     {order.direction}
                   </span>
                 </td>
 
                 {/* LOT */}
+
                 <td className="px-4 py-3 text-right tabular-nums text-gray-700 dark:text-gray-300">
                   {formatLot(order.lot)}
                 </td>
 
-                {/* ENTRY */}
+                {/* OPEN PRICE */}
+
                 <td className="px-4 py-3 text-right tabular-nums text-gray-700 dark:text-gray-300">
                   {formatPrice(order.openPrice)}
                 </td>
 
-                {/* SL */}
+                {/* CURRENT PRICE */}
+
+                <td className="px-4 py-3 text-right tabular-nums font-medium text-gray-700 dark:text-gray-300">
+                  {formatPrice(displayPrice)}
+                </td>
+
+                {/* STOP LOSS */}
+
                 <td className="px-4 py-3 text-right tabular-nums text-red-600">
                   {formatPrice(order.stopLoss)}
                 </td>
 
-                {/* TP */}
+                {/* TAKE PROFIT */}
+
                 <td className="px-4 py-3 text-right tabular-nums text-green-600">
                   {formatPrice(order.takeProfit)}
                 </td>
 
-                {/* CLOSE */}
-                <td className="px-4 py-3 text-right tabular-nums text-gray-700 dark:text-gray-300">
-                  {formatPrice(order.closePrice)}
-                </td>
+               
 
-                {/* PNL */}
+                {/* FLOATING / FINAL PNL */}
+
                 <td className="px-4 py-3 text-right tabular-nums">
                   <span
                     className={[
                       'font-semibold',
-                      order.pnl > 0
+                      displayPnL > 0
                         ? 'text-green-600'
-                        : order.pnl < 0
+                        : displayPnL < 0
                           ? 'text-red-600'
                           : 'text-gray-500',
                     ].join(' ')}
                   >
-                    {formatMoney(order.pnl)}
+                    {formatMoney(displayPnL)}
                   </span>
                 </td>
 
-                {/* STATUS */}
-                <td className="px-4 py-3">
-                  <span
-                    className={[
-                      'inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium',
-                      status.className,
-                    ].join(' ')}
-                  >
-                    {status.label}
-                  </span>
+            
+                {/* OPEN TIME */}
+
+                <td className="whitespace-nowrap px-4 py-3 text-gray-600 dark:text-gray-400">
+                  {formatDateTime(order.openTime)}
                 </td>
+
+                {/* CLOSE TIME */}
+
+                <td className="whitespace-nowrap px-4 py-3 text-gray-600 dark:text-gray-400">
+                  {formatDateTime(order.closeTime)}
+                </td>
+
 
                 {/* ACTIONS */}
-                <td className="px-4 py-3">
+
+                <td className="sticky right-0 z-10 whitespace-nowrap border-l border-gray-200 bg-white px-3 py-3 dark:border-gray-700 dark:bg-gray-900">
                   <div className="flex items-center justify-end gap-1">
                     {onDetail && (
                       <button
                         type="button"
                         onClick={() => onDetail(order)}
-                        title="Detail"
                         className="rounded-md px-2 py-1.5 text-xs text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
                       >
                         Detail
@@ -369,7 +367,6 @@ export default function OrderTable({
                       <button
                         type="button"
                         onClick={() => onEdit(order)}
-                        title="Edit pending order"
                         className="rounded-md px-2 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950"
                       >
                         Edit
@@ -380,7 +377,6 @@ export default function OrderTable({
                       <button
                         type="button"
                         onClick={() => onCancel(order)}
-                        title="Batalkan pending order"
                         className="rounded-md px-2 py-1.5 text-xs font-medium text-amber-600 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950"
                       >
                         Cancel
@@ -391,7 +387,6 @@ export default function OrderTable({
                       <button
                         type="button"
                         onClick={() => onEdit(order)}
-                        title="Ubah SL/TP"
                         className="rounded-md px-2 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950"
                       >
                         Edit
@@ -402,7 +397,6 @@ export default function OrderTable({
                       <button
                         type="button"
                         onClick={() => onClose(order)}
-                        title="Tutup posisi"
                         className="rounded-md px-2 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
                       >
                         Close
@@ -417,6 +411,7 @@ export default function OrderTable({
       </table>
 
       {/* FOOTER */}
+
       <div className="border-t border-gray-200 bg-gray-50 px-4 py-2 text-xs text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400">
         Total {orders.length} order
       </div>

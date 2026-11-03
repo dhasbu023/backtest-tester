@@ -231,30 +231,28 @@ export default function ChartPage({
   const [isOrderModalOpen, setIsOrderModalOpen] =
     useState(false);
 
-  // ==========================================
-  // CURRENT PRICE
-  // ==========================================
+  
 
-  const lastDisplayedCandle =
-    displayCandles.length > 0
-      ? displayCandles[displayCandles.length - 1]
-      : null;
+ // ==========================================
+// CURRENT PRICE
+// ==========================================
 
-  const currentReplayCandle =
-    sourceCandles[currentIndex] ?? null;
+// Candle yang sedang aktif berdasarkan posisi replay.
+const currentReplayCandle =
+  sourceCandles[currentIndex] ?? null;
 
-  const currentPrice =
-    lastDisplayedCandle?.close ??
-    currentReplayCandle?.close ??
-    0;
+// Harga mengikuti Close candle replay aktif.
+// Tidak mengambil harga dari crosshair atau viewport chart.
+const currentPrice =
+  currentReplayCandle?.close ?? 0;
 
-  const leverage = activeSession?.leverage || 500;
+const leverage = activeSession?.leverage || 500;
 
-  const canCreateOrder =
-    showReplayControls &&
-    Boolean(activeSessionId) &&
-    Number.isFinite(currentPrice) &&
-    currentPrice > 0;
+const canCreateOrder =
+  showReplayControls &&
+  Boolean(activeSessionId) &&
+  Number.isFinite(currentPrice) &&
+  currentPrice > 0;
 
   // ==========================================
   // OPEN ORDER MODAL
@@ -681,26 +679,21 @@ export default function ChartPage({
                 overscroll-contain p-3
               "
             >
-              <OrderList
-                orders={orders}
-                loading={ordersLoading}
-                error={ordersError}
-                onRefresh={() => {
-                  void refreshOrders();
-                }}
-                onEdit={(order) => {
-                  console.log('[ORDER] Edit:', order);
-                }}
-                onCancel={(order) => {
-                  void handleCancelOrder(order);
-                }}
-                onClose={(order) => {
-                  console.log('[ORDER] Close:', order);
-                }}
-                onDetail={(order) => {
-                  console.log('[ORDER] Detail:', order);
-                }}
-              />
+             <OrderList
+              orders={orders}
+              currentPrice={currentPrice}
+              loading={ordersLoading}
+              error={ordersError}
+              onRefresh={() => {
+                void refreshOrders();
+              }}
+              onEdit={(order) => {
+                console.log('[ORDER] Edit:', order);
+              }}
+              onCancel={(order) => {
+                void handleCancelOrder(order);
+              }}
+            />
             </div>
           )}
         </section>

@@ -1,13 +1,16 @@
-
 import { useMemo, useState } from 'react';
 
 import type { BacktestOrder } from '../../types/order';
 import OrderTable from './OrderTable';
 
-type OrderTab = 'ALL' | 'OPEN' | 'PENDING' | 'HISTORY';
+type OrderTab = 'OPEN' | 'PENDING' | 'CLOSE';
 
 interface OrderListProps {
   orders: BacktestOrder[];
+
+  // Harga terbaru dari candle replay.
+  currentPrice: number;
+
   loading?: boolean;
   error?: string | null;
 
@@ -18,8 +21,17 @@ interface OrderListProps {
   onRefresh?: () => void;
 }
 
+// Status order yang masuk ke tab Close.
+const CLOSE_STATUSES = [
+  'CLOSED_TP',
+  'CLOSED_SL',
+  'CLOSED_MANUAL',
+  'CANCELLED',
+];
+
 export default function OrderList({
   orders,
+  currentPrice,
   loading = false,
   error = null,
   onDetail,
@@ -27,52 +39,81 @@ export default function OrderList({
   onCancel,
   onClose,
 }: OrderListProps) {
-  const [activeTab, setActiveTab] = useState<OrderTab>('ALL');
+  const [activeTab, setActiveTab] = useState<OrderTab>('OPEN');
 
-  const historyStatuses = [
-    'CLOSED_TP',
-    'CLOSED_SL',
-    'CLOSED_MANUAL',
-    'CANCELLED',
-  ];
+  // ============================================
+  // FILTER ORDERS
+  // ============================================
 
   const filteredOrders = useMemo(() => {
     switch (activeTab) {
       case 'OPEN':
-        return orders.filter(order => order.status === 'OPEN');
+        return orders.filter(
+          order => order.status === 'OPEN'
+        );
 
       case 'PENDING':
-        return orders.filter(order => order.status === 'PENDING');
+        return orders.filter(
+          order => order.status === 'PENDING'
+        );
 
-      case 'HISTORY':
+      case 'CLOSE':
         return orders.filter(order =>
-          historyStatuses.includes(order.status)
+          CLOSE_STATUSES.includes(order.status)
         );
 
       default:
-        return orders;
+        return [];
     }
   }, [orders, activeTab]);
 
+  // ============================================
+  // ORDER COUNTS
+  // ============================================
+
   const counts = useMemo(() => ({
-    all: orders.length,
-    open: orders.filter(order => order.status === 'OPEN').length,
-    pending: orders.filter(order => order.status === 'PENDING').length,
-    history: orders.filter(order =>
-      historyStatuses.includes(order.status)
+    open: orders.filter(
+      order => order.status === 'OPEN'
+    ).length,
+
+    pending: orders.filter(
+      order => order.status === 'PENDING'
+    ).length,
+
+    close: orders.filter(order =>
+      CLOSE_STATUSES.includes(order.status)
     ).length,
   }), [orders]);
+
+  // ============================================
+  // TABS
+  // ============================================
 
   const tabs: {
     id: OrderTab;
     label: string;
     count: number;
   }[] = [
-    { id: 'ALL', label: 'All Orders', count: counts.all },
-    { id: 'OPEN', label: 'Open Positions', count: counts.open },
-    { id: 'PENDING', label: 'Pending Orders', count: counts.pending },
-    { id: 'HISTORY', label: 'History', count: counts.history },
+    {
+      id: 'OPEN',
+      label: 'Open',
+      count: counts.open,
+    },
+    {
+      id: 'PENDING',
+      label: 'Pending',
+      count: counts.pending,
+    },
+    {
+      id: 'CLOSE',
+      label: 'Close',
+      count: counts.close,
+    },
   ];
+
+  // ============================================
+  // RENDER
+  // ============================================
 
   return (
     <section
@@ -104,7 +145,7 @@ export default function OrderList({
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
                 className={[
-                  'flex shrink-0 items-center gap-2 border-b-2 px-3 py-3 text-xs font-medium transition',
+                  'flex shrink-0 items-center gap-2 border-b-2 px-4 py-3 text-xs font-medium transition',
                   active
                     ? 'border-blue-600 text-blue-600 dark:text-blue-400'
                     : 'border-transparent text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white',
@@ -137,6 +178,7 @@ export default function OrderList({
       >
         <OrderTable
           orders={filteredOrders}
+          currentPrice={currentPrice}
           loading={loading}
           onDetail={onDetail}
           onEdit={onEdit}
@@ -149,11 +191,11 @@ export default function OrderList({
       {!loading && (
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-gray-200 bg-white py-3 text-xs text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400">
           <span>
-            Menampilkan {filteredOrders.length} dari {orders.length} order
+            Menampilkan {filteredOrders.length} order
           </span>
 
           <span>
-            {counts.open} posisi aktif · {counts.pending} pending
+            {counts.open} Open · {counts.pending} Pending · {counts.close} Close
           </span>
         </div>
       )}

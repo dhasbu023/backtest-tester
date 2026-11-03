@@ -1,12 +1,12 @@
 model ReplayState {
-  id              String          @id @default(uuid())
-  sessionId       String          @unique
+  id              String   @id @default(uuid())
+  sessionId       String   @unique
   currentTime     BigInt
-  currentIndex    Int             @default(0)
-  speed           Float           @default(1.0)
-  activeTimeframe String          @default("M1")
-  isPlaying       Boolean         @default(false)
-  lastSavedAt     DateTime        @default(now())
+  currentIndex    Int      @default(0)
+  speed           Float    @default(1.0)
+  activeTimeframe String   @default("M1")
+  isPlaying       Boolean  @default(false)
+  lastSavedAt     DateTime @default(now())
 
-  session         BacktestSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  session BacktestSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 }
