@@ -10,6 +10,9 @@ import type {
   PointerEvent,
 } from 'react';
 
+import { createPortal } from 'react-dom';
+import { ChevronUp, ChevronDown } from 'lucide-react';
+
 import { useOrders } from '../hooks/useOrders';
 
 import { TradingChart } from '../components/Chart/TradingChart.js';
@@ -162,7 +165,7 @@ export default function ChartPage({
     useState(2);
 
   // ==========================================
-  // DRAWING HISTORY STATE
+  // DRAWING HISTORY
   // ==========================================
 
   const [drawingHistory, setDrawingHistory] =
@@ -231,28 +234,23 @@ export default function ChartPage({
   const [isOrderModalOpen, setIsOrderModalOpen] =
     useState(false);
 
-  
+  // ==========================================
+  // CURRENT PRICE
+  // ==========================================
 
- // ==========================================
-// CURRENT PRICE
-// ==========================================
+  const currentReplayCandle =
+    sourceCandles[currentIndex] ?? null;
 
-// Candle yang sedang aktif berdasarkan posisi replay.
-const currentReplayCandle =
-  sourceCandles[currentIndex] ?? null;
+  const currentPrice =
+    currentReplayCandle?.close ?? 0;
 
-// Harga mengikuti Close candle replay aktif.
-// Tidak mengambil harga dari crosshair atau viewport chart.
-const currentPrice =
-  currentReplayCandle?.close ?? 0;
+  const leverage = activeSession?.leverage || 500;
 
-const leverage = activeSession?.leverage || 500;
-
-const canCreateOrder =
-  showReplayControls &&
-  Boolean(activeSessionId) &&
-  Number.isFinite(currentPrice) &&
-  currentPrice > 0;
+  const canCreateOrder =
+    showReplayControls &&
+    Boolean(activeSessionId) &&
+    Number.isFinite(currentPrice) &&
+    currentPrice > 0;
 
   // ==========================================
   // OPEN ORDER MODAL
@@ -260,14 +258,12 @@ const canCreateOrder =
 
   const handleOpenOrderModal = useCallback(() => {
     if (!canCreateOrder) {
-      console.warn(
-        '[ORDER] Tidak bisa membuat order:',
-        {
-          showReplayControls,
-          activeSessionId,
-          currentPrice,
-        }
-      );
+      console.warn('[ORDER] Tidak bisa membuat order:', {
+        showReplayControls,
+        activeSessionId,
+        currentPrice,
+      });
+
       return;
     }
 
@@ -301,19 +297,11 @@ const canCreateOrder =
     async (input: CreateOrderInput): Promise<void> => {
       try {
         await createOrder(input);
-
         setIsOrderModalOpen(false);
 
-        console.log(
-          '[ORDER] Berhasil membuat order:',
-          input
-        );
+        console.log('[ORDER] Berhasil membuat order:', input);
       } catch (error) {
-        console.error(
-          '[ORDER] Gagal membuat order:',
-          error
-        );
-
+        console.error('[ORDER] Gagal membuat order:', error);
         throw error;
       }
     },
@@ -329,10 +317,7 @@ const canCreateOrder =
       try {
         await cancelOrder(order.id);
       } catch (error) {
-        console.error(
-          '[ORDER] Gagal membatalkan order:',
-          error
-        );
+        console.error('[ORDER] Gagal membatalkan order:', error);
       }
     },
     [cancelOrder]
@@ -341,6 +326,20 @@ const canCreateOrder =
   // ==========================================
   // ORDER PANEL RESIZE
   // ==========================================
+
+  const getMaxPanelHeight = useCallback(() => {
+    const mainHeight =
+      document.querySelector('main[data-chart-page]')
+        ?.clientHeight || window.innerHeight;
+
+    // Sisakan ruang minimum untuk chart.
+    const availableHeight = mainHeight - 150;
+
+    return Math.max(
+      MIN_ORDER_PANEL_HEIGHT,
+      Math.floor(Math.min(mainHeight * 0.7, availableHeight))
+    );
+  }, []);
 
   const handleResizeStart = (
     event: PointerEvent<HTMLDivElement>
@@ -358,20 +357,13 @@ const canCreateOrder =
   const handleResizeMove = (
     event: PointerEvent<HTMLDivElement>
   ) => {
-    if (!dragStartRef.current) {
-      return;
-    }
+    if (!dragStartRef.current) return;
 
     const deltaY =
       dragStartRef.current.pointerY - event.clientY;
 
-    const maxPanelHeight = Math.max(
-      MIN_ORDER_PANEL_HEIGHT,
-      Math.floor(window.innerHeight * 0.7)
-    );
-
     const nextHeight = Math.min(
-      maxPanelHeight,
+      getMaxPanelHeight(),
       Math.max(
         MIN_ORDER_PANEL_HEIGHT,
         dragStartRef.current.panelHeight + deltaY
@@ -386,9 +378,7 @@ const canCreateOrder =
   ) => {
     dragStartRef.current = null;
 
-    if (
-      event.currentTarget.hasPointerCapture(event.pointerId)
-    ) {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
   };
@@ -401,11 +391,7 @@ const canCreateOrder =
     event: KeyboardEvent<HTMLDivElement>
   ) => {
     const step = event.shiftKey ? 50 : 20;
-
-    const maxPanelHeight = Math.max(
-      MIN_ORDER_PANEL_HEIGHT,
-      Math.floor(window.innerHeight * 0.7)
-    );
+    const maxPanelHeight = getMaxPanelHeight();
 
     if (event.key === 'ArrowUp') {
       event.preventDefault();
@@ -440,9 +426,10 @@ const canCreateOrder =
 
   return (
     <main
+      data-chart-page
       className="
         relative flex h-full min-h-0 min-w-0 w-full flex-1
-        flex-col overflow-hidden
+        flex-col overflow-hidden overscroll-none
         bg-white dark:bg-slate-950
       "
     >
@@ -468,6 +455,8 @@ const canCreateOrder =
           onClearAll={drawingHistory.onClearAll}
         />
 
+        {/* Jangan ubah struktur dan props TradingChart */}
+
         <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
           <ErrorBoundary
             fallbackTitle="Terjadi kendala visual pada chart"
@@ -486,8 +475,6 @@ const canCreateOrder =
               onChangeTimezone={onChangeTimezone}
               drawings={drawings}
               onUpdateDrawings={onUpdateDrawings}
-
-              // DRAWING TOOLBAR
               activeTool={activeTool}
               onSelectDrawingTool={setActiveTool}
               currentColor={currentColor}
@@ -495,23 +482,15 @@ const canCreateOrder =
               currentStrokeWidth={currentStrokeWidth}
               onChangeDrawingStrokeWidth={setCurrentStrokeWidth}
               onDrawingHistoryChange={handleDrawingHistoryChange}
-
-              // INDICATORS
               indicators={indicators}
               onUpdateIndicators={onUpdateIndicators}
-
-              // VOLUME
               showVolume={showVolume}
               onToggleVolume={onToggleVolume}
               volumeType={volumeType}
               onChangeVolumeType={onChangeVolumeType}
               hasRealVolume={hasRealVolume}
-
-              // REPLAY
               showReplayControls={showReplayControls}
               onToggleReplay={handleToggleReplay}
-
-              // CREATE ORDER
               canCreateOrder={canCreateOrder}
               onCreateOrderClick={handleOpenOrderModal}
             />
@@ -519,44 +498,13 @@ const canCreateOrder =
         </div>
       </section>
 
-      {/* REPLAY CONTROL PANEL */}
-
-      {showReplayControls && (
-        <section
-          className="
-            relative z-10 w-full shrink-0
-            border-t border-slate-200
-            bg-white dark:border-slate-800 dark:bg-slate-950
-          "
-        >
-          <ReplayControlPanel
-            currentIndex={currentIndex}
-            totalCandles={sourceCandles.length}
-            currentTimestamp={currentTimestamp}
-            sourceTimeframe={sourceTimeframe}
-            activeTimeframe={activeTimeframe}
-            activeTimezone={activeTimezone}
-            isPlaying={isPlaying}
-            replaySpeed={replaySpeed}
-            isSaving={isSaving}
-            onPlayPause={onPlayPause}
-            onNextCandle={onNextCandle}
-            onPrevCandle={onPrevCandle}
-            onReset={onReset}
-            onSeek={onSeek}
-            onChangeSpeed={onChangeSpeed}
-            onChangeTimeframe={onChangeTimeframe}
-            onJumpToTimestamp={onJumpToTimestamp}
-          />
-        </section>
-      )}
-
       {/* ORDER PANEL */}
 
       {activeSessionId && (
         <section
           className="
             relative z-20 flex w-full shrink-0 flex-col
+            min-h-0 overflow-hidden
             border-t border-slate-300
             bg-white dark:border-slate-700 dark:bg-slate-950
           "
@@ -565,6 +513,7 @@ const canCreateOrder =
               ? `${orderPanelHeight}px`
               : `${COLLAPSED_ORDER_PANEL_HEIGHT}px`,
             minHeight: `${COLLAPSED_ORDER_PANEL_HEIGHT}px`,
+            flexShrink: 0,
           }}
         >
           {/* RESIZE HANDLE */}
@@ -575,7 +524,7 @@ const canCreateOrder =
               aria-label="Ubah tinggi Trading Orders"
               aria-orientation="horizontal"
               aria-valuemin={MIN_ORDER_PANEL_HEIGHT}
-              aria-valuemax={Math.floor(window.innerHeight * 0.7)}
+              aria-valuemax={getMaxPanelHeight()}
               aria-valuenow={orderPanelHeight}
               tabIndex={0}
               onPointerDown={handleResizeStart}
@@ -612,10 +561,22 @@ const canCreateOrder =
               px-3 dark:border-slate-800
             "
           >
-            <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-              Trading Orders
-            </span>
+            {/* ORDER TABS */}
+            <div className="flex h-full min-w-0 items-center gap-4">
+              <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                Open
+              </span>
 
+              <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">
+                Pending
+              </span>
+
+              <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">
+                Close
+              </span>
+            </div>
+
+            {/* TOGGLE ORDER PANEL */}
             <button
               type="button"
               onClick={handleToggleOrderPanel}
@@ -629,42 +590,20 @@ const canCreateOrder =
                   ? 'Sembunyikan Trading Orders'
                   : 'Tampilkan Trading Orders'
               }
+              aria-expanded={showOrderPanel}
               className="
-                flex h-7 w-7 items-center justify-center
-                rounded-md text-slate-500
+                ml-3 flex h-7 w-7 shrink-0 items-center
+                justify-center rounded-md text-slate-500
+                transition-colors
                 hover:bg-slate-100 hover:text-slate-900
                 dark:text-slate-400 dark:hover:bg-slate-800
                 dark:hover:text-white
               "
             >
               {showOrderPanel ? (
-                <svg
-                  viewBox="0 0 24 24"
-                  className="h-4 w-4"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path
-                    d="m6 9 6 6 6-6"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
+                <ChevronDown className="h-4 w-4" />
               ) : (
-                <svg
-                  viewBox="0 0 24 24"
-                  className="h-4 w-4"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path
-                    d="m6 15 6-6 6 6"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
+                <ChevronUp className="h-4 w-4" />
               )}
             </button>
           </div>
@@ -679,38 +618,77 @@ const canCreateOrder =
                 overscroll-contain p-3
               "
             >
-             <OrderList
-              orders={orders}
-              currentPrice={currentPrice}
-              loading={ordersLoading}
-              error={ordersError}
-              onRefresh={() => {
-                void refreshOrders();
-              }}
-              onEdit={(order) => {
-                console.log('[ORDER] Edit:', order);
-              }}
-              onCancel={(order) => {
-                void handleCancelOrder(order);
-              }}
-            />
+              <OrderList
+                orders={orders}
+                currentPrice={currentPrice}
+                loading={ordersLoading}
+                error={ordersError}
+                onRefresh={() => {
+                  void refreshOrders();
+                }}
+                onEdit={(order) => {
+                  console.log('[ORDER] Edit:', order);
+                }}
+                onCancel={(order) => {
+                  void handleCancelOrder(order);
+                }}
+              />
             </div>
           )}
         </section>
       )}
 
+      {/* REPLAY CONTROL PANEL */}
+
+      {showReplayControls &&
+        createPortal(
+          <div
+            className="
+              fixed inset-x-0 bottom-0
+              z-[99999]
+              border-t border-slate-200
+              bg-white shadow-2xl
+              dark:border-slate-800 dark:bg-slate-950
+            "
+          >
+            <ReplayControlPanel
+              currentIndex={currentIndex}
+              totalCandles={sourceCandles.length}
+              currentTimestamp={currentTimestamp}
+              sourceTimeframe={sourceTimeframe}
+              activeTimeframe={activeTimeframe}
+              activeTimezone={activeTimezone}
+              isPlaying={isPlaying}
+              replaySpeed={replaySpeed}
+              isSaving={isSaving}
+              onPlayPause={onPlayPause}
+              onNextCandle={onNextCandle}
+              onPrevCandle={onPrevCandle}
+              onReset={onReset}
+              onSeek={onSeek}
+              onChangeSpeed={onChangeSpeed}
+              onChangeTimeframe={onChangeTimeframe}
+              onJumpToTimestamp={onJumpToTimestamp}
+            />
+          </div>,
+          document.body
+        )}
+
       {/* ORDER MODAL */}
 
-      {showReplayControls && activeSessionId && (
-        <OrderModal
-          isOpen={isOrderModalOpen}
-          sessionId={activeSessionId}
-          currentPrice={currentPrice}
-          leverage={leverage}
-          onClose={handleCloseOrderModal}
-          onSubmit={handleCreateOrder}
-        />
-      )}
+      {showReplayControls &&
+        activeSessionId &&
+        createPortal(
+          <OrderModal
+            isOpen={isOrderModalOpen}
+            sessionId={activeSessionId}
+            currentPrice={currentPrice}
+            leverage={leverage}
+            onClose={handleCloseOrderModal}
+            onSubmit={handleCreateOrder}
+          />,
+          document.body
+        )}
     </main>
   );
 }

@@ -1,3 +1,4 @@
+
 import type { ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Sun, Moon } from 'lucide-react';
@@ -34,19 +35,19 @@ export default function MainLayout({
         : 'Forex Tester');
 
   return (
-    <div className="w-full h-screen flex overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
+    <div className="flex h-dvh w-full min-h-0 min-w-0 overflow-hidden bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
 
       {/* SIDEBAR */}
       <Sidebar />
 
       {/* MAIN AREA */}
-      <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
 
         {/* TOP HEADER */}
-        <header className="h-16 shrink-0 flex items-center justify-between px-6 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+        <header className="flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6 dark:border-slate-800 dark:bg-slate-900">
 
           <div className="min-w-0">
-            <h2 className="text-lg font-bold truncate">
+            <h2 className="truncate text-lg font-bold">
               {pageTitle}
             </h2>
 
@@ -58,20 +59,20 @@ export default function MainLayout({
           <button
             type="button"
             onClick={onToggleTheme}
-            className="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 transition-colors hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
             title="Toggle theme"
             aria-label="Toggle theme"
           >
             {isDarkMode ? (
-              <Sun className="w-4 h-4" />
+              <Sun className="h-4 w-4" />
             ) : (
-              <Moon className="w-4 h-4" />
+              <Moon className="h-4 w-4" />
             )}
           </button>
         </header>
 
         {/* PAGE CONTENT */}
-        <main className="flex-1 min-h-0 min-w-0 overflow-auto">
+        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           {children}
         </main>
 
