@@ -62,6 +62,30 @@ function formatDate(value?: string | Date | null): string {
 }
 
 // ============================================
+// DATASET STATUS HELPERS
+// ============================================
+
+function getDatasetStatusLabel(status: Dataset['status']): string {
+  return status === 'READY'
+    ? 'Completed'
+    : status === 'IMPORTING'
+      ? 'Processing'
+      : status === 'ERROR'
+        ? 'Failed'
+        : 'Validating';
+}
+
+function getDatasetStatusClass(status: Dataset['status']): string {
+  return status === 'READY'
+    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400'
+    : status === 'IMPORTING'
+      ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400'
+      : status === 'ERROR'
+        ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400'
+        : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300';
+}
+
+// ============================================
 // COMPONENT
 // ============================================
 
@@ -96,14 +120,12 @@ export default function DatasetsPage() {
 
       if (!response.ok) {
         throw new Error(
-          `Gagal mengambil dataset. HTTP ${response.status}`
+          `Gagal mengambil dataset. HTTP ${response.status}`,
         );
       }
 
       const result = await response.json();
 
-      // Mendukung response berupa array langsung
-      // maupun object { datasets: [...] } atau { data: [...] }.
       const datasetList: Dataset[] = Array.isArray(result)
         ? result
         : Array.isArray(result?.datasets)
@@ -119,7 +141,7 @@ export default function DatasetsPage() {
       setError(
         err instanceof Error
           ? err.message
-          : 'Terjadi kesalahan saat mengambil dataset.'
+          : 'Terjadi kesalahan saat mengambil dataset.',
       );
     } finally {
       setIsLoading(false);
@@ -159,7 +181,7 @@ export default function DatasetsPage() {
   const totalCandles = useMemo(() => {
     return datasets.reduce(
       (total, dataset) => total + (dataset.candleCount || 0),
-      0
+      0,
     );
   }, [datasets]);
 
@@ -473,18 +495,10 @@ export default function DatasetsPage() {
                           inline-flex rounded-full
                           px-2 py-1 text-[10px]
                           font-semibold
-                          ${
-                            dataset.status === 'COMPLETED'
-                              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400'
-                              : dataset.status === 'PROCESSING'
-                                ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400'
-                                : dataset.status === 'FAILED'
-                                  ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400'
-                                  : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
-                          }
+                          ${getDatasetStatusClass(dataset.status)}
                         `}
                       >
-                        {dataset.status || 'UNKNOWN'}
+                        {getDatasetStatusLabel(dataset.status)}
                       </span>
                     </td>
                   </tr>

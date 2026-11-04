@@ -9,6 +9,7 @@ import type {
   OrderStatus,
   OrderDirection,
   OrderType,
+  CloseOrderInput,
 } from '../types/order.js';
 
 
@@ -692,6 +693,109 @@ apiApp.get(
 
       res.status(500).json({
         error: 'Gagal mengambil order: ' + err.message,
+      });
+    }
+  }
+);
+
+
+// ==========================================
+// POST /api/orders/:orderId/close
+// Menutup order dan menyimpan hasilnya
+// ==========================================
+
+apiApp.post(
+  '/orders/:orderId/close',
+  async (req: Request, res: Response) => {
+    try {
+      const orderId = req.params.orderId;
+
+      const {
+        closePrice,
+        closeTime,
+        status,
+      } = req.body;
+
+      // Validasi ID order
+      if (!orderId || !orderId.trim()) {
+        return res.status(400).json({
+          error: 'Order ID wajib diisi.',
+        });
+      }
+
+      // Validasi harga penutupan
+      const numericClosePrice = Number(closePrice);
+
+      if (
+        closePrice === undefined ||
+        closePrice === null ||
+        !Number.isFinite(numericClosePrice) ||
+        numericClosePrice <= 0
+      ) {
+        return res.status(400).json({
+          error: 'Close price tidak valid.',
+        });
+      }
+
+      // Validasi waktu penutupan
+      const numericCloseTime = Number(closeTime);
+
+      if (
+        closeTime === undefined ||
+        closeTime === null ||
+        !Number.isFinite(numericCloseTime) ||
+        numericCloseTime <= 0
+      ) {
+        return res.status(400).json({
+          error: 'Close time tidak valid.',
+        });
+      }
+
+      // Validasi alasan penutupan
+      const validCloseStatuses = [
+        'CLOSED_TP',
+        'CLOSED_SL',
+        'CLOSED_MANUAL',
+      ] as const;
+
+      if (
+        status !== undefined &&
+        !validCloseStatuses.includes(status)
+      ) {
+        return res.status(400).json({
+          error: 'Status penutupan order tidak valid.',
+          allowed: validCloseStatuses,
+        });
+      }
+
+      // Data yang dikirim ke repository
+      const input: CloseOrderInput = {
+        closePrice: numericClosePrice,
+        closeTime: numericCloseTime,
+        status,
+      };
+
+      // Proses penutupan dan penyimpanan ke PostgreSQL
+      const order = await db.closeOrder(orderId, input);
+
+      console.log('[API] Order closed:', {
+        id: order.id,
+        status: order.status,
+        closePrice: order.closePrice,
+        pnl: order.pnl,
+      });
+
+      return res.json({
+        success: true,
+        message: 'Order berhasil ditutup.',
+        order,
+      });
+
+    } catch (err: any) {
+      console.error('[API] Close order error:', err);
+
+      return res.status(500).json({
+        error: 'Gagal menutup order: ' + err.message,
       });
     }
   }

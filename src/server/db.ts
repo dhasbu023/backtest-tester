@@ -14,6 +14,7 @@ import type {
 import type {
   BacktestOrder,
   CreateOrderInput,
+  CloseOrderInput,
   OrderFilter,
 } from '../types/order.js';
 
@@ -428,6 +429,13 @@ async createOrder(
   },
 ): Promise<BacktestOrder> {
   return this.orderRepository.createOrder(input);
+}
+
+async closeOrder(
+  orderId: string,
+  input: CloseOrderInput,
+): Promise<BacktestOrder> {
+  return this.orderRepository.closeOrder(orderId, input);
 }
   // ============================================================
   // DATABASE STATUS

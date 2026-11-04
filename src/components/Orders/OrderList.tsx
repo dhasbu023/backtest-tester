@@ -1,3 +1,4 @@
+
 import { useMemo, useState } from 'react';
 
 import type { BacktestOrder } from '../../types/order';
@@ -7,10 +8,7 @@ type OrderTab = 'OPEN' | 'PENDING' | 'CLOSE';
 
 interface OrderListProps {
   orders: BacktestOrder[];
-
-  // Harga terbaru dari candle replay.
   currentPrice: number;
-
   loading?: boolean;
   error?: string | null;
 
@@ -21,7 +19,6 @@ interface OrderListProps {
   onRefresh?: () => void;
 }
 
-// Status order yang masuk ke tab Close.
 const CLOSE_STATUSES = [
   'CLOSED_TP',
   'CLOSED_SL',
@@ -41,21 +38,14 @@ export default function OrderList({
 }: OrderListProps) {
   const [activeTab, setActiveTab] = useState<OrderTab>('OPEN');
 
-  // ============================================
   // FILTER ORDERS
-  // ============================================
-
   const filteredOrders = useMemo(() => {
     switch (activeTab) {
       case 'OPEN':
-        return orders.filter(
-          order => order.status === 'OPEN'
-        );
+        return orders.filter(order => order.status === 'OPEN');
 
       case 'PENDING':
-        return orders.filter(
-          order => order.status === 'PENDING'
-        );
+        return orders.filter(order => order.status === 'PENDING');
 
       case 'CLOSE':
         return orders.filter(order =>
@@ -67,53 +57,25 @@ export default function OrderList({
     }
   }, [orders, activeTab]);
 
-  // ============================================
   // ORDER COUNTS
-  // ============================================
-
   const counts = useMemo(() => ({
-    open: orders.filter(
-      order => order.status === 'OPEN'
-    ).length,
-
-    pending: orders.filter(
-      order => order.status === 'PENDING'
-    ).length,
-
+    open: orders.filter(order => order.status === 'OPEN').length,
+    pending: orders.filter(order => order.status === 'PENDING').length,
     close: orders.filter(order =>
       CLOSE_STATUSES.includes(order.status)
     ).length,
   }), [orders]);
 
-  // ============================================
   // TABS
-  // ============================================
-
   const tabs: {
     id: OrderTab;
     label: string;
     count: number;
   }[] = [
-    {
-      id: 'OPEN',
-      label: 'Open',
-      count: counts.open,
-    },
-    {
-      id: 'PENDING',
-      label: 'Pending',
-      count: counts.pending,
-    },
-    {
-      id: 'CLOSE',
-      label: 'Close',
-      count: counts.close,
-    },
+    { id: 'OPEN', label: 'Open', count: counts.open },
+    { id: 'PENDING', label: 'Pending', count: counts.pending },
+    { id: 'CLOSE', label: 'Close', count: counts.close },
   ];
-
-  // ============================================
-  // RENDER
-  // ============================================
 
   return (
     <section
@@ -133,9 +95,9 @@ export default function OrderList({
         </div>
       )}
 
-      {/* TABS */}
-      <div className="mb-3 shrink-0 border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
-        <div className="flex gap-1 overflow-x-auto">
+      {/* ORDER TABS ONLY */}
+      <div className="w-full shrink-0 border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+        <div className="flex min-w-0 items-center gap-1 overflow-x-auto">
           {tabs.map(tab => {
             const active = activeTab === tab.id;
 
@@ -155,7 +117,7 @@ export default function OrderList({
 
                 <span
                   className={[
-                    'rounded-full px-2 py-0.5 text-[10px]',
+                    'rounded-full px-2 py-0.5 text-[10px] tabular-nums',
                     active
                       ? 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
                       : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
@@ -169,7 +131,7 @@ export default function OrderList({
         </div>
       </div>
 
-      {/* TABLE SCROLL */}
+      {/* ORDER TABLE */}
       <div
         className="min-h-0 min-w-0 flex-1 overflow-auto overscroll-contain"
         style={{
@@ -189,13 +151,9 @@ export default function OrderList({
 
       {/* FOOTER */}
       {!loading && (
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-gray-200 bg-white py-3 text-xs text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400">
+        <div className="flex shrink-0 items-center border-t border-gray-200 bg-white px-3 py-3 text-xs text-gray-500 dark:border-gray-700 dark:bg-gray-900">
           <span>
             Menampilkan {filteredOrders.length} order
-          </span>
-
-          <span>
-            {counts.open} Open · {counts.pending} Pending · {counts.close} Close
           </span>
         </div>
       )}

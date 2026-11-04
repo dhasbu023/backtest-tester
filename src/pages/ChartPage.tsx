@@ -1,6 +1,8 @@
 
 import {
   useCallback,
+  useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -33,7 +35,7 @@ import type {
   DrawingToolType,
 } from '../types/index.js';
 
-import type { CreateOrderInput } from '../types/order';
+import type { CreateOrderInput, BacktestOrder } from '../types/order';
 
 // ============================================
 // CONSTANTS
@@ -42,6 +44,7 @@ import type { CreateOrderInput } from '../types/order';
 const DEFAULT_ORDER_PANEL_HEIGHT = 300;
 const MIN_ORDER_PANEL_HEIGHT = 150;
 const COLLAPSED_ORDER_PANEL_HEIGHT = 44;
+const CONTRACT_SIZE = 100;
 
 // ============================================
 // DRAWING HISTORY TYPE
@@ -188,14 +191,193 @@ export default function ChartPage({
   // ORDER MANAGEMENT
   // ==========================================
 
-  const {
-    orders,
-    loading: ordersLoading,
-    error: ordersError,
-    refresh: refreshOrders,
-    create: createOrder,
-    cancel: cancelOrder,
-  } = useOrders(activeSessionId || null);
+    const {
+      orders,
+      loading: ordersLoading,
+      error: ordersError,
+      refresh: refreshOrders,
+      create: createOrder,
+      cancel: cancelOrder,
+      close: closeOrder,
+    } = useOrders(activeSessionId || null);
+
+  // ==========================================
+  // CURRENT PRICE
+  // ==========================================
+
+  const currentReplayCandle =
+    sourceCandles[currentIndex] ?? null;
+
+  const currentPrice =
+    currentReplayCandle?.close ?? 0;
+
+  // ==========================================
+  // AUTO CLOSE ORDER - DUPLICATE PROTECTION
+  // ==========================================
+
+  const processedCloseRef = useRef<Set<string>>(new Set());
+
+  // ==========================================
+// AUTO CLOSE ORDER - SL / TP DETECTION
+// ==========================================
+
+const previousReplayIndexRef = useRef(currentIndex);
+
+useEffect(() => {
+  // Jangan memproses candle saat pertama kali halaman dibuka.
+  // Deteksi hanya berjalan ketika replay bergerak maju.
+  if (currentIndex <= previousReplayIndexRef.current) {
+    previousReplayIndexRef.current = currentIndex;
+    return;
+  }
+
+  previousReplayIndexRef.current = currentIndex;
+
+  const candle = sourceCandles[currentIndex];
+
+  if (!candle || !activeSessionId || !Number.isFinite(currentTimestamp)) {
+    return;
+  }
+
+  // Hanya memeriksa order yang masih OPEN.
+  const openOrders = orders.filter(
+    (order: BacktestOrder) => order.status === 'OPEN'
+  );
+
+  for (const order of openOrders) {
+    // Jangan memproses candle yang waktunya sama atau lebih lama
+    // daripada waktu order dibuka.
+    if (
+      order.openTime != null &&
+      currentTimestamp <= order.openTime
+    ) {
+      continue;
+    }
+
+    const stopLoss = Number(order.stopLoss);
+    const takeProfit = Number(order.takeProfit);
+
+    const hasStopLoss =
+      Number.isFinite(stopLoss) && stopLoss > 0;
+
+    const hasTakeProfit =
+      Number.isFinite(takeProfit) && takeProfit > 0;
+
+    let closePrice: number | null = null;
+    let closeStatus:
+      | 'CLOSED_SL'
+      | 'CLOSED_TP'
+      | null = null;
+
+    if (order.direction === 'BUY') {
+      const slHit =
+        hasStopLoss && candle.low <= stopLoss;
+
+      const tpHit =
+        hasTakeProfit && candle.high >= takeProfit;
+
+      // Jika SL dan TP tersentuh pada candle yang sama,
+      // prioritaskan SL agar hasil backtest konservatif.
+      if (slHit) {
+        closePrice = stopLoss;
+        closeStatus = 'CLOSED_SL';
+      } else if (tpHit) {
+        closePrice = takeProfit;
+        closeStatus = 'CLOSED_TP';
+      }
+    }
+
+    if (order.direction === 'SELL') {
+      const slHit =
+        hasStopLoss && candle.high >= stopLoss;
+
+      const tpHit =
+        hasTakeProfit && candle.low <= takeProfit;
+
+      // Jika keduanya tersentuh, SL tetap diprioritaskan.
+      if (slHit) {
+        closePrice = stopLoss;
+        closeStatus = 'CLOSED_SL';
+      } else if (tpHit) {
+        closePrice = takeProfit;
+        closeStatus = 'CLOSED_TP';
+      }
+    }
+
+    if (closePrice === null || closeStatus === null) {
+      continue;
+    }
+
+    const closeKey = `${order.id}-${currentIndex}`;
+
+    // Hindari mengirim permintaan penutupan yang sama berulang kali.
+    if (processedCloseRef.current.has(closeKey)) {
+      continue;
+    }
+
+    processedCloseRef.current.add(closeKey);
+
+    console.log('[AUTO CLOSE] Candle menyentuh SL/TP:', {
+      orderId: order.id,
+      direction: order.direction,
+      candleIndex: currentIndex,
+      candleHigh: candle.high,
+      candleLow: candle.low,
+      closePrice,
+      closeStatus,
+    });
+
+    void closeOrder(order.id, {
+      closePrice,
+      closeTime: currentTimestamp,
+      status: closeStatus,
+    }).then(() => {
+      console.log('[AUTO CLOSE] Order berhasil ditutup:', {
+        orderId: order.id,
+        closePrice,
+        closeStatus,
+      });
+    }).catch((error) => {
+      // Jika gagal, izinkan percobaan ulang pada candle ini.
+      processedCloseRef.current.delete(closeKey);
+
+      console.error(
+        '[AUTO CLOSE] Gagal menutup order:',
+        order.id,
+        error
+      );
+    });
+  }
+}, [
+  currentIndex,
+  currentTimestamp,
+  sourceCandles,
+  activeSessionId,
+  orders,
+  closeOrder,
+]);
+
+  // ==========================================
+  // FLOATING PNL
+  // ==========================================
+
+  const floatingPnL = useMemo(() => {
+    return orders
+      .filter((order: BacktestOrder) => order.status === 'OPEN')
+      .reduce((total: number, order: BacktestOrder) => {
+        const marketPrice = order.currentPrice ?? currentPrice;
+
+        const priceDifference =
+          order.direction === 'BUY'
+            ? marketPrice - order.openPrice
+            : order.openPrice - marketPrice;
+
+        return total + priceDifference * order.lot * CONTRACT_SIZE;
+      }, 0);
+  }, [orders, currentPrice]);
+
+  const formattedFloatingPnL =
+    `${floatingPnL >= 0 ? '+' : '-'}$${Math.abs(floatingPnL).toFixed(2)}`;
 
   // ==========================================
   // REPLAY CONTROL
@@ -233,16 +415,6 @@ export default function ChartPage({
 
   const [isOrderModalOpen, setIsOrderModalOpen] =
     useState(false);
-
-  // ==========================================
-  // CURRENT PRICE
-  // ==========================================
-
-  const currentReplayCandle =
-    sourceCandles[currentIndex] ?? null;
-
-  const currentPrice =
-    currentReplayCandle?.close ?? 0;
 
   const leverage = activeSession?.leverage || 500;
 
@@ -332,7 +504,6 @@ export default function ChartPage({
       document.querySelector('main[data-chart-page]')
         ?.clientHeight || window.innerHeight;
 
-    // Sisakan ruang minimum untuk chart.
     const availableHeight = mainHeight - 150;
 
     return Math.max(
@@ -455,8 +626,6 @@ export default function ChartPage({
           onClearAll={drawingHistory.onClearAll}
         />
 
-        {/* Jangan ubah struktur dan props TradingChart */}
-
         <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
           <ErrorBoundary
             fallbackTitle="Terjadi kendala visual pada chart"
@@ -561,22 +730,33 @@ export default function ChartPage({
               px-3 dark:border-slate-800
             "
           >
-            {/* ORDER TABS */}
-            <div className="flex h-full min-w-0 items-center gap-4">
-              <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-                Open
+            {/* TITLE + FLOATING PNL */}
+
+            <div className="flex min-w-0 items-center gap-5">
+              <span className="shrink-0 text-sm font-semibold text-slate-800 dark:text-slate-100">
+                Trading Orders
               </span>
 
-              <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">
-                Pending
-              </span>
+              <div className="flex shrink-0 items-center gap-2">
+                <span className="text-xs text-slate-500 dark:text-slate-400">
+                  Floating PnL
+                </span>
 
-              <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">
-                Close
-              </span>
+                <span
+                  className={[
+                    'text-xs font-semibold tabular-nums',
+                    floatingPnL >= 0
+                      ? 'text-green-600 dark:text-green-400'
+                      : 'text-red-600 dark:text-red-400',
+                  ].join(' ')}
+                >
+                  {formattedFloatingPnL}
+                </span>
+              </div>
             </div>
 
             {/* TOGGLE ORDER PANEL */}
+
             <button
               type="button"
               onClick={handleToggleOrderPanel}

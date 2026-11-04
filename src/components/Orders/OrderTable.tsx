@@ -17,7 +17,7 @@ import {
 
 interface OrderTableProps {
   orders: BacktestOrder[];
-  currentPrice: number;
+  currentPrice?: number;
   loading?: boolean;
 
   onDetail?: (order: BacktestOrder) => void;
@@ -31,7 +31,7 @@ interface OrderTableProps {
 // ============================================
 
 function formatPrice(
-  value: number | null | undefined
+  value: number | null | undefined,
 ): string {
   if (value == null || !Number.isFinite(value)) {
     return '-';
@@ -60,19 +60,16 @@ function formatMoney(value: number): string {
 }
 
 function formatDateTime(
-  value: number | string | null | undefined
+  value: number | string | null | undefined,
 ): string {
   if (value == null || value === '') {
     return '-';
   }
 
-  let date: Date;
-
-  if (typeof value === 'number') {
-    date = new Date(value * 1000);
-  } else {
-    date = new Date(value);
-  }
+  const date =
+    typeof value === 'number'
+      ? new Date(value * 1000)
+      : new Date(value);
 
   if (Number.isNaN(date.getTime())) {
     return '-';
@@ -118,31 +115,26 @@ function getStatusConfig(status: OrderStatus): {
       className:
         'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
     },
-
     OPEN: {
       label: 'Open',
       className:
         'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300',
     },
-
     CLOSED_TP: {
       label: 'Closed TP',
       className:
         'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300',
     },
-
     CLOSED_SL: {
       label: 'Closed SL',
       className:
         'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300',
     },
-
     CLOSED_MANUAL: {
       label: 'Closed Manual',
       className:
         'bg-gray-200 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
     },
-
     CANCELLED: {
       label: 'Cancelled',
       className:
@@ -159,7 +151,7 @@ function getStatusConfig(status: OrderStatus): {
 
 export default function OrderTable({
   orders,
-  currentPrice,
+  currentPrice = 0,
   loading = false,
   onDetail,
   onEdit,
@@ -189,18 +181,14 @@ export default function OrderTable({
   }
 
   const hasValidCurrentPrice =
-    Number.isFinite(currentPrice) &&
-    currentPrice > 0;
+    Number.isFinite(currentPrice) && currentPrice > 0;
 
   return (
     <div className="w-full min-w-0 overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
       <table className="w-max min-w-full border-collapse text-left text-xs">
-        {/* TABLE HEADER */}
-
         <thead className="bg-gray-50 dark:bg-gray-900">
           <tr className="border-b border-gray-200 dark:border-gray-700">
             {[
-              
               'No. Order',
               'Tipe',
               'Arah',
@@ -224,24 +212,16 @@ export default function OrderTable({
           </tr>
         </thead>
 
-        {/* TABLE BODY */}
-
         <tbody>
           {orders.map((order) => {
-            const status = getStatusConfig(order.status);
-
             const isBuy = order.direction === 'BUY';
             const isOpen = order.status === 'OPEN';
             const isPending = order.status === 'PENDING';
 
-            // ========================================
-            // LIVE PRICE & FLOATING PNL
-            // ========================================
-
             const displayPrice =
               isOpen && hasValidCurrentPrice
                 ? currentPrice
-                : order.currentPrice;
+                : order.closePrice ?? order.currentPrice ?? order.openPrice;
 
             const displayPnL =
               isOpen && hasValidCurrentPrice
@@ -249,30 +229,26 @@ export default function OrderTable({
                     order.direction,
                     order.openPrice,
                     currentPrice,
-                    order.lot
+                    order.lot,
                   )
                 : order.pnl;
+
+            const pnl = Number.isFinite(displayPnL)
+              ? displayPnL
+              : 0;
 
             return (
               <tr
                 key={order.id}
                 className="border-b border-gray-100 transition hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-900/60"
               >
-              
-
-                {/* ORDER NUMBER */}
-
                 <td className="px-4 py-3 text-center font-semibold tabular-nums text-gray-700 dark:text-gray-300">
                   {order.orderNumber ?? '-'}
                 </td>
 
-                {/* ORDER TYPE */}
-
                 <td className="whitespace-nowrap px-4 py-3 text-gray-700 dark:text-gray-300">
                   {getOrderTypeLabel(order.orderType)}
                 </td>
-
-                {/* DIRECTION */}
 
                 <td className="px-4 py-3">
                   <span
@@ -286,47 +262,33 @@ export default function OrderTable({
                   </span>
                 </td>
 
-                {/* LOT */}
-
                 <td className="px-4 py-3 text-right tabular-nums text-gray-700 dark:text-gray-300">
                   {formatLot(order.lot)}
                 </td>
-
-                {/* OPEN PRICE */}
 
                 <td className="px-4 py-3 text-right tabular-nums text-gray-700 dark:text-gray-300">
                   {formatPrice(order.openPrice)}
                 </td>
 
-                {/* CURRENT PRICE */}
-
                 <td className="px-4 py-3 text-right tabular-nums font-medium text-gray-700 dark:text-gray-300">
                   {formatPrice(displayPrice)}
                 </td>
-
-                {/* STOP LOSS */}
 
                 <td className="px-4 py-3 text-right tabular-nums text-red-600">
                   {formatPrice(order.stopLoss)}
                 </td>
 
-                {/* TAKE PROFIT */}
-
                 <td className="px-4 py-3 text-right tabular-nums text-green-600">
                   {formatPrice(order.takeProfit)}
                 </td>
-
-               
-
-                {/* FLOATING / FINAL PNL */}
 
                 <td className="px-4 py-3 text-right tabular-nums">
                   <span
                     className={[
                       'font-semibold',
-                      displayPnL > 0
+                      pnl > 0
                         ? 'text-green-600'
-                        : displayPnL < 0
+                        : pnl < 0
                           ? 'text-red-600'
                           : 'text-gray-500',
                     ].join(' ')}
@@ -335,21 +297,13 @@ export default function OrderTable({
                   </span>
                 </td>
 
-            
-                {/* OPEN TIME */}
-
                 <td className="whitespace-nowrap px-4 py-3 text-gray-600 dark:text-gray-400">
                   {formatDateTime(order.openTime)}
                 </td>
 
-                {/* CLOSE TIME */}
-
                 <td className="whitespace-nowrap px-4 py-3 text-gray-600 dark:text-gray-400">
                   {formatDateTime(order.closeTime)}
                 </td>
-
-
-                {/* ACTIONS */}
 
                 <td className="sticky right-0 z-10 whitespace-nowrap border-l border-gray-200 bg-white px-3 py-3 dark:border-gray-700 dark:bg-gray-900">
                   <div className="flex items-center justify-end gap-1">
@@ -409,8 +363,6 @@ export default function OrderTable({
           })}
         </tbody>
       </table>
-
-      {/* FOOTER */}
 
       <div className="border-t border-gray-200 bg-gray-50 px-4 py-2 text-xs text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400">
         Total {orders.length} order

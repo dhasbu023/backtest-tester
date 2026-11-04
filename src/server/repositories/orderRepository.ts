@@ -10,6 +10,17 @@ import type { RepositoryContext } from './types.js';
 
 type OrderQueryFilter = Omit<OrderFilter, 'sessionId'>;
 
+type CloseOrderStatus =
+  | 'CLOSED_TP'
+  | 'CLOSED_SL'
+  | 'CLOSED_MANUAL';
+
+interface CloseOrderInput {
+  closePrice: number;
+  closeTime: number;
+  status?: CloseOrderStatus;
+}
+
 interface OrderRow {
   id: string;
   sessionId: string;
@@ -41,10 +52,6 @@ export class OrderRepository {
 
   /**
    * Membuat ID order berdasarkan ID session dan nomor order.
-   *
-   * Contoh:
-   * BTS-20261102-92365C858EC7-001
-   * BTS-20261102-92365C858EC7-002
    */
   private generateOrderId(
     sessionId: string,
@@ -71,8 +78,6 @@ export class OrderRepository {
     return {
       id: row.id,
       sessionId: row.sessionId,
-
-      // Nomor urut order dalam sesi.
       orderNumber: Number(row.orderNumber),
 
       direction: row.direction as BacktestOrder['direction'],
@@ -103,9 +108,6 @@ export class OrderRepository {
 
   /**
    * Mengambil daftar order berdasarkan session.
-   *
-   * Fungsi ini hanya membaca data.
-   * Tidak membuat order dan tidak menjalankan transaksi.
    */
   async getOrders(
     sessionId: string,
@@ -120,7 +122,6 @@ export class OrderRepository {
     const conditions: string[] = ['"sessionId" = $1'];
     const values: unknown[] = [sessionId];
 
-    // Filter berdasarkan status.
     if (filter.status) {
       if (Array.isArray(filter.status)) {
         if (filter.status.length > 0) {
@@ -132,22 +133,17 @@ export class OrderRepository {
         }
       } else {
         values.push(filter.status);
-
         conditions.push(`"status" = $${values.length}`);
       }
     }
 
-    // Filter berdasarkan arah BUY / SELL.
     if (filter.direction) {
       values.push(filter.direction);
-
       conditions.push(`"direction" = $${values.length}`);
     }
 
-    // Filter berdasarkan jenis order.
     if (filter.orderType) {
       values.push(filter.orderType);
-
       conditions.push(`"orderType" = $${values.length}`);
     }
 
@@ -168,12 +164,6 @@ export class OrderRepository {
 
   /**
    * Membuat order baru.
-   *
-   * id digunakan sebagai ID terstruktur:
-   * sessionId + nomor urut order.
-   *
-   * orderNumber digunakan sebagai nomor urut
-   * dalam masing-masing session.
    */
   async createOrder(
     input: CreateOrderInput & {
@@ -181,10 +171,6 @@ export class OrderRepository {
     },
   ): Promise<BacktestOrder> {
     this.context.ensureInitialized();
-
-    // ==========================================
-    // 1. VALIDASI INPUT
-    // ==========================================
 
     if (!input.sessionId) {
       throw new Error('Session ID wajib diisi.');
@@ -242,17 +228,12 @@ export class OrderRepository {
         ? null
         : new Date(input.openTime * 1000);
 
-    // Pastikan tanggal valid.
     if (
       openTime !== null &&
       !Number.isFinite(openTime.getTime())
     ) {
       throw new Error('Open time tidak valid.');
     }
-
-    // ==========================================
-    // 2. SIAPKAN KONEKSI TRANSAKSI
-    // ==========================================
 
     const client = await this.context.getPool().connect();
 
@@ -261,12 +242,6 @@ export class OrderRepository {
     try {
       await client.query('BEGIN');
       transactionStarted = true;
-
-      // ========================================
-      // 3. KUNCI SESSION
-      // ========================================
-      // Mencegah dua order dalam sesi yang sama
-      // memperoleh nomor urut yang sama.
 
       const sessionResult = await client.query(
         `
@@ -282,10 +257,6 @@ export class OrderRepository {
         throw new Error('Backtest session tidak ditemukan.');
       }
 
-      // ========================================
-      // 4. AMBIL NOMOR ORDER BERIKUTNYA
-      // ========================================
-
       const numberResult = await client.query(
         `
           SELECT COALESCE(MAX("orderNumber"), 0) + 1 AS next_number
@@ -299,25 +270,14 @@ export class OrderRepository {
         numberResult.rows[0].next_number,
       );
 
-      if (
-        !Number.isInteger(orderNumber) ||
-        orderNumber < 1
-      ) {
+      if (!Number.isInteger(orderNumber) || orderNumber < 1) {
         throw new Error('Gagal menentukan nomor order.');
       }
-
-      // ========================================
-      // 5. BUAT ID ORDER TERSTRUKTUR
-      // ========================================
 
       const id = this.generateOrderId(
         input.sessionId,
         orderNumber,
       );
-
-      // ========================================
-      // 6. SIMPAN ORDER
-      // ========================================
 
       const result = await client.query(
         `
@@ -360,10 +320,6 @@ export class OrderRepository {
         ],
       );
 
-      // ========================================
-      // 7. SELESAIKAN TRANSAKSI
-      // ========================================
-
       await client.query('COMMIT');
       transactionStarted = false;
 
@@ -373,6 +329,146 @@ export class OrderRepository {
         await client.query('ROLLBACK');
       }
 
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Menutup order dan menyimpan hasilnya ke PostgreSQL.
+   *
+   * Perhitungan XAUUSD:
+   * BUY  = (closePrice - openPrice) * 100 * lot
+   * SELL = (openPrice - closePrice) * 100 * lot
+   *
+   * Hanya order OPEN yang dapat ditutup.
+   */
+  async closeOrder(
+    orderId: string,
+    input: CloseOrderInput,
+  ): Promise<BacktestOrder> {
+    this.context.ensureInitialized();
+
+    if (!orderId) {
+      throw new Error('Order ID wajib diisi.');
+    }
+
+    if (
+      !Number.isFinite(input.closePrice) ||
+      input.closePrice <= 0
+    ) {
+      throw new Error('Close price tidak valid.');
+    }
+
+    if (
+      !Number.isFinite(input.closeTime) ||
+      input.closeTime <= 0
+    ) {
+      throw new Error('Close time tidak valid.');
+    }
+
+    const allowedStatuses: CloseOrderStatus[] = [
+      'CLOSED_TP',
+      'CLOSED_SL',
+      'CLOSED_MANUAL',
+    ];
+
+    const closeStatus = input.status ?? 'CLOSED_MANUAL';
+
+    if (!allowedStatuses.includes(closeStatus)) {
+      throw new Error('Status penutupan tidak valid.');
+    }
+
+    const closeDate = new Date(input.closeTime * 1000);
+
+    if (!Number.isFinite(closeDate.getTime())) {
+      throw new Error('Tanggal penutupan tidak valid.');
+    }
+
+    const client = await this.context.getPool().connect();
+
+    try {
+      await client.query('BEGIN');
+
+      // Kunci order agar tidak ditutup dua kali bersamaan.
+      const orderResult = await client.query(
+        `
+          SELECT *
+          FROM "BacktestOrder"
+          WHERE "id" = $1
+          FOR UPDATE
+        `,
+        [orderId],
+      );
+
+      if (orderResult.rowCount === 0) {
+        throw new Error('Order tidak ditemukan.');
+      }
+
+      const order = orderResult.rows[0] as OrderRow;
+
+      // Jika sudah ditutup, kembalikan data yang sudah tersimpan.
+      if (order.status !== 'OPEN') {
+        await client.query('COMMIT');
+        return this.mapOrderRow(order);
+      }
+
+      const lot = Number(order.lot);
+      const openPrice = Number(order.openPrice);
+
+      if (
+        !Number.isFinite(lot) ||
+        lot <= 0 ||
+        !Number.isFinite(openPrice) ||
+        openPrice <= 0
+      ) {
+        throw new Error('Data order tidak valid untuk dihitung.');
+      }
+
+      // Hitung PnL berdasarkan arah transaksi.
+      const pnl =
+        order.direction === 'BUY'
+          ? (input.closePrice - openPrice) * 100 * lot
+          : order.direction === 'SELL'
+            ? (openPrice - input.closePrice) * 100 * lot
+            : NaN;
+
+      if (!Number.isFinite(pnl)) {
+        throw new Error('Direction order tidak valid.');
+      }
+
+      const updateResult = await client.query(
+        `
+          UPDATE "BacktestOrder"
+          SET
+            "status" = $2,
+            "closePrice" = $3,
+            "closeTime" = $4,
+            "pnl" = $5,
+            "updatedAt" = NOW()
+          WHERE "id" = $1
+            AND "status" = 'OPEN'
+          RETURNING *
+        `,
+        [
+          orderId,
+          closeStatus,
+          input.closePrice,
+          closeDate,
+          pnl,
+        ],
+      );
+
+      if (updateResult.rowCount === 0) {
+        throw new Error('Order gagal ditutup.');
+      }
+
+      await client.query('COMMIT');
+
+      return this.mapOrderRow(updateResult.rows[0]);
+    } catch (error) {
+      await client.query('ROLLBACK');
       throw error;
     } finally {
       client.release();

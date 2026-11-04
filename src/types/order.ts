@@ -4,6 +4,10 @@
  * File: src/types/order.ts
  */
 
+// ============================================
+// ORDER ENUMS / TYPES
+// ============================================
+
 export type OrderDirection = 'BUY' | 'SELL';
 
 export type OrderType =
@@ -13,12 +17,15 @@ export type OrderType =
   | 'BUY_STOP'
   | 'SELL_STOP';
 
+export type CloseOrderStatus =
+  | 'CLOSED_TP'
+  | 'CLOSED_SL'
+  | 'CLOSED_MANUAL';
+
 export type OrderStatus =
   | 'PENDING'
   | 'OPEN'
-  | 'CLOSED_TP'
-  | 'CLOSED_SL'
-  | 'CLOSED_MANUAL'
+  | CloseOrderStatus
   | 'CANCELLED';
 
 export type OrderExecutionType = 'MARKET' | 'PENDING';
@@ -94,6 +101,7 @@ export interface UpdateOrderInput {
 export interface CloseOrderInput {
   closePrice: number;
   closeTime: number;
+  status?: CloseOrderStatus;
 }
 
 // ============================================
