@@ -12,6 +12,8 @@ import type {
   CloseOrderInput,
 } from '../types/order.js';
 
+import type { UpdateOrderInput } from './repositories/orderRepository.js';
+
 
 // Generate structured and unique Backtest Session ID
 function generateSessionId(): string {
@@ -693,6 +695,109 @@ apiApp.get(
 
       res.status(500).json({
         error: 'Gagal mengambil order: ' + err.message,
+      });
+    }
+  }
+);
+
+
+// ==========================================
+// PATCH /api/orders/:orderId
+// Memperbarui Stop Loss dan Take Profit
+// ==========================================
+
+apiApp.patch(
+  '/orders/:orderId',
+  async (req: Request, res: Response) => {
+    try {
+      const orderId = req.params.orderId;
+      const body = req.body as Partial<UpdateOrderInput> | undefined;
+
+      if (!orderId || !orderId.trim()) {
+        return res.status(400).json({
+          error: 'Order ID wajib diisi.',
+        });
+      }
+
+      if (!body || typeof body !== 'object' || Array.isArray(body)) {
+        return res.status(400).json({
+          error: 'Data perubahan order tidak valid.',
+        });
+      }
+
+      const hasStopLoss = Object.prototype.hasOwnProperty.call(body, 'stopLoss');
+      const hasTakeProfit = Object.prototype.hasOwnProperty.call(body, 'takeProfit');
+
+      if (!hasStopLoss && !hasTakeProfit) {
+        return res.status(400).json({
+          error: 'Stop Loss atau Take Profit harus disertakan.',
+        });
+      }
+
+      const input: UpdateOrderInput = {};
+
+      if (hasStopLoss) {
+        if (body.stopLoss === null) {
+          input.stopLoss = null;
+        } else {
+          const stopLoss = Number(body.stopLoss);
+
+          if (!Number.isFinite(stopLoss) || stopLoss <= 0) {
+            return res.status(400).json({
+              error: 'Stop Loss tidak valid.',
+            });
+          }
+
+          input.stopLoss = stopLoss;
+        }
+      }
+
+      if (hasTakeProfit) {
+        if (body.takeProfit === null) {
+          input.takeProfit = null;
+        } else {
+          const takeProfit = Number(body.takeProfit);
+
+          if (!Number.isFinite(takeProfit) || takeProfit <= 0) {
+            return res.status(400).json({
+              error: 'Take Profit tidak valid.',
+            });
+          }
+
+          input.takeProfit = takeProfit;
+        }
+      }
+
+      const order = await db.updateOrder(orderId, input);
+
+      console.log('[API] Order updated:', {
+        id: order.id,
+        stopLoss: order.stopLoss,
+        takeProfit: order.takeProfit,
+      });
+
+      // Mengembalikan order langsung karena frontend mengharapkan BacktestOrder.
+      return res.json(order);
+    } catch (err: any) {
+      console.error('[API] Update order error:', err);
+
+      const message = err instanceof Error ? err.message : String(err);
+
+      if (message === 'Order tidak ditemukan.') {
+        return res.status(404).json({ error: message });
+      }
+
+      if (
+        message.includes('tidak valid') ||
+        message.includes('harus diisi') ||
+        message.includes('tidak dapat diedit') ||
+        message.includes('Tidak ada data')
+      ) {
+        return res.status(400).json({ error: message });
+      }
+
+      return res.status(500).json({
+        error: 'Gagal memperbarui order: ' + message,
       });
     }
   }

@@ -199,6 +199,7 @@ export default function ChartPage({
       create: createOrder,
       cancel: cancelOrder,
       close: closeOrder,
+      update: updateOrder,
     } = useOrders(activeSessionId || null);
 
   // ==========================================
@@ -798,21 +799,22 @@ useEffect(() => {
                 overscroll-contain p-3
               "
             >
-              <OrderList
-                orders={orders}
-                currentPrice={currentPrice}
-                loading={ordersLoading}
-                error={ordersError}
-                onRefresh={() => {
-                  void refreshOrders();
-                }}
-                onEdit={(order) => {
-                  console.log('[ORDER] Edit:', order);
-                }}
-                onCancel={(order) => {
-                  void handleCancelOrder(order);
-                }}
-              />
+          <OrderList
+            orders={orders}
+            currentPrice={currentPrice}
+            loading={ordersLoading}
+            error={ordersError}
+            onRefresh={() => {
+              void refreshOrders();
+            }}
+            onEdit={(order) => {
+              console.log('[ORDER] Edit:', order);
+            }}
+            onUpdate={updateOrder}
+            onCancel={(order) => {
+              void handleCancelOrder(order);
+            }}
+          />
             </div>
           )}
         </section>

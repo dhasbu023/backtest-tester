@@ -3,9 +3,9 @@ import React, { useMemo } from 'react';
 
 import type {
   BacktestOrder,
-} from '../../types/order';
+} from '../src/types/order';
 
-import OrderTable from './OrderTable';
+import OrderTable from '../src/components/Orders/OrderTable';
 
 interface OrderPositionPanelProps {
   orders: BacktestOrder[];

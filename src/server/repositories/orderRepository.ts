@@ -21,6 +21,11 @@ interface CloseOrderInput {
   status?: CloseOrderStatus;
 }
 
+export interface UpdateOrderInput {
+  stopLoss?: number | null;
+  takeProfit?: number | null;
+}
+
 interface OrderRow {
   id: string;
   sessionId: string;
@@ -43,16 +48,10 @@ interface OrderRow {
 export class OrderRepository {
   constructor(private readonly context: RepositoryContext) {}
 
-  /**
-   * Mengubah nomor order menjadi format 001, 002, 003.
-   */
   private formatOrderNumber(value: number): string {
     return String(value).padStart(3, '0');
   }
 
-  /**
-   * Membuat ID order berdasarkan ID session dan nomor order.
-   */
   private generateOrderId(
     sessionId: string,
     orderNumber: number,
@@ -60,9 +59,6 @@ export class OrderRepository {
     return `${sessionId}-${this.formatOrderNumber(orderNumber)}`;
   }
 
-  /**
-   * Mengubah data PostgreSQL menjadi BacktestOrder.
-   */
   private mapOrderRow(row: OrderRow): BacktestOrder {
     const toUnixTime = (
       value: Date | string | null,
@@ -126,7 +122,6 @@ export class OrderRepository {
       if (Array.isArray(filter.status)) {
         if (filter.status.length > 0) {
           values.push(filter.status);
-
           conditions.push(
             `"status" = ANY($${values.length}::text[])`,
           );
@@ -336,13 +331,111 @@ export class OrderRepository {
   }
 
   /**
+   * Mengubah Stop Loss dan Take Profit order.
+   * Hanya order OPEN atau PENDING yang dapat diedit.
+   */
+  async updateOrder(
+    orderId: string,
+    input: UpdateOrderInput,
+  ): Promise<BacktestOrder> {
+    this.context.ensureInitialized();
+
+    if (!orderId || !orderId.trim()) {
+      throw new Error('Order ID wajib diisi.');
+    }
+
+    if (
+      input.stopLoss === undefined &&
+      input.takeProfit === undefined
+    ) {
+      throw new Error('Tidak ada data yang perlu diperbarui.');
+    }
+
+    if (
+      input.stopLoss !== undefined &&
+      input.stopLoss !== null &&
+      (!Number.isFinite(input.stopLoss) || input.stopLoss <= 0)
+    ) {
+      throw new Error('Stop Loss tidak valid.');
+    }
+
+    if (
+      input.takeProfit !== undefined &&
+      input.takeProfit !== null &&
+      (!Number.isFinite(input.takeProfit) || input.takeProfit <= 0)
+    ) {
+      throw new Error('Take Profit tidak valid.');
+    }
+
+    const client = await this.context.getPool().connect();
+
+    try {
+      await client.query('BEGIN');
+
+      const orderResult = await client.query(
+        `
+          SELECT *
+          FROM "BacktestOrder"
+          WHERE "id" = $1
+          FOR UPDATE
+        `,
+        [orderId],
+      );
+
+      if (orderResult.rowCount === 0) {
+        throw new Error('Order tidak ditemukan.');
+      }
+
+      const order = orderResult.rows[0] as OrderRow;
+
+      if (!['OPEN', 'PENDING'].includes(order.status)) {
+        throw new Error('Order yang sudah ditutup tidak dapat diedit.');
+      }
+
+      const updatedStopLoss =
+        input.stopLoss === undefined
+          ? order.stopLoss
+          : input.stopLoss;
+
+      const updatedTakeProfit =
+        input.takeProfit === undefined
+          ? order.takeProfit
+          : input.takeProfit;
+
+      const result = await client.query(
+        `
+          UPDATE "BacktestOrder"
+          SET
+            "stopLoss" = $2,
+            "takeProfit" = $3,
+            "updatedAt" = NOW()
+          WHERE "id" = $1
+          RETURNING *
+        `,
+        [
+          orderId,
+          updatedStopLoss,
+          updatedTakeProfit,
+        ],
+      );
+
+      if (result.rowCount === 0) {
+        throw new Error('Gagal memperbarui order.');
+      }
+
+      await client.query('COMMIT');
+
+      return this.mapOrderRow(result.rows[0]);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
    * Menutup order dan menyimpan hasilnya ke PostgreSQL.
-   *
-   * Perhitungan XAUUSD:
-   * BUY  = (closePrice - openPrice) * 100 * lot
-   * SELL = (openPrice - closePrice) * 100 * lot
-   *
-   * Hanya order OPEN yang dapat ditutup.
    */
   async closeOrder(
     orderId: string,
@@ -391,7 +484,6 @@ export class OrderRepository {
     try {
       await client.query('BEGIN');
 
-      // Kunci order agar tidak ditutup dua kali bersamaan.
       const orderResult = await client.query(
         `
           SELECT *
@@ -408,7 +500,6 @@ export class OrderRepository {
 
       const order = orderResult.rows[0] as OrderRow;
 
-      // Jika sudah ditutup, kembalikan data yang sudah tersimpan.
       if (order.status !== 'OPEN') {
         await client.query('COMMIT');
         return this.mapOrderRow(order);
@@ -426,7 +517,6 @@ export class OrderRepository {
         throw new Error('Data order tidak valid untuk dihitung.');
       }
 
-      // Hitung PnL berdasarkan arah transaksi.
       const pnl =
         order.direction === 'BUY'
           ? (input.closePrice - openPrice) * 100 * lot

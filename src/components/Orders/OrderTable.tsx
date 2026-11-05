@@ -1,10 +1,13 @@
 
-import React from 'react';
+import { useState } from 'react';
+
+import EditOrderModal from './EditOrderModal';
 
 import type {
   BacktestOrder,
   OrderStatus,
   OrderType,
+  UpdateOrderInput,
 } from '../../types/order';
 
 import {
@@ -22,6 +25,10 @@ interface OrderTableProps {
 
   onDetail?: (order: BacktestOrder) => void;
   onEdit?: (order: BacktestOrder) => void;
+  onUpdate?: (
+    orderId: string,
+    input: UpdateOrderInput
+  ) => Promise<void>;
   onCancel?: (order: BacktestOrder) => void;
   onClose?: (order: BacktestOrder) => void;
 }
@@ -155,9 +162,12 @@ export default function OrderTable({
   loading = false,
   onDetail,
   onEdit,
+  onUpdate,
   onCancel,
   onClose,
 }: OrderTableProps) {
+  const [editingOrder, setEditingOrder] =
+    useState<BacktestOrder | null>(null);
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12 text-sm text-gray-500 dark:text-gray-400">
@@ -317,10 +327,13 @@ export default function OrderTable({
                       </button>
                     )}
 
-                    {isPending && onEdit && (
-                      <button
-                        type="button"
-                        onClick={() => onEdit(order)}
+                   {isPending && (onEdit || onUpdate) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingOrder(order);
+                        onEdit?.(order);
+                      }}
                         className="rounded-md px-2 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950"
                       >
                         Edit
@@ -337,10 +350,13 @@ export default function OrderTable({
                       </button>
                     )}
 
-                    {isOpen && onEdit && (
-                      <button
-                        type="button"
-                        onClick={() => onEdit(order)}
+              {isOpen && (onEdit || onUpdate) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingOrder(order);
+                    onEdit?.(order);
+                  }}
                         className="rounded-md px-2 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950"
                       >
                         Edit
@@ -364,9 +380,24 @@ export default function OrderTable({
         </tbody>
       </table>
 
-      <div className="border-t border-gray-200 bg-gray-50 px-4 py-2 text-xs text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400">
+            <div className="border-t border-gray-200 bg-gray-50 px-4 py-2 text-xs text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400">
         Total {orders.length} order
       </div>
+
+      <EditOrderModal
+        isOpen={editingOrder !== null}
+        order={editingOrder}
+        onClose={() => setEditingOrder(null)}
+        onSubmit={async (orderId, input) => {
+          if (!onUpdate) {
+            throw new Error(
+              'Fungsi update order belum dihubungkan.'
+            );
+          }
+
+          await onUpdate(orderId, input);
+        }}
+      />
     </div>
   );
 }

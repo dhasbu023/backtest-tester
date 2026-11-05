@@ -19,6 +19,10 @@ import type {
 } from '../types/order.js';
 
 import type {
+  UpdateOrderInput,
+} from './repositories/orderRepository.js';
+
+import type {
   DatasetRecord,
   ImportJobRecord,
   SessionRecord,
@@ -35,8 +39,6 @@ import { DrawingRepository } from './repositories/drawingRepository.js';
 import { PreferenceRepository } from './repositories/preferenceRepository.js';
 import { OrderRepository } from './repositories/orderRepository.js';
 
-// Tetap menyediakan type export untuk file lain yang mungkin
-// sebelumnya mengimpor type dari db.ts.
 export type {
   DatasetRecord,
   ImportJobRecord,
@@ -110,8 +112,8 @@ class DatabaseManager {
   );
 
   private readonly orderRepository = new OrderRepository(
-  this.repositoryContext,
-);
+    this.repositoryContext,
+  );
 
   // ============================================================
   // DATABASE HELPERS
@@ -175,8 +177,6 @@ class DatabaseManager {
       return;
     }
 
-    // Mempertahankan direktori data lama.
-    // Tidak menghapus atau mengubah file backup JSON.
     if (!fs.existsSync(this.dataDir)) {
       fs.mkdirSync(this.dataDir, { recursive: true });
     }
@@ -235,8 +235,6 @@ class DatabaseManager {
 
   /**
    * Memastikan tabel PostgreSQL yang dibuat oleh Prisma tersedia.
-   *
-   * Tidak membuat tabel baru dan tidak mengubah struktur Prisma.
    */
   private async initPostgresSchema(): Promise<void> {
     if (!this.pgPool) {
@@ -253,6 +251,7 @@ class DatabaseManager {
       'ChartPreference',
       'BacktestOrder',
     ];
+
     for (const table of requiredTables) {
       const result = await this.pgPool.query(
         'SELECT to_regclass($1) AS table_name',
@@ -271,7 +270,6 @@ class DatabaseManager {
 
   // ============================================================
   // CANDLES
-  // Delegated to CandleRepository
   // ============================================================
 
   async getCandles(
@@ -298,7 +296,6 @@ class DatabaseManager {
 
   // ============================================================
   // DATASETS
-  // Delegated to DatasetRepository
   // ============================================================
 
   async saveDataset(record: DatasetRecord): Promise<void> {
@@ -317,7 +314,6 @@ class DatabaseManager {
 
   // ============================================================
   // IMPORT JOBS
-  // Delegated to ImportJobRepository
   // ============================================================
 
   async saveJob(job: ImportJobRecord): Promise<void> {
@@ -332,7 +328,6 @@ class DatabaseManager {
 
   // ============================================================
   // BACKTEST SESSIONS
-  // Delegated to SessionRepository
   // ============================================================
 
   async saveSession(session: SessionRecord): Promise<void> {
@@ -353,7 +348,6 @@ class DatabaseManager {
 
   // ============================================================
   // REPLAY STATE
-  // Delegated to ReplayRepository
   // ============================================================
 
   async saveReplayState(
@@ -364,7 +358,6 @@ class DatabaseManager {
 
   // ============================================================
   // DRAWING OBJECTS
-  // Delegated to DrawingRepository
   // ============================================================
 
   async getDrawings(
@@ -395,7 +388,6 @@ class DatabaseManager {
 
   // ============================================================
   // CHART PREFERENCES
-  // Delegated to PreferenceRepository
   // ============================================================
 
   async getPreference(
@@ -409,34 +401,44 @@ class DatabaseManager {
   ): Promise<void> {
     return this.preferenceRepository.savePreference(pref);
   }
-  
 
   // ============================================================
-// BACKTEST ORDERS
-// Delegated to OrderRepository
-// ============================================================
+  // BACKTEST ORDERS
+  // Delegated to OrderRepository
+  // ============================================================
 
-async getOrders(
-  sessionId: string,
-  filter: Omit<OrderFilter, 'sessionId'> = {},
-): Promise<BacktestOrder[]> {
-  return this.orderRepository.getOrders(sessionId, filter);
-}
+  async getOrders(
+    sessionId: string,
+    filter: Omit<OrderFilter, 'sessionId'> = {},
+  ): Promise<BacktestOrder[]> {
+    return this.orderRepository.getOrders(sessionId, filter);
+  }
 
-async createOrder(
-  input: CreateOrderInput & {
-    openTime?: number | null;
-  },
-): Promise<BacktestOrder> {
-  return this.orderRepository.createOrder(input);
-}
+  async createOrder(
+    input: CreateOrderInput & {
+      openTime?: number | null;
+    },
+  ): Promise<BacktestOrder> {
+    return this.orderRepository.createOrder(input);
+  }
 
-async closeOrder(
-  orderId: string,
-  input: CloseOrderInput,
-): Promise<BacktestOrder> {
-  return this.orderRepository.closeOrder(orderId, input);
-}
+  /**
+   * Memperbarui Stop Loss dan Take Profit order.
+   */
+  async updateOrder(
+    orderId: string,
+    input: UpdateOrderInput,
+  ): Promise<BacktestOrder> {
+    return this.orderRepository.updateOrder(orderId, input);
+  }
+
+  async closeOrder(
+    orderId: string,
+    input: CloseOrderInput,
+  ): Promise<BacktestOrder> {
+    return this.orderRepository.closeOrder(orderId, input);
+  }
+
   // ============================================================
   // DATABASE STATUS
   // ============================================================

@@ -20,20 +20,6 @@ import type {
 
 const API_BASE_URL = '/api';
 
-/**
- * Endpoint yang diharapkan:
- *
- * GET    /api/backtest-sessions/:sessionId/orders
- * POST   /api/backtest-sessions/:sessionId/orders
- * PATCH  /api/orders/:orderId
- * DELETE /api/orders/:orderId
- * POST   /api/orders/:orderId/close
- * POST   /api/orders/:orderId/cancel
- *
- * Endpoint ini perlu disamakan dengan backend
- * ketika kita mengerjakan apiMiddleware.ts.
- */
-
 const ENDPOINTS = {
   sessionOrders: (sessionId: string) =>
     `${API_BASE_URL}/backtest-sessions/${encodeURIComponent(sessionId)}/orders`,
@@ -66,8 +52,11 @@ export class OrderServiceError extends Error {
 // RESPONSE HELPERS
 // ============================================
 
-async function parseResponse<T>(response: Response): Promise<T> {
-  const contentType = response.headers.get('content-type') ?? '';
+async function parseResponse<T>(
+  response: Response
+): Promise<T> {
+  const contentType =
+    response.headers.get('content-type') ?? '';
 
   let result: unknown;
 
@@ -79,15 +68,22 @@ async function parseResponse<T>(response: Response): Promise<T> {
   }
 
   if (!response.ok) {
-    const message =
-      typeof result === 'object' &&
-      result !== null &&
-      'message' in result &&
-      typeof result.message === 'string'
-        ? result.message
-        : `Request gagal (${response.status}).`;
+    let message = `Request gagal (${response.status}).`;
 
-    throw new OrderServiceError(message, response.status);
+    if (typeof result === 'object' && result !== null) {
+      const data = result as Record<string, unknown>;
+
+      if (typeof data.message === 'string') {
+        message = data.message;
+      } else if (typeof data.error === 'string') {
+        message = data.error;
+      }
+    }
+
+    throw new OrderServiceError(
+      message,
+      response.status
+    );
   }
 
   // Mendukung response langsung maupun { data: ... }
@@ -96,7 +92,7 @@ async function parseResponse<T>(response: Response): Promise<T> {
     result !== null &&
     'data' in result
   ) {
-    return result.data as T;
+    return (result as { data: T }).data;
   }
 
   return result as T;
@@ -118,7 +114,10 @@ export async function getOrders(
   filter?: OrderFilter
 ): Promise<BacktestOrder[]> {
   if (!sessionId.trim()) {
-    throw new OrderServiceError('Session ID tidak boleh kosong.', 400);
+    throw new OrderServiceError(
+      'Session ID tidak boleh kosong.',
+      400
+    );
   }
 
   const url = new URL(
@@ -135,11 +134,17 @@ export async function getOrders(
   }
 
   if (filter?.direction) {
-    url.searchParams.set('direction', filter.direction);
+    url.searchParams.set(
+      'direction',
+      filter.direction
+    );
   }
 
   if (filter?.orderType) {
-    url.searchParams.set('orderType', filter.orderType);
+    url.searchParams.set(
+      'orderType',
+      filter.orderType
+    );
   }
 
   const response = await fetch(
@@ -169,7 +174,10 @@ export async function createOrder(
   input: CreateOrderInput
 ): Promise<BacktestOrder> {
   if (!input.sessionId.trim()) {
-    throw new OrderServiceError('Session ID tidak boleh kosong.', 400);
+    throw new OrderServiceError(
+      'Session ID tidak boleh kosong.',
+      400
+    );
   }
 
   const response = await fetch(
@@ -193,14 +201,23 @@ export async function updateOrder(
   input: UpdateOrderInput
 ): Promise<BacktestOrder> {
   if (!orderId.trim()) {
-    throw new OrderServiceError('Order ID tidak boleh kosong.', 400);
+    throw new OrderServiceError(
+      'Order ID tidak boleh kosong.',
+      400
+    );
   }
 
-  const response = await fetch(ENDPOINTS.order(orderId), {
-    method: 'PATCH',
-    headers: jsonHeaders(),
-    body: JSON.stringify(input),
-  });
+  const response = await fetch(
+    ENDPOINTS.order(orderId),
+    {
+      method: 'PATCH',
+      headers: jsonHeaders(),
+      body: JSON.stringify({
+        stopLoss: input.stopLoss,
+        takeProfit: input.takeProfit,
+      }),
+    }
+  );
 
   return parseResponse<BacktestOrder>(response);
 }
@@ -214,14 +231,20 @@ export async function closeOrder(
   input: CloseOrderInput
 ): Promise<BacktestOrder> {
   if (!orderId.trim()) {
-    throw new OrderServiceError('Order ID tidak boleh kosong.', 400);
+    throw new OrderServiceError(
+      'Order ID tidak boleh kosong.',
+      400
+    );
   }
 
-  const response = await fetch(ENDPOINTS.closeOrder(orderId), {
-    method: 'POST',
-    headers: jsonHeaders(),
-    body: JSON.stringify(input),
-  });
+  const response = await fetch(
+    ENDPOINTS.closeOrder(orderId),
+    {
+      method: 'POST',
+      headers: jsonHeaders(),
+      body: JSON.stringify(input),
+    }
+  );
 
   return parseResponse<BacktestOrder>(response);
 }
@@ -234,14 +257,20 @@ export async function cancelOrder(
   orderId: string
 ): Promise<BacktestOrder> {
   if (!orderId.trim()) {
-    throw new OrderServiceError('Order ID tidak boleh kosong.', 400);
+    throw new OrderServiceError(
+      'Order ID tidak boleh kosong.',
+      400
+    );
   }
 
-  const response = await fetch(ENDPOINTS.cancelOrder(orderId), {
-    method: 'POST',
-    headers: jsonHeaders(),
-    body: JSON.stringify({}),
-  });
+  const response = await fetch(
+    ENDPOINTS.cancelOrder(orderId),
+    {
+      method: 'POST',
+      headers: jsonHeaders(),
+      body: JSON.stringify({}),
+    }
+  );
 
   return parseResponse<BacktestOrder>(response);
 }
@@ -250,24 +279,23 @@ export async function cancelOrder(
 // DELETE ORDER
 // ============================================
 
-/**
- * Penghapusan permanen hanya boleh digunakan
- * untuk order yang memang diizinkan backend.
- *
- * Pending order sebaiknya dibatalkan melalui
- * cancelOrder(), bukan dihapus permanen.
- */
 export async function deleteOrder(
   orderId: string
 ): Promise<void> {
   if (!orderId.trim()) {
-    throw new OrderServiceError('Order ID tidak boleh kosong.', 400);
+    throw new OrderServiceError(
+      'Order ID tidak boleh kosong.',
+      400
+    );
   }
 
-  const response = await fetch(ENDPOINTS.order(orderId), {
-    method: 'DELETE',
-    headers: jsonHeaders(),
-  });
+  const response = await fetch(
+    ENDPOINTS.order(orderId),
+    {
+      method: 'DELETE',
+      headers: jsonHeaders(),
+    }
+  );
 
   await parseResponse<unknown>(response);
 }
