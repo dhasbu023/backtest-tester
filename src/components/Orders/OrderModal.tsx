@@ -1,9 +1,5 @@
 
-import React, {
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 import type {
   CreateOrderInput,
@@ -13,28 +9,16 @@ import type {
 
 import OrderForm from './OrderForm';
 
-// ============================================
-// PROPS
-// ============================================
-
 interface OrderModalProps {
   isOpen: boolean;
-
   sessionId: string;
   currentPrice: number;
   leverage: number;
-
   onClose: () => void;
-
   onSubmit: (input: CreateOrderInput) => Promise<unknown>;
-
   initialDirection?: OrderDirection;
   initialOrderType?: OrderType;
 }
-
-// ============================================
-// TYPES
-// ============================================
 
 interface DragPosition {
   x: number;
@@ -50,10 +34,6 @@ interface DragData {
   height: number;
 }
 
-// ============================================
-// COMPONENT
-// ============================================
-
 export default function OrderModal({
   isOpen,
   sessionId,
@@ -66,31 +46,19 @@ export default function OrderModal({
 }: OrderModalProps) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // FLOATING WINDOW POSITION
-  const [position, setPosition] =
-    useState<DragPosition | null>(null);
+  const [position, setPosition] = useState<DragPosition | null>(null);
 
   const modalRef = useRef<HTMLDivElement>(null);
-
   const dragRef = useRef<DragData | null>(null);
 
-  // ==========================================
-  // RESET WHEN OPEN
-  // ==========================================
-
   useEffect(() => {
-    if (isOpen) {
-      setError(null);
-      setSubmitting(false);
-      setPosition(null);
-      dragRef.current = null;
-    }
-  }, [isOpen]);
+    if (!isOpen) return;
 
-  // ==========================================
-  // DRAG AND DROP
-  // ==========================================
+    setError(null);
+    setSubmitting(false);
+    setPosition(null);
+    dragRef.current = null;
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -99,13 +67,10 @@ export default function OrderModal({
       const drag = dragRef.current;
       if (!drag) return;
 
-      const nextX =
-        drag.startX + event.clientX - drag.pointerX;
-
-      const nextY =
-        drag.startY + event.clientY - drag.pointerY;
-
       const padding = 8;
+
+      const nextX = drag.startX + event.clientX - drag.pointerX;
+      const nextY = drag.startY + event.clientY - drag.pointerY;
 
       const maxX = Math.max(
         padding,
@@ -131,21 +96,26 @@ export default function OrderModal({
     window.addEventListener('pointerup', handlePointerUp);
 
     return () => {
-      window.removeEventListener(
-        'pointermove',
-        handlePointerMove
-      );
-
-      window.removeEventListener(
-        'pointerup',
-        handlePointerUp
-      );
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
     };
   }, [isOpen]);
 
-  // ==========================================
-  // START DRAG
-  // ==========================================
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !submitting) {
+        onClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, submitting, onClose]);
 
   const handleDragStart = (
     event: React.PointerEvent<HTMLDivElement>
@@ -174,30 +144,6 @@ export default function OrderModal({
     event.preventDefault();
   };
 
-  // ==========================================
-  // ESCAPE KEY
-  // ==========================================
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !submitting) {
-        onClose();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isOpen, submitting, onClose]);
-
-  // ==========================================
-  // SUBMIT
-  // ==========================================
-
   const handleSubmit = async (input: CreateOrderInput) => {
     setSubmitting(true);
     setError(null);
@@ -216,13 +162,7 @@ export default function OrderModal({
     }
   };
 
-  // ==========================================
-  // RENDER
-  // ==========================================
-
-  if (!isOpen) {
-    return null;
-  }
+  if (!isOpen) return null;
 
   return (
     <div
@@ -236,8 +176,6 @@ export default function OrderModal({
         }
       }}
     >
-      {/* FLOATING WINDOW */}
-
       <div
         ref={modalRef}
         role="dialog"
@@ -257,83 +195,50 @@ export default function OrderModal({
               }
         }
         className="
-          fixed
-          flex
-          max-h-[90vh]
-          w-[calc(100%-24px)]
-          max-w-xl
-          flex-col
-          overflow-hidden
-          rounded-xl
-          border
-          border-gray-200
-          bg-white
-          shadow-2xl
-          dark:border-gray-700
-          dark:bg-gray-950
+          fixed flex w-[calc(100%-20px)] max-w-md
+          max-h-[90vh] flex-col overflow-hidden
+          rounded-lg border border-gray-200
+          bg-white shadow-2xl
+          dark:border-gray-700 dark:bg-gray-950
         "
       >
-        {/* HEADER - DRAG AREA */}
+        {/* HEADER */}
 
         <div
           onPointerDown={handleDragStart}
           className="
-            flex
-            shrink-0
-            cursor-grab
-            touch-none
-            select-none
-            items-center
-            justify-between
-            border-b
-            border-gray-200
-            bg-gray-50
-            px-5
-            py-4
-            active:cursor-grabbing
-            dark:border-gray-700
-            dark:bg-gray-900
+            flex shrink-0 cursor-grab touch-none
+            select-none items-center justify-between
+            border-b border-gray-200 bg-gray-50
+            px-3 py-2.5 active:cursor-grabbing
+            dark:border-gray-700 dark:bg-gray-900
           "
         >
           <div className="pointer-events-none">
             <h2
               id="order-modal-title"
-              className="text-lg font-bold text-gray-900 dark:text-white"
+              className="text-sm font-bold text-gray-900 dark:text-white"
             >
               Buat Order XAUUSD
             </h2>
 
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            <p className="mt-0.5 text-[10px] text-gray-500 dark:text-gray-400">
               Atur transaksi dan parameter risiko.
             </p>
           </div>
 
-          {/* CLOSE BUTTON */}
-
           <button
             type="button"
-            onPointerDown={(event) => {
-              event.stopPropagation();
-            }}
+            onPointerDown={(event) => event.stopPropagation()}
             onClick={onClose}
             disabled={submitting}
             aria-label="Tutup modal"
             className="
-              flex
-              h-9
-              w-9
-              shrink-0
-              items-center
-              justify-center
-              rounded-lg
-              text-xl
-              text-gray-500
-              transition
-              hover:bg-gray-200
-              hover:text-gray-900
-              disabled:opacity-50
-              dark:hover:bg-gray-800
-              dark:hover:text-white
+              flex h-7 w-7 shrink-0 items-center
+              justify-center rounded-md text-lg
+              text-gray-500 hover:bg-gray-200
+              hover:text-gray-900 disabled:opacity-50
+              dark:hover:bg-gray-800 dark:hover:text-white
             "
           >
             ×
@@ -342,21 +247,14 @@ export default function OrderModal({
 
         {/* BODY */}
 
-        <div className="min-h-0 overflow-y-auto p-5">
+        <div className="min-h-0 overflow-y-auto p-3">
           {error && (
             <div
               role="alert"
               className="
-                mb-4
-                rounded-lg
-                border
-                border-red-200
-                bg-red-50
-                p-3
-                text-sm
-                text-red-700
-                dark:border-red-900
-                dark:bg-red-950/40
+                mb-3 rounded-md border border-red-200
+                bg-red-50 p-2 text-xs text-red-700
+                dark:border-red-900 dark:bg-red-950/40
                 dark:text-red-300
               "
             >

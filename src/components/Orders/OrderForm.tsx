@@ -14,22 +14,9 @@ import {
 
 import OrderTypeSelector from './OrderTypeSelector';
 
-// ============================================
-// CONSTANTS
-// ============================================
-
-// XAUUSD: 1 lot = 100 oz
 const CONTRACT_SIZE = 100;
 
-// ============================================
-// TYPES
-// ============================================
-
 type TargetInputMode = 'PRICE' | 'USD';
-
-// ============================================
-// PROPS
-// ============================================
 
 interface OrderFormProps {
   sessionId: string;
@@ -41,10 +28,6 @@ interface OrderFormProps {
   initialDirection?: OrderDirection;
   initialOrderType?: OrderType;
 }
-
-// ============================================
-// HELPERS
-// ============================================
 
 function formatPrice(value: number): string {
   if (!Number.isFinite(value)) return '';
@@ -58,16 +41,9 @@ function formatAmount(value: number): string {
 
 function parseOptionalNumber(value: string): number | null {
   if (value.trim() === '') return null;
-
   return Number(value);
 }
 
-/**
- * Menghitung jarak harga berdasarkan nominal USD.
- *
- * Contoh:
- * USD 20 / (0.10 lot x 100) = 2.00
- */
 function usdToPrice(
   amountUsd: number,
   direction: OrderDirection,
@@ -91,15 +67,13 @@ function usdToPrice(
   let result: number;
 
   if (targetType === 'SL') {
-    result =
-      direction === 'BUY'
-        ? entryPrice - distance
-        : entryPrice + distance;
+    result = direction === 'BUY'
+      ? entryPrice - distance
+      : entryPrice + distance;
   } else {
-    result =
-      direction === 'BUY'
-        ? entryPrice + distance
-        : entryPrice - distance;
+    result = direction === 'BUY'
+      ? entryPrice + distance
+      : entryPrice - distance;
   }
 
   if (!Number.isFinite(result) || result <= 0) {
@@ -109,9 +83,6 @@ function usdToPrice(
   return Number(result.toFixed(2));
 }
 
-/**
- * Menghitung estimasi nominal USD berdasarkan harga SL/TP.
- */
 function priceToUsd(
   targetPrice: number | null,
   entryPrice: number,
@@ -138,9 +109,7 @@ function getPendingPriceError(
   entryPrice: number,
   currentPrice: number
 ): string | null {
-  if (orderType === 'MARKET') {
-    return null;
-  }
+  if (orderType === 'MARKET') return null;
 
   if (!Number.isFinite(currentPrice) || currentPrice <= 0) {
     return 'Harga replay saat ini tidak valid.';
@@ -191,10 +160,6 @@ function getUsdInputError(value: string, label: string): string | null {
   return null;
 }
 
-// ============================================
-// MODE SELECTOR
-// ============================================
-
 interface ModeSelectorProps {
   value: TargetInputMode;
   onChange: (mode: TargetInputMode) => void;
@@ -207,13 +172,13 @@ function ModeSelector({
   disabled,
 }: ModeSelectorProps) {
   return (
-    <div className="inline-flex rounded-lg border border-gray-200 bg-gray-100 p-1 dark:border-gray-700 dark:bg-gray-800">
+    <div className="inline-flex rounded-md border border-gray-200 bg-gray-100 p-0.5 dark:border-gray-700 dark:bg-gray-800">
       <button
         type="button"
         disabled={disabled}
         onClick={() => onChange('PRICE')}
         className={[
-          'rounded-md px-3 py-1.5 text-xs font-semibold transition',
+          'rounded px-2 py-1 text-[10px] font-semibold transition',
           value === 'PRICE'
             ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white'
             : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white',
@@ -227,7 +192,7 @@ function ModeSelector({
         disabled={disabled}
         onClick={() => onChange('USD')}
         className={[
-          'rounded-md px-3 py-1.5 text-xs font-semibold transition',
+          'rounded px-2 py-1 text-[10px] font-semibold transition',
           value === 'USD'
             ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white'
             : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white',
@@ -238,10 +203,6 @@ function ModeSelector({
     </div>
   );
 }
-
-// ============================================
-// COMPONENT
-// ============================================
 
 export default function OrderForm({
   sessionId,
@@ -265,15 +226,12 @@ export default function OrderForm({
     formatPrice(currentPrice)
   );
 
-  // Nilai harga SL dan TP
   const [stopLoss, setStopLoss] = useState('');
   const [takeProfit, setTakeProfit] = useState('');
 
-  // Nilai USD SL dan TP
   const [stopLossUsd, setStopLossUsd] = useState('');
   const [takeProfitUsd, setTakeProfitUsd] = useState('');
 
-  // Mode input SL dan TP terpisah
   const [stopLossMode, setStopLossMode] =
     useState<TargetInputMode>('PRICE');
 
@@ -281,18 +239,14 @@ export default function OrderForm({
     useState<TargetInputMode>('PRICE');
 
   const [comment, setComment] = useState('');
-
   const [formError, setFormError] = useState<string | null>(null);
-
   const [submittingInternal, setSubmittingInternal] = useState(false);
 
+  // Estimasi disembunyikan secara default.
+  const [showEstimate, setShowEstimate] = useState(false);
+
   const isMarket = orderType === 'MARKET';
-
   const isBusy = submitting || submittingInternal;
-
-  // ==========================================
-  // UPDATE MARKET PRICE
-  // ==========================================
 
   useEffect(() => {
     if (isMarket) {
@@ -300,28 +254,29 @@ export default function OrderForm({
     }
   }, [currentPrice, isMarket]);
 
-  // ==========================================
-  // PARSE VALUES
-  // ==========================================
-
   const numericLot = Number(lot);
 
   const numericEntryPrice = isMarket
-    ? currentPrice
-    : Number(entryPrice);
+  ? currentPrice
+  : Number(entryPrice);
 
-  // ==========================================
-  // CONVERT SL / TP
-  // ==========================================
+// Menentukan jenis pending order secara otomatis.
+const effectiveOrderType: OrderType = isMarket
+  ? 'MARKET'
+  : direction === 'BUY'
+    ? numericEntryPrice < currentPrice
+      ? 'BUY_LIMIT'
+      : 'BUY_STOP'
+    : numericEntryPrice > currentPrice
+      ? 'SELL_LIMIT'
+      : 'SELL_STOP';
 
   const numericStopLoss = useMemo(() => {
     if (stopLossMode === 'PRICE') {
       return parseOptionalNumber(stopLoss);
     }
 
-    if (stopLossUsd.trim() === '') {
-      return null;
-    }
+    if (stopLossUsd.trim() === '') return null;
 
     const amount = Number(stopLossUsd);
 
@@ -329,15 +284,13 @@ export default function OrderForm({
       return Number.NaN;
     }
 
-    const converted = usdToPrice(
+    return usdToPrice(
       amount,
       direction,
       'SL',
       numericEntryPrice,
       numericLot
-    );
-
-    return converted ?? Number.NaN;
+    ) ?? Number.NaN;
   }, [
     stopLossMode,
     stopLoss,
@@ -352,9 +305,7 @@ export default function OrderForm({
       return parseOptionalNumber(takeProfit);
     }
 
-    if (takeProfitUsd.trim() === '') {
-      return null;
-    }
+    if (takeProfitUsd.trim() === '') return null;
 
     const amount = Number(takeProfitUsd);
 
@@ -362,15 +313,13 @@ export default function OrderForm({
       return Number.NaN;
     }
 
-    const converted = usdToPrice(
+    return usdToPrice(
       amount,
       direction,
       'TP',
       numericEntryPrice,
       numericLot
-    );
-
-    return converted ?? Number.NaN;
+    ) ?? Number.NaN;
   }, [
     takeProfitMode,
     takeProfit,
@@ -379,10 +328,6 @@ export default function OrderForm({
     numericEntryPrice,
     numericLot,
   ]);
-
-  // ==========================================
-  // DISPLAY CONVERTED VALUES
-  // ==========================================
 
   const estimatedStopLossUsd = priceToUsd(
     numericStopLoss,
@@ -396,18 +341,12 @@ export default function OrderForm({
     numericLot
   );
 
-  // ==========================================
-  // MODE CHANGE
-  // ==========================================
-
   const changeStopLossMode = (nextMode: TargetInputMode) => {
     if (nextMode === stopLossMode) return;
 
     if (nextMode === 'USD') {
-      const price = parseOptionalNumber(stopLoss);
-
       const amount = priceToUsd(
-        price,
+        parseOptionalNumber(stopLoss),
         numericEntryPrice,
         numericLot
       );
@@ -442,10 +381,8 @@ export default function OrderForm({
     if (nextMode === takeProfitMode) return;
 
     if (nextMode === 'USD') {
-      const price = parseOptionalNumber(takeProfit);
-
       const amount = priceToUsd(
-        price,
+        parseOptionalNumber(takeProfit),
         numericEntryPrice,
         numericLot
       );
@@ -476,10 +413,6 @@ export default function OrderForm({
     setTakeProfitMode(nextMode);
   };
 
-  // ==========================================
-  // CALCULATE ORDER
-  // ==========================================
-
   const calculation = useMemo(() => {
     return calculateOrder({
       direction,
@@ -498,16 +431,12 @@ export default function OrderForm({
     leverage,
   ]);
 
-  // ==========================================
-  // VALIDATION
-  // ==========================================
-
   const pendingPriceError = getPendingPriceError(
-    direction,
-    orderType,
-    numericEntryPrice,
-    currentPrice
-  );
+  direction,
+  effectiveOrderType,
+  numericEntryPrice,
+  currentPrice
+);
 
   const stopLossUsdError =
     stopLossMode === 'USD'
@@ -535,15 +464,10 @@ export default function OrderForm({
     Number.isFinite(numericLot) &&
     numericLot > 0;
 
-  // ==========================================
-  // SUBMIT
-  // ==========================================
-
   const handleSubmit = async (
     event: React.FormEvent<HTMLFormElement>
   ) => {
     event.preventDefault();
-
     setFormError(null);
 
     if (!canSubmit) {
@@ -556,7 +480,7 @@ export default function OrderForm({
     const input: CreateOrderInput = {
       sessionId,
       direction,
-      orderType,
+      orderType: effectiveOrderType,
       lot: numericLot,
       entryPrice: numericEntryPrice,
       stopLoss: numericStopLoss,
@@ -581,12 +505,21 @@ export default function OrderForm({
     }
   };
 
-  // ==========================================
-  // RENDER
-  // ==========================================
+  const inputClass = `
+    w-full min-w-0 rounded-md border border-gray-300
+    bg-white px-2.5 py-2 text-xs text-gray-900
+    outline-none focus:border-blue-500
+    focus:ring-1 focus:ring-blue-500/20
+    disabled:cursor-not-allowed disabled:bg-gray-100
+    dark:border-gray-700 dark:bg-gray-900
+    dark:text-white dark:disabled:bg-gray-800
+  `;
+
+  const labelClass =
+    'mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300';
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={handleSubmit} className="space-y-3">
       {/* ORDER TYPE */}
 
       <OrderTypeSelector
@@ -597,15 +530,10 @@ export default function OrderForm({
         disabled={isBusy}
       />
 
-    
-
       {/* LOT */}
 
       <div>
-        <label
-          htmlFor="order-lot"
-          className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-        >
+        <label htmlFor="order-lot" className={labelClass}>
           Volume (Lot)
         </label>
 
@@ -617,251 +545,258 @@ export default function OrderForm({
           value={lot}
           disabled={isBusy}
           onChange={(event) => setLot(event.target.value)}
-          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+          className={inputClass}
           required
         />
       </div>
 
-      {/* ENTRY PRICE */}
 
-      <div>
-        <label
-          htmlFor="order-entry"
-          className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+      {/* ENTRY PRICE - HANYA UNTUK PENDING ORDER */}
+
+      {!isMarket && (
+        <div>
+          <label htmlFor="order-entry" className={labelClass}>
+            Harga Entry
+          </label>
+
+          <input
+            id="order-entry"
+            type="number"
+            min="0.01"
+            step="0.01"
+            value={entryPrice}
+            disabled={isBusy}
+            onChange={(event) => setEntryPrice(event.target.value)}
+            className={inputClass}
+            required
+          />
+
+          <p className="mt-1 text-[10px] text-gray-500 dark:text-gray-400">
+            Masukkan harga aktivasi pending order.
+          </p>
+
+          {pendingPriceError && (
+            <p className="mt-1 text-[10px] text-red-600">
+              {pendingPriceError}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* STOP LOSS & TAKE PROFIT - SEJAJAR */}
+
+      <div className="grid grid-cols-2 gap-2">
+        {/* STOP LOSS */}
+
+        <div className="min-w-0">
+          <div className="mb-1 flex flex-wrap items-center justify-between gap-1">
+            <label htmlFor="order-sl" className={labelClass}>
+              Stop Loss
+            </label>
+
+            <ModeSelector
+              value={stopLossMode}
+              onChange={changeStopLossMode}
+              disabled={isBusy}
+            />
+          </div>
+
+          <div className="relative">
+            <input
+              id="order-sl"
+              type="number"
+              min="0.01"
+              step="0.01"
+              value={
+                stopLossMode === 'PRICE'
+                  ? stopLoss
+                  : stopLossUsd
+              }
+              disabled={isBusy}
+              onChange={(event) => {
+                if (stopLossMode === 'PRICE') {
+                  setStopLoss(event.target.value);
+                } else {
+                  setStopLossUsd(event.target.value);
+                }
+              }}
+              placeholder={
+                stopLossMode === 'PRICE' ? 'Harga SL' : 'Risiko USD'
+              }
+              className={`${inputClass} pr-10`}
+            />
+
+            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-gray-400">
+              {stopLossMode === 'PRICE' ? 'Price' : 'USD'}
+            </span>
+          </div>
+
+          {stopLossMode === 'USD' && numericStopLoss !== null &&
+            Number.isFinite(numericStopLoss) && (
+              <p className="mt-1 text-[10px] text-gray-500">
+                SL: {formatPrice(numericStopLoss)}
+              </p>
+            )}
+
+          {stopLossMode === 'PRICE' && estimatedStopLossUsd !== null && (
+            <p className="mt-1 text-[10px] text-gray-500">
+              Risiko: {formatMoney(estimatedStopLossUsd)}
+            </p>
+          )}
+
+          {stopLossUsdError && (
+            <p className="mt-1 text-[10px] text-red-600">
+              {stopLossUsdError}
+            </p>
+          )}
+        </div>
+
+        {/* TAKE PROFIT */}
+
+        <div className="min-w-0">
+          <div className="mb-1 flex flex-wrap items-center justify-between gap-1">
+            <label htmlFor="order-tp" className={labelClass}>
+              Take Profit
+            </label>
+
+            <ModeSelector
+              value={takeProfitMode}
+              onChange={changeTakeProfitMode}
+              disabled={isBusy}
+            />
+          </div>
+
+          <div className="relative">
+            <input
+              id="order-tp"
+              type="number"
+              min="0.01"
+              step="0.01"
+              value={
+                takeProfitMode === 'PRICE'
+                  ? takeProfit
+                  : takeProfitUsd
+              }
+              disabled={isBusy}
+              onChange={(event) => {
+                if (takeProfitMode === 'PRICE') {
+                  setTakeProfit(event.target.value);
+                } else {
+                  setTakeProfitUsd(event.target.value);
+                }
+              }}
+              placeholder={
+                takeProfitMode === 'PRICE' ? 'Harga TP' : 'Target USD'
+              }
+              className={`${inputClass} pr-10`}
+            />
+
+            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-gray-400">
+              {takeProfitMode === 'PRICE' ? 'Price' : 'USD'}
+            </span>
+          </div>
+
+          {takeProfitMode === 'USD' && numericTakeProfit !== null &&
+            Number.isFinite(numericTakeProfit) && (
+              <p className="mt-1 text-[10px] text-gray-500">
+                TP: {formatPrice(numericTakeProfit)}
+              </p>
+            )}
+
+          {takeProfitMode === 'PRICE' && estimatedTakeProfitUsd !== null && (
+            <p className="mt-1 text-[10px] text-gray-500">
+              Profit: {formatMoney(estimatedTakeProfitUsd)}
+            </p>
+          )}
+
+          {takeProfitUsdError && (
+            <p className="mt-1 text-[10px] text-red-600">
+              {takeProfitUsdError}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* ESTIMASI ORDER - TOGGLE */}
+
+      <div className="overflow-hidden rounded-md border border-gray-200 dark:border-gray-700">
+        <button
+          type="button"
+          onClick={() => setShowEstimate((previous) => !previous)}
+          aria-expanded={showEstimate}
+          className="
+            flex w-full items-center justify-between
+            gap-2 px-3 py-2 text-left
+            hover:bg-gray-50 dark:hover:bg-gray-900
+          "
         >
-          Harga Entry
-        </label>
-
-        <input
-          id="order-entry"
-          type="number"
-          min="0.01"
-          step="0.01"
-          value={entryPrice}
-          disabled={isMarket || isBusy}
-          onChange={(event) => setEntryPrice(event.target.value)}
-          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:bg-gray-100 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:disabled:bg-gray-800"
-          required
-        />
-
-        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-          {isMarket
-            ? 'Market Order menggunakan harga replay saat ini.'
-            : 'Masukkan harga aktivasi pending order.'}
-        </p>
-
-        {pendingPriceError && (
-          <p className="mt-1 text-xs text-red-600">
-            {pendingPriceError}
-          </p>
-        )}
-      </div>
-
-      {/* STOP LOSS */}
-
-      <div>
-        <div className="mb-2 flex items-center justify-between gap-2">
-          <label
-            htmlFor="order-sl"
-            className="text-sm font-medium text-gray-700 dark:text-gray-300"
-          >
-            Stop Loss
-          </label>
-
-          <ModeSelector
-            value={stopLossMode}
-            onChange={changeStopLossMode}
-            disabled={isBusy}
-          />
-        </div>
-
-        <div className="relative">
-          <input
-            id="order-sl"
-            type="number"
-            min="0.01"
-            step="0.01"
-            value={
-              stopLossMode === 'PRICE'
-                ? stopLoss
-                : stopLossUsd
-            }
-            disabled={isBusy}
-            onChange={(event) => {
-              if (stopLossMode === 'PRICE') {
-                setStopLoss(event.target.value);
-              } else {
-                setStopLossUsd(event.target.value);
-              }
-            }}
-            placeholder={
-              stopLossMode === 'PRICE'
-                ? 'Masukkan harga SL'
-                : 'Masukkan risiko USD'
-            }
-            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 pr-14 text-sm text-gray-900 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/20 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
-          />
-
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
-            {stopLossMode === 'PRICE' ? 'Price' : 'USD'}
+          <span className="text-xs font-semibold text-gray-800 dark:text-white">
+            Estimasi Order
           </span>
-        </div>
 
-        {stopLossMode === 'USD' && (
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            {numericStopLoss && Number.isFinite(numericStopLoss)
-              ? `Harga SL otomatis: ${formatPrice(numericStopLoss)}`
-              : 'Masukkan nominal risiko untuk menghitung harga SL.'}
-          </p>
-        )}
-
-        {stopLossMode === 'PRICE' && estimatedStopLossUsd !== null && (
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            Estimasi risiko: {formatMoney(estimatedStopLossUsd)}
-          </p>
-        )}
-
-        {stopLossUsdError && (
-          <p className="mt-1 text-xs text-red-600">
-            {stopLossUsdError}
-          </p>
-        )}
-      </div>
-
-      {/* TAKE PROFIT */}
-
-      <div>
-        <div className="mb-2 flex items-center justify-between gap-2">
-          <label
-            htmlFor="order-tp"
-            className="text-sm font-medium text-gray-700 dark:text-gray-300"
-          >
-            Take Profit
-          </label>
-
-          <ModeSelector
-            value={takeProfitMode}
-            onChange={changeTakeProfitMode}
-            disabled={isBusy}
-          />
-        </div>
-
-        <div className="relative">
-          <input
-            id="order-tp"
-            type="number"
-            min="0.01"
-            step="0.01"
-            value={
-              takeProfitMode === 'PRICE'
-                ? takeProfit
-                : takeProfitUsd
-            }
-            disabled={isBusy}
-            onChange={(event) => {
-              if (takeProfitMode === 'PRICE') {
-                setTakeProfit(event.target.value);
-              } else {
-                setTakeProfitUsd(event.target.value);
-              }
-            }}
-            placeholder={
-              takeProfitMode === 'PRICE'
-                ? 'Masukkan harga TP'
-                : 'Masukkan target profit USD'
-            }
-            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 pr-14 text-sm text-gray-900 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
-          />
-
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
-            {takeProfitMode === 'PRICE' ? 'Price' : 'USD'}
+          <span className="flex items-center gap-1 text-[10px] text-gray-500">
+            {showEstimate ? 'Sembunyikan' : 'Tampilkan'}
+            <span className="text-sm">
+              {showEstimate ? '−' : '+'}
+            </span>
           </span>
-        </div>
+        </button>
 
-        {takeProfitMode === 'USD' && (
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            {numericTakeProfit && Number.isFinite(numericTakeProfit)
-              ? `Harga TP otomatis: ${formatPrice(numericTakeProfit)}`
-              : 'Masukkan nominal target profit untuk menghitung harga TP.'}
-          </p>
-        )}
+        {showEstimate && (
+          <div className="space-y-2 border-t border-gray-200 px-3 py-2.5 dark:border-gray-700">
+            <div className="flex justify-between gap-2 text-xs">
+              <span className="text-gray-500 dark:text-gray-400">
+                Estimasi risiko
+              </span>
 
-        {takeProfitMode === 'PRICE' && estimatedTakeProfitUsd !== null && (
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            Estimasi profit: {formatMoney(estimatedTakeProfitUsd)}
-          </p>
-        )}
+              <span className="font-semibold text-red-600">
+                {formatMoney(-calculation.riskAmount)}
+              </span>
+            </div>
 
-        {takeProfitUsdError && (
-          <p className="mt-1 text-xs text-red-600">
-            {takeProfitUsdError}
-          </p>
-        )}
-      </div>
+            <div className="flex justify-between gap-2 text-xs">
+              <span className="text-gray-500 dark:text-gray-400">
+                Potensi profit
+              </span>
 
+              <span className="font-semibold text-green-600">
+                {formatMoney(calculation.rewardAmount)}
+              </span>
+            </div>
 
-      {/* CALCULATION */}
+            <div className="flex justify-between gap-2 text-xs">
+              <span className="text-gray-500 dark:text-gray-400">
+                Risk / Reward
+              </span>
 
-      <div className="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
-        <div className="mb-3 text-sm font-semibold text-gray-900 dark:text-white">
-          Estimasi Order
-        </div>
+              <span className="font-semibold text-gray-900 dark:text-white">
+                {calculation.riskRewardRatio === null
+                  ? '-'
+                  : `1:${calculation.riskRewardRatio.toFixed(2)}`}
+              </span>
+            </div>
 
-        <div className="space-y-2 text-sm">
-          <div className="flex justify-between gap-3">
-            <span className="text-gray-500 dark:text-gray-400">
-              Estimasi risiko
-            </span>
+            <div className="flex justify-between gap-2 text-xs">
+              <span className="text-gray-500 dark:text-gray-400">
+                Jarak SL
+              </span>
 
-            <span className="font-semibold text-red-600">
-              {formatMoney(-calculation.riskAmount)}
-            </span>
-          </div>
+              <span className="font-medium text-gray-900 dark:text-white">
+                {formatPrice(calculation.stopLossDistance)}
+              </span>
+            </div>
 
-          <div className="flex justify-between gap-3">
-            <span className="text-gray-500 dark:text-gray-400">
-              Potensi profit
-            </span>
+            <div className="flex justify-between gap-2 text-xs">
+              <span className="text-gray-500 dark:text-gray-400">
+                Jarak TP
+              </span>
 
-            <span className="font-semibold text-green-600">
-              {formatMoney(calculation.rewardAmount)}
-            </span>
-          </div>
+              <span className="font-medium text-gray-900 dark:text-white">
+                {formatPrice(calculation.takeProfitDistance)}
+              </span>
+            </div>
 
-          <div className="flex justify-between gap-3">
-            <span className="text-gray-500 dark:text-gray-400">
-              Risk / Reward
-            </span>
-
-            <span className="font-semibold text-gray-900 dark:text-white">
-              {calculation.riskRewardRatio === null
-                ? '-'
-                : `1:${calculation.riskRewardRatio.toFixed(2)}`}
-            </span>
-          </div>
-
-          <div className="flex justify-between gap-3">
-            <span className="text-gray-500 dark:text-gray-400">
-              Jarak SL
-            </span>
-
-            <span className="font-medium text-gray-900 dark:text-white">
-              {formatPrice(calculation.stopLossDistance)}
-            </span>
-          </div>
-
-          <div className="flex justify-between gap-3">
-            <span className="text-gray-500 dark:text-gray-400">
-              Jarak TP
-            </span>
-
-            <span className="font-medium text-gray-900 dark:text-white">
-              {formatPrice(calculation.takeProfitDistance)}
-            </span>
-          </div>
-
-          <div className="border-t border-gray-200 pt-2 dark:border-gray-700">
-            <div className="flex justify-between gap-3">
+            <div className="flex justify-between gap-2 border-t border-gray-200 pt-2 text-xs dark:border-gray-700">
               <span className="text-gray-500 dark:text-gray-400">
                 Estimasi margin
               </span>
@@ -871,11 +806,11 @@ export default function OrderForm({
               </span>
             </div>
 
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            <p className="text-[10px] text-gray-500 dark:text-gray-400">
               Leverage 1:{leverage}
             </p>
           </div>
-        </div>
+        )}
       </div>
 
       {/* VALIDATION ERROR */}
@@ -883,7 +818,12 @@ export default function OrderForm({
       {(formError || validationErrors.length > 0) && (
         <div
           role="alert"
-          className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300"
+          className="
+            rounded-md border border-red-200
+            bg-red-50 p-2 text-xs text-red-700
+            dark:border-red-900 dark:bg-red-950/40
+            dark:text-red-300
+          "
         >
           {formError || validationErrors[0]}
         </div>
@@ -891,13 +831,19 @@ export default function OrderForm({
 
       {/* ACTIONS */}
 
-      <div className="flex gap-3">
+      <div className="flex gap-2">
         {onCancel && (
           <button
             type="button"
             onClick={onCancel}
             disabled={isBusy}
-            className="flex-1 rounded-lg border border-gray-300 px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+            className="
+              flex-1 rounded-md border border-gray-300
+              px-3 py-2 text-xs font-semibold
+              text-gray-700 transition hover:bg-gray-50
+              disabled:opacity-50 dark:border-gray-700
+              dark:text-gray-300 dark:hover:bg-gray-800
+            "
           >
             Batal
           </button>
@@ -907,7 +853,7 @@ export default function OrderForm({
           type="submit"
           disabled={!canSubmit}
           className={[
-            'flex-1 rounded-lg px-4 py-3 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50',
+            'flex-1 rounded-md px-3 py-2 text-xs font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50',
             direction === 'BUY'
               ? 'bg-green-600 hover:bg-green-700'
               : 'bg-red-600 hover:bg-red-700',
@@ -917,7 +863,7 @@ export default function OrderForm({
             ? 'Memproses...'
             : isMarket
               ? `Buka ${direction}`
-              : `Pasang ${orderType.replace('_', ' ')}`}
+              : `Pasang ${effectiveOrderType.replace('_', ' ')}`}
         </button>
       </div>
     </form>

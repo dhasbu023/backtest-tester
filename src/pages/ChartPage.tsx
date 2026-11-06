@@ -1,19 +1,10 @@
 
 import {
   useCallback,
-  useEffect,
-  useMemo,
-  useRef,
   useState,
 } from 'react';
 
-import type {
-  KeyboardEvent,
-  PointerEvent,
-} from 'react';
-
 import { createPortal } from 'react-dom';
-import { ChevronUp, ChevronDown } from 'lucide-react';
 
 import { useOrders } from '../hooks/useOrders';
 
@@ -23,7 +14,11 @@ import { ReplayControlPanel } from '../components/Chart/ReplayControlPanel.js';
 import { ErrorBoundary } from '../components/Chart/ErrorBoundary.js';
 
 import OrderModal from '../components/Orders/OrderModal.js';
-import OrderList from '../components/Orders/OrderList.js';
+import OrderPanel from '../components/ChartPage/components/OrderPanel';
+
+import { useOrderPanelResize } from '../components/ChartPage/hooks/useOrderPanelResize';
+import { useAutoCloseOrders } from '../components/ChartPage/hooks/useAutoCloseOrders';
+import { useFloatingPnL } from '../components/ChartPage/hooks/useFloatingPnL';
 
 import type {
   BacktestSession,
@@ -35,16 +30,7 @@ import type {
   DrawingToolType,
 } from '../types/index.js';
 
-import type { CreateOrderInput, BacktestOrder } from '../types/order';
-
-// ============================================
-// CONSTANTS
-// ============================================
-
-const DEFAULT_ORDER_PANEL_HEIGHT = 300;
-const MIN_ORDER_PANEL_HEIGHT = 150;
-const COLLAPSED_ORDER_PANEL_HEIGHT = 44;
-const CONTRACT_SIZE = 100;
+import type { CreateOrderInput } from '../types/order';
 
 // ============================================
 // DRAWING HISTORY TYPE
@@ -114,7 +100,6 @@ type ChartPageProps = {
 
 export default function ChartPage({
   mode,
-  sessionId,
   activeSession,
   activeDataset,
   sourceCandles,
@@ -133,7 +118,6 @@ export default function ChartPage({
   showVolume,
   volumeType,
   hasRealVolume,
-  onRetryOpenSession,
   onChangeTimeframe,
   onChangeTimezone,
   onUpdateDrawings,
@@ -191,16 +175,16 @@ export default function ChartPage({
   // ORDER MANAGEMENT
   // ==========================================
 
-    const {
-      orders,
-      loading: ordersLoading,
-      error: ordersError,
-      refresh: refreshOrders,
-      create: createOrder,
-      cancel: cancelOrder,
-      close: closeOrder,
-      update: updateOrder,
-    } = useOrders(activeSessionId || null);
+  const {
+    orders,
+    loading: ordersLoading,
+    error: ordersError,
+    refresh: refreshOrders,
+    create: createOrder,
+    cancel: cancelOrder,
+    close: closeOrder,
+    update: updateOrder,
+  } = useOrders(activeSessionId || null);
 
   // ==========================================
   // CURRENT PRICE
@@ -213,172 +197,29 @@ export default function ChartPage({
     currentReplayCandle?.close ?? 0;
 
   // ==========================================
-  // AUTO CLOSE ORDER - DUPLICATE PROTECTION
+  // AUTO CLOSE ORDERS
   // ==========================================
 
-  const processedCloseRef = useRef<Set<string>>(new Set());
-
-  // ==========================================
-// AUTO CLOSE ORDER - SL / TP DETECTION
-// ==========================================
-
-const previousReplayIndexRef = useRef(currentIndex);
-
-useEffect(() => {
-  // Jangan memproses candle saat pertama kali halaman dibuka.
-  // Deteksi hanya berjalan ketika replay bergerak maju.
-  if (currentIndex <= previousReplayIndexRef.current) {
-    previousReplayIndexRef.current = currentIndex;
-    return;
-  }
-
-  previousReplayIndexRef.current = currentIndex;
-
-  const candle = sourceCandles[currentIndex];
-
-  if (!candle || !activeSessionId || !Number.isFinite(currentTimestamp)) {
-    return;
-  }
-
-  // Hanya memeriksa order yang masih OPEN.
-  const openOrders = orders.filter(
-    (order: BacktestOrder) => order.status === 'OPEN'
-  );
-
-  for (const order of openOrders) {
-    // Jangan memproses candle yang waktunya sama atau lebih lama
-    // daripada waktu order dibuka.
-    if (
-      order.openTime != null &&
-      currentTimestamp <= order.openTime
-    ) {
-      continue;
-    }
-
-    const stopLoss = Number(order.stopLoss);
-    const takeProfit = Number(order.takeProfit);
-
-    const hasStopLoss =
-      Number.isFinite(stopLoss) && stopLoss > 0;
-
-    const hasTakeProfit =
-      Number.isFinite(takeProfit) && takeProfit > 0;
-
-    let closePrice: number | null = null;
-    let closeStatus:
-      | 'CLOSED_SL'
-      | 'CLOSED_TP'
-      | null = null;
-
-    if (order.direction === 'BUY') {
-      const slHit =
-        hasStopLoss && candle.low <= stopLoss;
-
-      const tpHit =
-        hasTakeProfit && candle.high >= takeProfit;
-
-      // Jika SL dan TP tersentuh pada candle yang sama,
-      // prioritaskan SL agar hasil backtest konservatif.
-      if (slHit) {
-        closePrice = stopLoss;
-        closeStatus = 'CLOSED_SL';
-      } else if (tpHit) {
-        closePrice = takeProfit;
-        closeStatus = 'CLOSED_TP';
-      }
-    }
-
-    if (order.direction === 'SELL') {
-      const slHit =
-        hasStopLoss && candle.high >= stopLoss;
-
-      const tpHit =
-        hasTakeProfit && candle.low <= takeProfit;
-
-      // Jika keduanya tersentuh, SL tetap diprioritaskan.
-      if (slHit) {
-        closePrice = stopLoss;
-        closeStatus = 'CLOSED_SL';
-      } else if (tpHit) {
-        closePrice = takeProfit;
-        closeStatus = 'CLOSED_TP';
-      }
-    }
-
-    if (closePrice === null || closeStatus === null) {
-      continue;
-    }
-
-    const closeKey = `${order.id}-${currentIndex}`;
-
-    // Hindari mengirim permintaan penutupan yang sama berulang kali.
-    if (processedCloseRef.current.has(closeKey)) {
-      continue;
-    }
-
-    processedCloseRef.current.add(closeKey);
-
-    console.log('[AUTO CLOSE] Candle menyentuh SL/TP:', {
-      orderId: order.id,
-      direction: order.direction,
-      candleIndex: currentIndex,
-      candleHigh: candle.high,
-      candleLow: candle.low,
-      closePrice,
-      closeStatus,
-    });
-
-    void closeOrder(order.id, {
-      closePrice,
-      closeTime: currentTimestamp,
-      status: closeStatus,
-    }).then(() => {
-      console.log('[AUTO CLOSE] Order berhasil ditutup:', {
-        orderId: order.id,
-        closePrice,
-        closeStatus,
-      });
-    }).catch((error) => {
-      // Jika gagal, izinkan percobaan ulang pada candle ini.
-      processedCloseRef.current.delete(closeKey);
-
-      console.error(
-        '[AUTO CLOSE] Gagal menutup order:',
-        order.id,
-        error
-      );
-    });
-  }
-}, [
-  currentIndex,
-  currentTimestamp,
-  sourceCandles,
-  activeSessionId,
-  orders,
-  closeOrder,
-]);
+  useAutoCloseOrders({
+    currentIndex,
+    currentTimestamp,
+    sourceCandles,
+    activeSessionId,
+    orders,
+    closeOrder,
+  });
 
   // ==========================================
   // FLOATING PNL
   // ==========================================
 
-  const floatingPnL = useMemo(() => {
-    return orders
-      .filter((order: BacktestOrder) => order.status === 'OPEN')
-      .reduce((total: number, order: BacktestOrder) => {
-        const marketPrice = order.currentPrice ?? currentPrice;
-
-        const priceDifference =
-          order.direction === 'BUY'
-            ? marketPrice - order.openPrice
-            : order.openPrice - marketPrice;
-
-        return total + priceDifference * order.lot * CONTRACT_SIZE;
-      }, 0);
-  }, [orders, currentPrice]);
-
-  const formattedFloatingPnL =
-    `${floatingPnL >= 0 ? '+' : '-'}$${Math.abs(floatingPnL).toFixed(2)}`;
+  const {
+    floatingPnL,
+    formattedFloatingPnL,
+  } = useFloatingPnL({
+    orders,
+    currentPrice,
+  });
 
   // ==========================================
   // REPLAY CONTROL
@@ -398,17 +239,18 @@ useEffect(() => {
   const [showOrderPanel, setShowOrderPanel] =
     useState(true);
 
-  const [orderPanelHeight, setOrderPanelHeight] =
-    useState(DEFAULT_ORDER_PANEL_HEIGHT);
-
-  const dragStartRef = useRef<{
-    pointerY: number;
-    panelHeight: number;
-  } | null>(null);
-
   const handleToggleOrderPanel = useCallback(() => {
     setShowOrderPanel((previous) => !previous);
   }, []);
+
+  const {
+    orderPanelHeight,
+    getMaxPanelHeight,
+    handleResizeStart,
+    handleResizeMove,
+    handleResizeEnd,
+    handleResizeKeyboard,
+  } = useOrderPanelResize();
 
   // ==========================================
   // ORDER MODAL
@@ -417,68 +259,41 @@ useEffect(() => {
   const [isOrderModalOpen, setIsOrderModalOpen] =
     useState(false);
 
-  const leverage = activeSession?.leverage || 500;
+  const leverage = activeSession?.leverage ?? 1;
 
   const canCreateOrder =
-    showReplayControls &&
     Boolean(activeSessionId) &&
-    Number.isFinite(currentPrice) &&
-    currentPrice > 0;
-
-  // ==========================================
-  // OPEN ORDER MODAL
-  // ==========================================
+    currentPrice > 0 &&
+    !isChartLoading;
 
   const handleOpenOrderModal = useCallback(() => {
-    if (!canCreateOrder) {
-      console.warn('[ORDER] Tidak bisa membuat order:', {
-        showReplayControls,
-        activeSessionId,
-        currentPrice,
-      });
-
-      return;
-    }
+    if (!canCreateOrder) return;
 
     setIsOrderModalOpen(true);
-  }, [
-    canCreateOrder,
-    showReplayControls,
-    activeSessionId,
-    currentPrice,
-  ]);
+  }, [canCreateOrder]);
 
   const handleCloseOrderModal = useCallback(() => {
     setIsOrderModalOpen(false);
   }, []);
 
   // ==========================================
-  // CHART ERROR
-  // ==========================================
-
-  const handleChartErrorReset = useCallback(() => {
-    if (sessionId) {
-      onRetryOpenSession();
-    }
-  }, [sessionId, onRetryOpenSession]);
-
-  // ==========================================
   // CREATE ORDER
   // ==========================================
 
   const handleCreateOrder = useCallback(
-    async (input: CreateOrderInput): Promise<void> => {
-      try {
-        await createOrder(input);
-        setIsOrderModalOpen(false);
-
-        console.log('[ORDER] Berhasil membuat order:', input);
-      } catch (error) {
-        console.error('[ORDER] Gagal membuat order:', error);
-        throw error;
+    async (input: CreateOrderInput) => {
+      if (!activeSessionId) {
+        throw new Error('Session belum dipilih.');
       }
+
+      await createOrder({
+        ...input,
+        sessionId: activeSessionId,
+      });
+
+      await refreshOrders();
     },
-    [createOrder]
+    [activeSessionId, createOrder, refreshOrders]
   );
 
   // ==========================================
@@ -487,110 +302,10 @@ useEffect(() => {
 
   const handleCancelOrder = useCallback(
     async (order: { id: string }) => {
-      try {
-        await cancelOrder(order.id);
-      } catch (error) {
-        console.error('[ORDER] Gagal membatalkan order:', error);
-      }
+      await cancelOrder(order.id);
     },
     [cancelOrder]
   );
-
-  // ==========================================
-  // ORDER PANEL RESIZE
-  // ==========================================
-
-  const getMaxPanelHeight = useCallback(() => {
-    const mainHeight =
-      document.querySelector('main[data-chart-page]')
-        ?.clientHeight || window.innerHeight;
-
-    const availableHeight = mainHeight - 150;
-
-    return Math.max(
-      MIN_ORDER_PANEL_HEIGHT,
-      Math.floor(Math.min(mainHeight * 0.7, availableHeight))
-    );
-  }, []);
-
-  const handleResizeStart = (
-    event: PointerEvent<HTMLDivElement>
-  ) => {
-    event.preventDefault();
-
-    dragStartRef.current = {
-      pointerY: event.clientY,
-      panelHeight: orderPanelHeight,
-    };
-
-    event.currentTarget.setPointerCapture(event.pointerId);
-  };
-
-  const handleResizeMove = (
-    event: PointerEvent<HTMLDivElement>
-  ) => {
-    if (!dragStartRef.current) return;
-
-    const deltaY =
-      dragStartRef.current.pointerY - event.clientY;
-
-    const nextHeight = Math.min(
-      getMaxPanelHeight(),
-      Math.max(
-        MIN_ORDER_PANEL_HEIGHT,
-        dragStartRef.current.panelHeight + deltaY
-      )
-    );
-
-    setOrderPanelHeight(nextHeight);
-  };
-
-  const handleResizeEnd = (
-    event: PointerEvent<HTMLDivElement>
-  ) => {
-    dragStartRef.current = null;
-
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-  };
-
-  // ==========================================
-  // KEYBOARD RESIZE
-  // ==========================================
-
-  const handleResizeKeyboard = (
-    event: KeyboardEvent<HTMLDivElement>
-  ) => {
-    const step = event.shiftKey ? 50 : 20;
-    const maxPanelHeight = getMaxPanelHeight();
-
-    if (event.key === 'ArrowUp') {
-      event.preventDefault();
-
-      setOrderPanelHeight((height) =>
-        Math.min(maxPanelHeight, height + step)
-      );
-    }
-
-    if (event.key === 'ArrowDown') {
-      event.preventDefault();
-
-      setOrderPanelHeight((height) =>
-        Math.max(MIN_ORDER_PANEL_HEIGHT, height - step)
-      );
-    }
-
-    if (event.key === 'Home') {
-      event.preventDefault();
-      setOrderPanelHeight(MIN_ORDER_PANEL_HEIGHT);
-    }
-
-    if (event.key === 'End') {
-      event.preventDefault();
-      setOrderPanelHeight(maxPanelHeight);
-    }
-  };
 
   // ==========================================
   // RENDER
@@ -630,7 +345,6 @@ useEffect(() => {
         <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
           <ErrorBoundary
             fallbackTitle="Terjadi kendala visual pada chart"
-            onReset={handleChartErrorReset}
           >
             <TradingChart
               candles={displayCandles}
@@ -671,153 +385,27 @@ useEffect(() => {
       {/* ORDER PANEL */}
 
       {activeSessionId && (
-        <section
-          className="
-            relative z-20 flex w-full shrink-0 flex-col
-            min-h-0 overflow-hidden
-            border-t border-slate-300
-            bg-white dark:border-slate-700 dark:bg-slate-950
-          "
-          style={{
-            height: showOrderPanel
-              ? `${orderPanelHeight}px`
-              : `${COLLAPSED_ORDER_PANEL_HEIGHT}px`,
-            minHeight: `${COLLAPSED_ORDER_PANEL_HEIGHT}px`,
-            flexShrink: 0,
+        <OrderPanel
+          orders={orders}
+          currentPrice={currentPrice}
+          loading={ordersLoading}
+          error={ordersError}
+          floatingPnL={floatingPnL}
+          formattedFloatingPnL={formattedFloatingPnL}
+          showOrderPanel={showOrderPanel}
+          orderPanelHeight={orderPanelHeight}
+          maxPanelHeight={getMaxPanelHeight()}
+          onToggle={handleToggleOrderPanel}
+          onResizeStart={handleResizeStart}
+          onResizeMove={handleResizeMove}
+          onResizeEnd={handleResizeEnd}
+          onResizeKeyboard={handleResizeKeyboard}
+          onRefresh={() => {
+            void refreshOrders();
           }}
-        >
-          {/* RESIZE HANDLE */}
-
-          {showOrderPanel && (
-            <div
-              role="separator"
-              aria-label="Ubah tinggi Trading Orders"
-              aria-orientation="horizontal"
-              aria-valuemin={MIN_ORDER_PANEL_HEIGHT}
-              aria-valuemax={getMaxPanelHeight()}
-              aria-valuenow={orderPanelHeight}
-              tabIndex={0}
-              onPointerDown={handleResizeStart}
-              onPointerMove={handleResizeMove}
-              onPointerUp={handleResizeEnd}
-              onPointerCancel={handleResizeEnd}
-              onKeyDown={handleResizeKeyboard}
-              className="
-                group relative flex h-2 w-full shrink-0
-                cursor-row-resize touch-none
-                items-center justify-center
-                bg-slate-100 hover:bg-blue-100
-                dark:bg-slate-900 dark:hover:bg-blue-950
-              "
-            >
-              <div
-                className="
-                  h-1 w-12 rounded-full
-                  bg-slate-400 transition-colors
-                  group-hover:bg-blue-500
-                  dark:bg-slate-600
-                  dark:group-hover:bg-blue-400
-                "
-              />
-            </div>
-          )}
-
-          {/* ORDER HEADER */}
-
-          <div
-            className="
-              flex h-10 w-full shrink-0 items-center
-              justify-between border-b border-slate-200
-              px-3 dark:border-slate-800
-            "
-          >
-            {/* TITLE + FLOATING PNL */}
-
-            <div className="flex min-w-0 items-center gap-5">
-              <span className="shrink-0 text-sm font-semibold text-slate-800 dark:text-slate-100">
-                Trading Orders
-              </span>
-
-              <div className="flex shrink-0 items-center gap-2">
-                <span className="text-xs text-slate-500 dark:text-slate-400">
-                  Floating PnL
-                </span>
-
-                <span
-                  className={[
-                    'text-xs font-semibold tabular-nums',
-                    floatingPnL >= 0
-                      ? 'text-green-600 dark:text-green-400'
-                      : 'text-red-600 dark:text-red-400',
-                  ].join(' ')}
-                >
-                  {formattedFloatingPnL}
-                </span>
-              </div>
-            </div>
-
-            {/* TOGGLE ORDER PANEL */}
-
-            <button
-              type="button"
-              onClick={handleToggleOrderPanel}
-              title={
-                showOrderPanel
-                  ? 'Sembunyikan Trading Orders'
-                  : 'Tampilkan Trading Orders'
-              }
-              aria-label={
-                showOrderPanel
-                  ? 'Sembunyikan Trading Orders'
-                  : 'Tampilkan Trading Orders'
-              }
-              aria-expanded={showOrderPanel}
-              className="
-                ml-3 flex h-7 w-7 shrink-0 items-center
-                justify-center rounded-md text-slate-500
-                transition-colors
-                hover:bg-slate-100 hover:text-slate-900
-                dark:text-slate-400 dark:hover:bg-slate-800
-                dark:hover:text-white
-              "
-            >
-              {showOrderPanel ? (
-                <ChevronDown className="h-4 w-4" />
-              ) : (
-                <ChevronUp className="h-4 w-4" />
-              )}
-            </button>
-          </div>
-
-          {/* ORDER LIST */}
-
-          {showOrderPanel && (
-            <div
-              className="
-                min-h-0 min-w-0 flex-1
-                overflow-x-auto overflow-y-auto
-                overscroll-contain p-3
-              "
-            >
-          <OrderList
-            orders={orders}
-            currentPrice={currentPrice}
-            loading={ordersLoading}
-            error={ordersError}
-            onRefresh={() => {
-              void refreshOrders();
-            }}
-            onEdit={(order) => {
-              console.log('[ORDER] Edit:', order);
-            }}
-            onUpdate={updateOrder}
-            onCancel={(order) => {
-              void handleCancelOrder(order);
-            }}
-          />
-            </div>
-          )}
-        </section>
+          onUpdate={updateOrder}
+          onCancel={handleCancelOrder}
+        />
       )}
 
       {/* REPLAY CONTROL PANEL */}
@@ -858,7 +446,7 @@ useEffect(() => {
 
       {/* ORDER MODAL */}
 
-      {showReplayControls &&
+      {isOrderModalOpen &&
         activeSessionId &&
         createPortal(
           <OrderModal
