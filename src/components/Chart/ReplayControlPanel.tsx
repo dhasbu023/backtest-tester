@@ -13,7 +13,6 @@ import {
   CheckCircle2,
   Save,
   X,
-  GripHorizontal,
 } from 'lucide-react';
 
 import type { Timeframe } from '../../types/index.js';
@@ -61,15 +60,9 @@ export const ReplayControlPanel: React.FC<ReplayControlPanelProps> = ({
   onChangeSpeed,
   onJumpToTimestamp,
 }) => {
-  // ==========================================
-  // STATE
-  // ==========================================
-
   const [showJumpModal, setShowJumpModal] = useState(false);
   const [jumpInput, setJumpInput] = useState('');
 
-  // null = posisi default tengah bawah.
-  // Setelah drag, posisi menggunakan koordinat layar.
   const [panelPosition, setPanelPosition] = useState<{
     x: number | null;
     y: number | null;
@@ -113,29 +106,25 @@ export const ReplayControlPanel: React.FC<ReplayControlPanelProps> = ({
   const handleDragStart = (
     event: React.PointerEvent<HTMLDivElement>,
   ) => {
-    // Hanya tombol kiri mouse.
     if (event.pointerType === 'mouse' && event.button !== 0) {
       return;
     }
 
     const target = event.target as HTMLElement;
 
-    // Jangan drag ketika berinteraksi dengan kontrol.
-    const interactiveElement = target.closest(
-      'button, input, select, textarea, a, [role="slider"]',
-    );
-
-    if (interactiveElement) {
+    if (
+      target.closest(
+        'button, input, select, textarea, a, [role="slider"]',
+      )
+    ) {
       return;
     }
 
     const panel = panelRef.current;
-
     if (!panel) return;
 
     const rect = panel.getBoundingClientRect();
 
-    // Mencegah pemilihan teks ketika drag.
     event.preventDefault();
 
     dragRef.current = {
@@ -147,7 +136,6 @@ export const ReplayControlPanel: React.FC<ReplayControlPanelProps> = ({
     };
 
     setIsDragging(true);
-
     event.currentTarget.setPointerCapture(event.pointerId);
   };
 
@@ -161,7 +149,6 @@ export const ReplayControlPanel: React.FC<ReplayControlPanelProps> = ({
     }
 
     const panel = panelRef.current;
-
     if (!panel) return;
 
     const rect = panel.getBoundingClientRect();
@@ -169,16 +156,18 @@ export const ReplayControlPanel: React.FC<ReplayControlPanelProps> = ({
     const deltaX = event.clientX - drag.startX;
     const deltaY = event.clientY - drag.startY;
 
-    // Posisi baru berdasarkan posisi awal panel.
-    let nextX = drag.initialX + deltaX;
-    let nextY = drag.initialY + deltaY;
-
-    // Batas layar.
     const maxX = Math.max(0, window.innerWidth - rect.width);
     const maxY = Math.max(0, window.innerHeight - rect.height);
 
-    nextX = Math.max(0, Math.min(maxX, nextX));
-    nextY = Math.max(0, Math.min(maxY, nextY));
+    const nextX = Math.max(
+      0,
+      Math.min(maxX, drag.initialX + deltaX),
+    );
+
+    const nextY = Math.max(
+      0,
+      Math.min(maxY, drag.initialY + deltaY),
+    );
 
     setPanelPosition({
       x: nextX,
@@ -231,7 +220,7 @@ export const ReplayControlPanel: React.FC<ReplayControlPanelProps> = ({
   };
 
   // ==========================================
-  // PANEL POSITION STYLE
+  // PANEL POSITION
   // ==========================================
 
   const panelStyle: React.CSSProperties = {
@@ -250,7 +239,7 @@ export const ReplayControlPanel: React.FC<ReplayControlPanelProps> = ({
 
     bottom:
       panelPosition.y === null
-        ? '16px'
+        ? '12px'
         : 'auto',
 
     transform:
@@ -259,9 +248,7 @@ export const ReplayControlPanel: React.FC<ReplayControlPanelProps> = ({
         : 'none',
 
     cursor: isDragging ? 'grabbing' : 'grab',
-
     userSelect: isDragging ? 'none' : 'auto',
-
     WebkitUserSelect: isDragging ? 'none' : 'auto',
   };
 
@@ -271,10 +258,6 @@ export const ReplayControlPanel: React.FC<ReplayControlPanelProps> = ({
 
   return (
     <>
-      {/* ======================================
-          FULLY DRAGGABLE REPLAY PANEL
-      ====================================== */}
-
       <div
         ref={panelRef}
         style={panelStyle}
@@ -283,30 +266,26 @@ export const ReplayControlPanel: React.FC<ReplayControlPanelProps> = ({
         onPointerUp={handleDragEnd}
         onPointerCancel={handleDragEnd}
         onLostPointerCapture={handleDragEnd}
-        className="w-[min(620px,calc(100vw-24px))]"
+        className="w-[min(500px,calc(100vw-20px))]"
       >
         <section
           aria-label="Kontrol chart replay"
           className={`
-            overflow-visible rounded-xl border
+            overflow-hidden rounded-lg border
             border-slate-200/90
-            bg-white/95 p-2.5
-            text-slate-800 shadow-xl
+            bg-white/95 px-2.5 py-2
+            text-slate-800 shadow-lg
             backdrop-blur-md
             dark:border-slate-700/90
             dark:bg-slate-900/95
             dark:text-slate-100
-            sm:p-3
             ${isDragging ? 'shadow-2xl' : ''}
           `}
         >
-          {/* DRAG INDICATOR */}
-
-
           {/* PROGRESS */}
 
-          <div className="mb-2 flex items-center gap-2">
-            <span className="shrink-0 text-[10px] font-medium text-slate-500 dark:text-slate-400">
+          <div className="mb-1.5 flex items-center gap-1.5">
+            <span className="shrink-0 text-[9px] font-semibold text-slate-500 dark:text-slate-400">
               Replay
             </span>
 
@@ -320,33 +299,33 @@ export const ReplayControlPanel: React.FC<ReplayControlPanelProps> = ({
                 onSeek(Number.parseInt(event.target.value, 10))
               }
               aria-label="Posisi replay"
-              className="h-1.5 min-w-0 flex-1 cursor-pointer appearance-none rounded-full bg-slate-200 accent-blue-600 disabled:cursor-not-allowed dark:bg-slate-700"
+              className="h-1 min-w-0 flex-1 cursor-pointer appearance-none rounded-full bg-slate-200 accent-blue-600 disabled:cursor-not-allowed dark:bg-slate-700"
             />
 
-            <span className="shrink-0 font-mono text-[10px] text-slate-500 dark:text-slate-400">
+            <span className="shrink-0 font-mono text-[9px] text-slate-500 dark:text-slate-400">
               {safeIndex + 1}/{totalCandles}
             </span>
 
-            <span className="shrink-0 rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-blue-600 dark:bg-blue-950 dark:text-blue-400">
+            <span className="shrink-0 rounded bg-blue-50 px-1 py-0.5 text-[9px] font-semibold text-blue-600 dark:bg-blue-950 dark:text-blue-400">
               {percentProgress}%
             </span>
           </div>
 
-          {/* PLAYBACK CONTROLS */}
+          {/* CONTROLS */}
 
-          <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
 
-            {/* PLAY / PAUSE / NEXT / PREVIOUS */}
+            {/* PLAYBACK */}
 
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-0.5">
               <button
                 type="button"
                 onClick={onReset}
                 title="Reset replay"
                 aria-label="Reset replay"
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+                className="flex h-7 w-7 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
               >
-                <RotateCcw className="h-4 w-4" />
+                <RotateCcw className="h-3.5 w-3.5" />
               </button>
 
               <button
@@ -355,9 +334,9 @@ export const ReplayControlPanel: React.FC<ReplayControlPanelProps> = ({
                 disabled={safeIndex <= 0}
                 title="Candle sebelumnya"
                 aria-label="Candle sebelumnya"
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-slate-100 disabled:opacity-30 dark:text-slate-300 dark:hover:bg-slate-800"
+                className="flex h-7 w-7 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100 disabled:opacity-30 dark:text-slate-300 dark:hover:bg-slate-800"
               >
-                <ChevronLeft className="h-4 w-4" />
+                <ChevronLeft className="h-3.5 w-3.5" />
               </button>
 
               <button
@@ -366,9 +345,9 @@ export const ReplayControlPanel: React.FC<ReplayControlPanelProps> = ({
                 disabled={totalCandles === 0}
                 title="Play / Pause (Spasi)"
                 className={`
-                  flex h-8 items-center justify-center gap-1.5
-                  rounded-lg px-3 text-xs font-semibold
-                  text-white shadow-sm transition-colors
+                  flex h-7 items-center justify-center gap-1
+                  rounded-md px-2.5 text-[10px] font-semibold
+                  text-white shadow-sm
                   disabled:opacity-40
                   ${
                     isPlaying
@@ -378,9 +357,9 @@ export const ReplayControlPanel: React.FC<ReplayControlPanelProps> = ({
                 `}
               >
                 {isPlaying ? (
-                  <Pause className="h-3.5 w-3.5 fill-current" />
+                  <Pause className="h-3 w-3 fill-current" />
                 ) : (
-                  <Play className="ml-0.5 h-3.5 w-3.5 fill-current" />
+                  <Play className="h-3 w-3 fill-current" />
                 )}
 
                 {isPlaying ? 'Pause' : 'Play'}
@@ -392,16 +371,16 @@ export const ReplayControlPanel: React.FC<ReplayControlPanelProps> = ({
                 disabled={safeIndex >= maxIndex}
                 title="Candle berikutnya"
                 aria-label="Candle berikutnya"
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-slate-100 disabled:opacity-30 dark:text-slate-300 dark:hover:bg-slate-800"
+                className="flex h-7 w-7 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100 disabled:opacity-30 dark:text-slate-300 dark:hover:bg-slate-800"
               >
-                <ChevronRight className="h-4 w-4" />
+                <ChevronRight className="h-3.5 w-3.5" />
               </button>
             </div>
 
-            {/* SPEED SELECTOR */}
+            {/* SPEED */}
 
-            <div className="flex items-center gap-0.5 rounded-lg bg-slate-100 p-1 dark:bg-slate-800">
-              <Gauge className="mx-1 h-3.5 w-3.5 shrink-0 text-slate-400" />
+            <div className="flex items-center gap-0.5 rounded-md bg-slate-100 p-0.5 dark:bg-slate-800">
+              <Gauge className="mx-1 h-3 w-3 shrink-0 text-slate-400" />
 
               {SPEED_OPTIONS.map((speed) => (
                 <button
@@ -411,8 +390,8 @@ export const ReplayControlPanel: React.FC<ReplayControlPanelProps> = ({
                   aria-pressed={replaySpeed === speed}
                   title={`Kecepatan ${speed}x`}
                   className={`
-                    rounded-md px-1.5 py-1
-                    text-[10px] font-semibold
+                    rounded px-1 py-0.5
+                    text-[9px] font-semibold
                     transition-colors
                     ${
                       replaySpeed === speed
@@ -426,16 +405,16 @@ export const ReplayControlPanel: React.FC<ReplayControlPanelProps> = ({
               ))}
             </div>
 
-            {/* TIME / JUMP / SAVE STATUS */}
+            {/* TIME AND ACTIONS */}
 
-            <div className="flex min-w-0 items-center gap-1.5">
+            <div className="flex min-w-0 items-center gap-1">
               <div
-                className="flex min-w-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 dark:border-slate-700 dark:bg-slate-800/80"
+                className="flex min-w-0 items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-1.5 py-1 dark:border-slate-700 dark:bg-slate-800/80"
                 title={`Waktu candle: ${activeTimezone}`}
               >
-                <Clock className="h-3.5 w-3.5 shrink-0 text-blue-500" />
+                <Clock className="h-3 w-3 shrink-0 text-blue-500" />
 
-                <span className="truncate font-mono text-[10px] font-semibold">
+                <span className="truncate font-mono text-[9px] font-semibold">
                   {formatDateTimeWithTz(
                     currentTimestamp,
                     activeTimezone,
@@ -449,14 +428,14 @@ export const ReplayControlPanel: React.FC<ReplayControlPanelProps> = ({
                   onClick={() => setShowJumpModal(true)}
                   title="Lompat ke tanggal dan waktu"
                   aria-label="Lompat ke tanggal dan waktu"
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-blue-600 dark:hover:bg-slate-800"
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-blue-600 dark:hover:bg-slate-800"
                 >
-                  <Calendar className="h-4 w-4" />
+                  <Calendar className="h-3.5 w-3.5" />
                 </button>
               )}
 
               <div
-                className="hidden shrink-0 items-center justify-center sm:flex"
+                className="flex h-7 w-5 shrink-0 items-center justify-center"
                 title={
                   isSaving
                     ? 'Menyimpan perubahan'
@@ -464,9 +443,9 @@ export const ReplayControlPanel: React.FC<ReplayControlPanelProps> = ({
                 }
               >
                 {isSaving ? (
-                  <Save className="h-3.5 w-3.5 animate-pulse text-amber-500" />
+                  <Save className="h-3 w-3 animate-pulse text-amber-500" />
                 ) : (
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                  <CheckCircle2 className="h-3 w-3 text-emerald-500" />
                 )}
               </div>
             </div>
@@ -474,23 +453,19 @@ export const ReplayControlPanel: React.FC<ReplayControlPanelProps> = ({
         </section>
       </div>
 
-      {/* ======================================
-          JUMP TO DATE MODAL
-      ====================================== */}
+      {/* JUMP TO DATE MODAL */}
 
       {showJumpModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/50 p-3 backdrop-blur-sm">
           <div
             role="dialog"
             aria-modal="true"
             aria-labelledby="replay-jump-title"
-            className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-700 dark:bg-slate-900"
+            className="w-full max-w-xs rounded-lg border border-slate-200 bg-white p-3.5 shadow-2xl dark:border-slate-700 dark:bg-slate-900"
           >
-            {/* MODAL HEADER */}
-
-            <div className="mb-3 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-white">
-                <Calendar className="h-4 w-4 text-blue-600" />
+            <div className="mb-2.5 flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 dark:text-white">
+                <Calendar className="h-3.5 w-3.5 text-blue-600" />
 
                 <span id="replay-jump-title">
                   Lompat ke Waktu
@@ -503,26 +478,21 @@ export const ReplayControlPanel: React.FC<ReplayControlPanelProps> = ({
                 aria-label="Tutup"
                 className="rounded-md p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
               >
-                <X className="h-4 w-4" />
+                <X className="h-3.5 w-3.5" />
               </button>
             </div>
 
-            {/* MODAL DESCRIPTION */}
-
-            <p className="mb-4 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+            <p className="mb-3 text-[10px] leading-relaxed text-slate-500 dark:text-slate-400">
               Masukkan tanggal dan waktu sesuai zona waktu{' '}
-              <strong>{activeTimezone}</strong>. Format:{' '}
+              <strong>{activeTimezone}</strong>. Format{' '}
               <code className="text-blue-500">
                 YYYY-MM-DD HH:mm
               </code>.
-              Replay akan mencari candle pada waktu tersebut.
             </p>
-
-            {/* MODAL FORM */}
 
             <form
               onSubmit={handleJumpSubmit}
-              className="space-y-4"
+              className="space-y-2.5"
             >
               <input
                 type="text"
@@ -534,21 +504,21 @@ export const ReplayControlPanel: React.FC<ReplayControlPanelProps> = ({
                 autoFocus
                 required
                 aria-label="Tanggal dan waktu tujuan"
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 font-mono text-xs text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                className="w-full rounded-md border border-slate-300 bg-white px-2.5 py-2 font-mono text-[10px] text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
               />
 
-              <div className="flex justify-end gap-2">
+              <div className="flex justify-end gap-1.5">
                 <button
                   type="button"
                   onClick={() => setShowJumpModal(false)}
-                  className="rounded-lg px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+                  className="rounded-md px-2.5 py-1.5 text-[10px] font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
                 >
                   Batal
                 </button>
 
                 <button
                   type="submit"
-                  className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700"
+                  className="rounded-md bg-blue-600 px-3 py-1.5 text-[10px] font-semibold text-white hover:bg-blue-700"
                 >
                   Lompat
                 </button>

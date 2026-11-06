@@ -51,6 +51,7 @@ import { useChartTimezone } from '../../hooks/useChartTimezone.js';
 import { useChartCandleUpdate } from '../../hooks/useChartCandleUpdate.js';
 import { useIndicatorProperties } from '../../hooks/useIndicatorProperties.js';
 import { useChartControls } from '../../hooks/useChartControls.js';
+import OrderLines from '../Orders/OrderLines';
 
 import {
   useSubIndicatorSeries,
@@ -78,6 +79,9 @@ import type {
   IndicatorConfig,
   Timeframe,
 } from '../../types/index.js';
+
+
+import type { BacktestOrder } from '../../types/order.js';
 
 
 // ============================================================
@@ -139,7 +143,11 @@ interface TradingChartProps {
   isLoading?: boolean;
 
   // Session
-  sessionId: string;
+   sessionId: string;
+  
+  // Trading orders
+orders?: BacktestOrder[];
+onCancelPendingOrder?: (orderId: string) => void | Promise<void>;
 
   // Timezone
   activeTimezone: string;
@@ -238,6 +246,10 @@ onToggleReplay,
 // Create order
 canCreateOrder = false,
 onCreateOrderClick,
+
+// Trading orders
+orders = [],
+onCancelPendingOrder,
 }) => {
 
   // ==========================================================
@@ -964,6 +976,14 @@ useEffect(() => {
             isDarkMode={isDarkMode}
             containerWidth={containerDimensions.width}
             containerHeight={containerDimensions.height}
+          />
+
+          {/* Trading Order Lines */}
+            <OrderLines
+            chart={chartInstance}
+            series={candlestickSeriesInstance}
+            orders={orders}
+            onCancelPendingOrder={onCancelPendingOrder}
           />
 
 

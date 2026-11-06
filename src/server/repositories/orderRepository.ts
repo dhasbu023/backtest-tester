@@ -433,7 +433,76 @@ export class OrderRepository {
       client.release();
     }
   }
+    /**
+   * Membatalkan pending order.
+   * Hanya order dengan status PENDING yang dapat dibatalkan.
+   */
+  async cancelOrder(
+    orderId: string,
+  ): Promise<BacktestOrder> {
+    this.context.ensureInitialized();
 
+    if (!orderId || !orderId.trim()) {
+      throw new Error('Order ID wajib diisi.');
+    }
+
+    const client = await this.context.getPool().connect();
+
+    try {
+      await client.query('BEGIN');
+
+      const orderResult = await client.query(
+        `
+          SELECT *
+          FROM "BacktestOrder"
+          WHERE "id" = $1
+          FOR UPDATE
+        `,
+        [orderId],
+      );
+
+      if (orderResult.rowCount === 0) {
+        throw new Error('Order tidak ditemukan.');
+      }
+
+      const order = orderResult.rows[0] as OrderRow;
+
+      // Jika sudah dibatalkan, kembalikan data order.
+      if (order.status === 'CANCELLED') {
+        await client.query('COMMIT');
+        return this.mapOrderRow(order);
+      }
+
+      // Hanya pending order yang boleh dibatalkan.
+      if (order.status !== 'PENDING') {
+        throw new Error(
+          'Hanya pending order yang dapat dibatalkan.',
+        );
+      }
+
+      const result = await client.query(
+        `
+          UPDATE "BacktestOrder"
+          SET
+            "status" = 'CANCELLED',
+            "updatedAt" = NOW()
+          WHERE "id" = $1
+          RETURNING *
+        `,
+        [orderId],
+      );
+
+      await client.query('COMMIT');
+
+      return this.mapOrderRow(result.rows[0]);
+
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
   /**
    * Menutup order dan menyimpan hasilnya ke PostgreSQL.
    */

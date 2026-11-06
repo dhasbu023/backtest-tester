@@ -803,6 +803,56 @@ apiApp.patch(
   }
 );
 
+// ==========================================
+// POST /api/orders/:orderId/cancel
+// Membatalkan pending order
+// ==========================================
+
+apiApp.post(
+  '/orders/:orderId/cancel',
+  async (req: Request, res: Response) => {
+    try {
+      const orderId = req.params.orderId;
+
+      if (!orderId || !orderId.trim()) {
+        return res.status(400).json({
+          error: 'Order ID wajib diisi.',
+        });
+      }
+
+      const order = await db.cancelOrder(orderId);
+
+      console.log('[API] Order cancelled:', {
+        id: order.id,
+        status: order.status,
+      });
+
+      return res.json(order);
+
+    } catch (err: any) {
+      console.error('[API] Cancel order error:', err);
+
+      const message =
+        err instanceof Error ? err.message : String(err);
+
+      if (message === 'Order tidak ditemukan.') {
+        return res.status(404).json({
+          error: message,
+        });
+      }
+
+      if (message.includes('Hanya pending order')) {
+        return res.status(400).json({
+          error: message,
+        });
+      }
+
+      return res.status(500).json({
+        error: 'Gagal membatalkan order: ' + message,
+      });
+    }
+  }
+);
 
 // ==========================================
 // POST /api/orders/:orderId/close

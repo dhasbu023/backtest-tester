@@ -377,6 +377,11 @@ export default function ChartPage({
               onToggleReplay={handleToggleReplay}
               canCreateOrder={canCreateOrder}
               onCreateOrderClick={handleOpenOrderModal}
+              orders={orders}
+              onCancelPendingOrder={(orderId) => {
+                console.log('Membatalkan order:', orderId);
+                return handleCancelOrder({ id: orderId });
+              }}
             />
           </ErrorBoundary>
         </div>

@@ -432,6 +432,12 @@ class DatabaseManager {
     return this.orderRepository.updateOrder(orderId, input);
   }
 
+    async cancelOrder(
+    orderId: string,
+  ): Promise<BacktestOrder> {
+    return this.orderRepository.cancelOrder(orderId);
+  }
+
   async closeOrder(
     orderId: string,
     input: CloseOrderInput,
